@@ -14,23 +14,32 @@
 
 mod run;
 
-struct Plugin<'a> {
-    pub name: &'a str,
-    pub init: fn(&Vec<String>) -> Result<(), ()>,
+pub enum PluginCommand {
+    Nop,
+    PrintHelp,
 }
 
-pub fn get_plugins() -> Vec<Plugin> {
+pub trait Plugin {
+    fn get_name<'a>(&'a self) -> &'a String;
+    fn get_usage(&self) -> String;
+    fn init_client(&self, args: &Vec<String>) -> Result<PluginCommand, String>;
+}
+
+fn get_plugins() -> Vec<Box<Plugin>> {
     vec!(
-        Plugin { name: "run", init: self::run::init },
+        self::run::get_plugin(),
     )
 }
 
-pub fn command(cmd: &String, args: &Vec<String>) -> Result<(), ()> {
-    for plugin in get_plugins().iter() {
-        if plugin.name == cmd.as_slice() {
-            let init = plugin.init;
-            return init(args);
+pub fn get_plugin(name: &String) -> Option<Box<Plugin>> {
+    for plugin in get_plugins().move_iter() {
+        if plugin.get_name() == name {
+            return Some(plugin);
         }
     }
-    Err(())
+    None
+}
+
+pub fn get_plugins_name() -> Vec<String> {
+    get_plugins().iter().map(|x| x.get_name().clone()).collect()
 }
