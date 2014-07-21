@@ -13,26 +13,30 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate getopts;
+extern crate serialize;
 
 use self::getopts::{optflag, getopts, OptGroup};
 
-struct PortalRunCommand {
+#[deriving(Clone, Decodable, Encodable, Show)]
+pub struct PortalRunCommand {
     profile: String,
     command: Vec<String>,
 }
 
-struct RunPlugin {
+pub struct RunPlugin {
     name: String,
     opts: Vec<OptGroup>,
+    portal_cmd: Option<PortalRunCommand>,
 }
 
 impl RunPlugin {
-    fn new() -> RunPlugin {
+    pub fn new() -> RunPlugin {
         RunPlugin {
             name: "run".to_string(),
             opts: vec!(
                 optflag("h", "help", "Print this message"),
             ),
+            portal_cmd: None,
         }
     }
 }
@@ -42,7 +46,14 @@ impl super::Plugin for RunPlugin {
         &self.name
     }
 
-    fn init_client(&self, args: &Vec<String>) -> Result<super::PluginCommand, String> {
+    fn get_portal_cmd(&self) -> Option<super::PortalPluginCommand> {
+        match self.portal_cmd {
+            Some(ref c) => Some(super::RunCommand(c.clone())),
+            None => None,
+        }
+    }
+
+    fn init_client(&mut self, args: &Vec<String>) -> Result<super::KageAction, String> {
         let matches = match getopts(args.as_slice(), self.opts.as_slice()) {
             Ok(m) => m,
             Err(e) => return Err(format!("{}", e)),
@@ -55,25 +66,15 @@ impl super::Plugin for RunPlugin {
             Some(p) => p,
             None => return Err("Need a profile name".to_string()),
         };
-        let command = match argi.next() {
-            Some(c) => c,
-            None => return Err("Need a command".to_string()),
-        };
-        let portal_cmd = PortalRunCommand {
+        self.portal_cmd = Some(PortalRunCommand {
             profile: profile.clone(),
             command: argi.map(|x| x.to_string()).collect(),
-        };
-        println!("run profile: {}", profile);
-        println!("run args: {}", matches.free);
-        Ok(super::Nop)
+        });
+        Ok(super::SendPortalCommand)
     }
 
     fn get_usage(&self) -> String {
         let msg = format!("Usage for the {} command", self.name);
         format!("{}", getopts::usage(msg.as_slice(), self.opts.as_slice()))
     }
-}
-
-pub fn get_plugin() -> Box<super::Plugin> {
-    box RunPlugin::new() as Box<super::Plugin>
 }

@@ -17,8 +17,14 @@
 #![desc = "stemjail CLI"]
 #![license = "LGPL-3.0"]
 
-use std::{io, os};
+// Need deriving Decodable and Encodable
+extern crate serialize;
 
+use std::io::net::unix::UnixStream;
+use std::{io, os};
+use self::serialize::json;
+
+mod stemjail;
 mod plugins;
 
 fn get_usage() -> String {
@@ -32,13 +38,27 @@ fn args_fail(msg: String) {
     os::set_exit_status(1);
 }
 
-fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::PluginCommand) {
+fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Result<(), String> {
     match cmd {
         plugins::Nop => {}
         plugins::PrintHelp => {
             println!("{}\n{}", plugin.get_usage(), get_usage());
         }
+        plugins::SendPortalCommand => {
+            let cmd = match plugin.get_portal_cmd() {
+                Some(c) => c,
+                None => return Err("No command".to_string()),
+            };
+            let json = json::encode(&cmd);
+            let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
+            let mut stream = UnixStream::connect(&server);
+            match stream.write_str(json.as_slice()) {
+                Ok(_) => {},
+                Err(e) => return Err(format!("{}", e)),
+            }
+        }
     }
+    Ok(())
 }
 
 fn main() {
@@ -49,7 +69,7 @@ fn main() {
     match args.next() {
         Some(cmd) => {
             let plugin_args: Vec<String> = args.map(|x| x.to_string()).collect();
-            let plugin = match plugins::get_plugin(cmd) {
+            let mut plugin = match plugins::get_plugin(cmd) {
                 Some(p) => p,
                 None => {
                     args_fail("No command with this name".to_string());
@@ -57,7 +77,13 @@ fn main() {
                 }
             };
             match plugin.init_client(&plugin_args) {
-                Ok(cmd) => plugin_action(plugin, cmd),
+                Ok(cmd) => match plugin_action(plugin, cmd) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        args_fail(format!("Command action error: {}", e));
+                        return;
+                    }
+                },
                 Err(e) => {
                     args_fail(format!("Command error: {}", e));
                     return;

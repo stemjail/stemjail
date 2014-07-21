@@ -14,23 +14,32 @@
 
 mod run;
 
-pub enum PluginCommand {
+pub enum KageAction {
     Nop,
     PrintHelp,
+    SendPortalCommand,
+}
+
+#[deriving(Decodable, Encodable, Show)]
+pub enum PortalPluginCommand {
+    RunCommand(self::run::PortalRunCommand),
 }
 
 pub trait Plugin {
     fn get_name<'a>(&'a self) -> &'a String;
     fn get_usage(&self) -> String;
-    fn init_client(&self, args: &Vec<String>) -> Result<PluginCommand, String>;
+    fn get_portal_cmd(&self) -> Option<PortalPluginCommand>;
+    fn init_client(&mut self, args: &Vec<String>) -> Result<KageAction, String>;
 }
 
 fn get_plugins() -> Vec<Box<Plugin>> {
     vec!(
-        self::run::get_plugin(),
+        box self::run::RunPlugin::new() as Box<Plugin>,
     )
 }
 
+// TODO: Not used in portal.rs: create a crate
+#[allow(dead_code)]
 pub fn get_plugin(name: &String) -> Option<Box<Plugin>> {
     for plugin in get_plugins().move_iter() {
         if plugin.get_name() == name {
@@ -40,6 +49,8 @@ pub fn get_plugin(name: &String) -> Option<Box<Plugin>> {
     None
 }
 
+// TODO: Not used in portal.rs: create a crate
+#[allow(dead_code)]
 pub fn get_plugins_name() -> Vec<String> {
     get_plugins().iter().map(|x| x.get_name().clone()).collect()
 }
