@@ -14,3 +14,6 @@ path = "src/portal.rs"
 [[lib]]
 name = "stemjail"
 path = "src/stemjail/mod.rs"
+
+[dependencies.toml]
+path = "../rust-toml"

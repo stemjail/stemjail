@@ -1,0 +1,13 @@
+# Portal profile example #1
+
+name = "example1"
+
+[socket]
+path = "./portal.sock"
+
+[fs]
+root = "./tmp-chroot"
+
+[run]
+exe = "/bin/sh"
+args = ["-c", "id"]
