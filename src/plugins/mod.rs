@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-mod run;
+pub mod run;
 
 pub enum KageAction {
     Nop,
@@ -38,8 +38,6 @@ fn get_plugins() -> Vec<Box<Plugin>> {
     )
 }
 
-// TODO: Not used in portal.rs: create a crate
-#[allow(dead_code)]
 pub fn get_plugin(name: &String) -> Option<Box<Plugin>> {
     for plugin in get_plugins().move_iter() {
         if plugin.get_name() == name {
@@ -49,8 +47,6 @@ pub fn get_plugin(name: &String) -> Option<Box<Plugin>> {
     None
 }
 
-// TODO: Not used in portal.rs: create a crate
-#[allow(dead_code)]
 pub fn get_plugins_name() -> Vec<String> {
     get_plugins().iter().map(|x| x.get_name().clone()).collect()
 }

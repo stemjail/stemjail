@@ -17,15 +17,13 @@
 #![desc = "stemjail CLI"]
 #![license = "LGPL-3.0"]
 
-// Need deriving Decodable and Encodable
+extern crate stemjail;
 extern crate serialize;
 
 use std::io::net::unix::UnixStream;
 use std::{io, os};
 use self::serialize::json;
-
-mod stemjail;
-mod plugins;
+use self::stemjail::plugins;
 
 fn get_usage() -> String {
     let name: String = os::args().shift().unwrap_or("stemjail-cli".to_string());

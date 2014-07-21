@@ -10,3 +10,7 @@ path = "src/kage.rs"
 [[bin]]
 name = "portal"
 path = "src/portal.rs"
+
+[[lib]]
+name = "stemjail"
+path = "src/stemjail/mod.rs"

@@ -17,15 +17,14 @@
 #![desc = "stemjail Portal"]
 #![license = "LGPL-3.0"]
 
+extern crate stemjail;
 extern crate serialize;
 
 use std::io::fs;
 use std::io::{Listener, Acceptor};
 use std::io::net::unix::UnixListener;
 use serialize::json;
-
-mod stemjail;
-mod plugins;
+use self::stemjail::plugins;
 
 fn print_client(encoded_str: String) -> Result<(), String> {
     // FIXME: task '<main>' failed at 'called `Option::unwrap()` on a `None` value', .../rust/src/libcore/option.rs:265
