@@ -17,6 +17,8 @@
 #![desc = "stemjail Portal"]
 #![license = "LGPL-3.0"]
 
+#![feature(macro_rules)]
+
 extern crate stemjail;
 extern crate serialize;
 
@@ -42,6 +44,16 @@ fn handle_client(mut stream: UnixStream) -> Result<(), String> {
     Ok(())
 }
 
+macro_rules! exit_error(
+    ($($arg:tt)*) => {
+        {
+            format_args!(::std::io::stdio::println_args, $($arg)*);
+            std::os::set_exit_status(1);
+            return;
+        }
+    };
+)
+
 fn main() {
     let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
@@ -57,10 +69,7 @@ fn main() {
                     }
                 });
             }
-            Err(e) => {
-                println!("Connection error: {}", e);
-                return;
-            }
+            Err(e) => exit_error!("Connection error: {}", e),
         }
     }
 }
