@@ -89,5 +89,8 @@ def main(argv):
     defbinds = [DefBind("MS", "c_ulong")]
     gen_flags("{0}/uapi/linux/fs.h".format(include), "gen/fs.rs", defbinds)
 
+    defbinds = [DefBind("MNT|UMOUNT", "c_uint")]
+    gen_flags("{0}/linux/fs.h".format(include), "gen/fs0.rs", defbinds)
+
 if __name__ == '__main__':
     main(sys.argv)
