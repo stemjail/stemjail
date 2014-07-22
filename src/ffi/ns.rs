@@ -15,17 +15,23 @@
 extern crate libc;
 
 use std::{io, os};
+use std::ptr;
 
 #[path = "gen/sched.rs"]
 mod sched;
+#[path = "gen/fs.rs"]
+mod fs;
 
 mod raw {
     extern crate libc;
 
-    use self::libc::{c_char, c_int, c_uint};
+    use self::libc::{c_char, c_int, c_uint, c_ulong};
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
+        pub fn mount(source: *const c_char, target: *const c_char,
+                     filesystemtype: *const c_char, mountflags: c_ulong,
+                     data: *const c_char) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
     }
 }
@@ -59,6 +65,31 @@ pub fn chroot(path: &Path) -> io::IoResult<()> {
             0 => Ok(()),
             _ => Err(io::IoError::last_error()),
         }
+    })
+}
+
+#[allow(dead_code)]
+pub fn mount(source: &Path, target: &Path, filesystemtype: &String,
+             mountflags: &fs::MsFlags, data: &Option<String>) -> io::IoResult<()> {
+    let src = path2str!(source);
+    let tgt = path2str!(target);
+    src.with_c_str(|src| {
+        tgt.with_c_str(|tgt| {
+            filesystemtype.with_c_str(|fst| {
+                let ret = match data {
+                    &Some(ref data) => data.with_c_str(|opt| { unsafe {
+                        raw::mount(src, tgt, fst, mountflags.bits(), opt)
+                    } }),
+                    &None => unsafe {
+                        raw::mount(src, tgt, fst, mountflags.bits(), ptr::null())
+                    }
+                };
+                match ret {
+                    0 => Ok(()),
+                    _ => Err(io::IoError::last_error()),
+                }
+            })
+        })
     })
 }
 
