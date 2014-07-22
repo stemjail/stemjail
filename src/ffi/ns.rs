@@ -26,6 +26,7 @@ mod raw {
     extern crate libc;
 
     use self::libc::{c_char, c_int, c_uint, c_ulong};
+    use self::libc::types::os::arch::posix88::pid_t;
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
@@ -33,6 +34,22 @@ mod raw {
                      filesystemtype: *const c_char, mountflags: c_ulong,
                      data: *const c_char) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
+    }
+
+    // Syscall without argument
+    mod sc0 {
+        use super::libc::c_int;
+
+        extern {
+            pub fn syscall(number: c_int) -> c_int;
+        }
+    }
+
+    // Syscall numbers from x86_64-linux-gnu/asm/unistd_64.h
+    #[cfg(target_arch="x86_64")]
+    #[allow(dead_code)]
+    pub fn gettid() -> pid_t {
+        unsafe { sc0::syscall(186) as pid_t }
     }
 }
 
