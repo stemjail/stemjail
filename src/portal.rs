@@ -22,11 +22,17 @@ extern crate serialize;
 
 use std::io::fs;
 use std::io::{Listener, Acceptor};
-use std::io::net::unix::UnixListener;
+use std::io::net::unix::{UnixListener, UnixStream};
 use serialize::json;
 use self::stemjail::plugins;
 
-fn print_client(encoded_str: String) -> Result<(), String> {
+fn handle_client(mut stream: UnixStream) -> Result<(), String> {
+    let encoded_str = match stream.read_to_string() {
+        Ok(s) => s,
+        Err(e) => {
+                return Err(format!("Error reading client: {}", e));
+        }
+    };
     // FIXME: task '<main>' failed at 'called `Option::unwrap()` on a `None` value', .../rust/src/libcore/option.rs:265
     let decoded: plugins::PortalPluginCommand = match json::decode(encoded_str.as_slice()) {
         Ok(d) => d,
@@ -41,16 +47,18 @@ fn main() {
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::unlink(&server);
     let stream = UnixListener::bind(&server);
-    for mut client in stream.listen().incoming() {
-        match client.read_to_string() {
+    for stream in stream.listen().incoming() {
+        match stream {
             Ok(s) => {
-                match print_client(s) {
-                    Ok(()) => {}
-                    Err(e) => println!("Fail to decode client command: {}", e),
-                }
+                spawn(proc() {
+                    match handle_client(s) {
+                        Ok(_) => {},
+                        Err(e) => println!("Error reading client: {}", e),
+                    }
+                });
             }
             Err(e) => {
-                println!("Error reading client: {}", e);
+                println!("Connection error: {}", e);
                 return;
             }
         }
