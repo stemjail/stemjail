@@ -17,26 +17,26 @@ extern crate toml;
 
 #[deriving(Decodable, PartialEq, Show)]
 pub struct PortalConfig {
-    name: String,
-    fs: FsConfig,
-    run: RunConfig,
-    socket: SocketConfig,
+    pub name: String,
+    pub fs: FsConfig,
+    pub run: RunConfig,
+    pub socket: SocketConfig,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
 pub struct FsConfig {
-    root: String,
+    pub root: String,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
 pub struct RunConfig {
-    exe: String,
-    args: Option<Vec<String>>,
+    pub exe: String,
+    pub args: Option<Vec<String>>,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
 pub struct SocketConfig {
-    path: String,
+    pub path: String,
 }
 
 pub fn get_config(config_file: &Path) -> Result<PortalConfig, String> {
