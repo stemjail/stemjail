@@ -35,6 +35,7 @@ mod raw {
         pub fn mount(source: *const c_char, target: *const c_char,
                      filesystemtype: *const c_char, mountflags: c_ulong,
                      data: *const c_char) -> c_int;
+        pub fn pivot_root(new_root: *const c_char, put_old: *const c_char) -> c_int;
         pub fn setgroups(size: size_t, list: *const gid_t) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
     }
@@ -109,6 +110,20 @@ pub fn mount(source: &Path, target: &Path, filesystemtype: &String,
                     _ => Err(io::IoError::last_error()),
                 }
             })
+        })
+    })
+}
+
+#[allow(dead_code)]
+pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
+    let new_root = path2str!(new_root);
+    let put_old = path2str!(put_old);
+    new_root.with_c_str(|new_root| {
+        put_old.with_c_str(|put_old| {
+            match unsafe { raw::pivot_root(new_root, put_old) } {
+                0 => Ok(()),
+                _ => Err(io::IoError::last_error()),
+            }
         })
     })
 }
