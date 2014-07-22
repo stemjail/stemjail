@@ -16,13 +16,17 @@ extern crate libc;
 
 use std::{io, os};
 
+#[path = "gen/sched.rs"]
+mod sched;
+
 mod raw {
     extern crate libc;
 
-    use self::libc::{c_char, c_int};
+    use self::libc::{c_char, c_int, c_uint};
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
+        pub fn unshare(flags: c_uint) -> c_int;
     }
 }
 
@@ -56,4 +60,12 @@ pub fn chroot(path: &Path) -> io::IoResult<()> {
             _ => Err(io::IoError::last_error()),
         }
     })
+}
+
+#[allow(dead_code)]
+pub fn unshare(flags: sched::CloneFlags) -> io::IoResult<()> {
+    match unsafe { raw::unshare(flags.bits()) } {
+        0 => Ok(()),
+        _ => Err(io::IoError::last_error()),
+    }
 }
