@@ -14,6 +14,8 @@
 
 extern crate libc;
 
+use self::libc::size_t;
+use self::libc::types::os::arch::posix88::gid_t;
 use std::{io, os};
 use std::ptr;
 
@@ -25,14 +27,15 @@ mod fs;
 mod raw {
     extern crate libc;
 
-    use self::libc::{c_char, c_int, c_uint, c_ulong};
-    use self::libc::types::os::arch::posix88::pid_t;
+    use self::libc::{c_char, c_int, size_t, c_uint, c_ulong};
+    use self::libc::types::os::arch::posix88::{gid_t, pid_t};
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
         pub fn mount(source: *const c_char, target: *const c_char,
                      filesystemtype: *const c_char, mountflags: c_ulong,
                      data: *const c_char) -> c_int;
+        pub fn setgroups(size: size_t, list: *const gid_t) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
     }
 
@@ -108,6 +111,14 @@ pub fn mount(source: &Path, target: &Path, filesystemtype: &String,
             })
         })
     })
+}
+
+#[allow(dead_code)]
+pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
+    match unsafe { raw::setgroups(groups.len() as size_t, groups.as_ptr()) } {
+        -1 => Err(io::IoError::last_error()),
+        _ => Ok(()),
+    }
 }
 
 #[allow(dead_code)]
