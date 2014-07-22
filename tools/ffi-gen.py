@@ -86,5 +86,8 @@ def main(argv):
     defbinds = [DefBind("CLONE", "c_uint")]
     gen_flags("{0}/uapi/linux/sched.h".format(include), "gen/sched.rs", defbinds)
 
+    defbinds = [DefBind("MS", "c_ulong")]
+    gen_flags("{0}/uapi/linux/fs.h".format(include), "gen/fs.rs", defbinds)
+
 if __name__ == '__main__':
     main(sys.argv)
