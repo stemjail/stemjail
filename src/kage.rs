@@ -20,10 +20,10 @@
 extern crate stemjail;
 extern crate serialize;
 
+use stemjail::plugins;
+use serialize::json;
 use std::io::net::unix::UnixStream;
 use std::{io, os};
-use self::serialize::json;
-use self::stemjail::plugins;
 
 fn get_usage() -> String {
     let name: String = os::args().shift().unwrap_or("stemjail-cli".to_string());

@@ -22,11 +22,11 @@
 extern crate stemjail;
 extern crate serialize;
 
+use stemjail::{config, plugins};
+use serialize::json;
 use std::io::fs;
 use std::io::{Listener, Acceptor};
 use std::io::net::unix::{UnixListener, UnixStream};
-use serialize::json;
-use stemjail::{config, plugins};
 
 fn handle_client(mut stream: UnixStream) -> Result<(), String> {
     let encoded_str = match stream.read_to_string() {
