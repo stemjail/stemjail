@@ -23,6 +23,8 @@ use std::ptr;
 mod sched;
 #[path = "gen/fs.rs"]
 mod fs;
+#[path = "gen/fs0.rs"]
+mod fs0;
 
 mod raw {
     extern crate libc;
@@ -37,6 +39,7 @@ mod raw {
                      data: *const c_char) -> c_int;
         pub fn pivot_root(new_root: *const c_char, put_old: *const c_char) -> c_int;
         pub fn setgroups(size: size_t, list: *const gid_t) -> c_int;
+        pub fn umount2(target: *const c_char, flags: c_uint) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
     }
 
@@ -134,6 +137,17 @@ pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
         -1 => Err(io::IoError::last_error()),
         _ => Ok(()),
     }
+}
+
+#[allow(dead_code)]
+pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
+    let target = path2str!(target);
+    target.with_c_str(|target| {
+        match unsafe { raw::umount2(target, flags.bits()) } {
+            0 => Ok(()),
+            _ => Err(io::IoError::last_error()),
+        }
+    })
 }
 
 #[allow(dead_code)]
