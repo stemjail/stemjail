@@ -63,7 +63,24 @@ fn handle_client(mut stream: UnixStream, config: Arc<config::PortalConfig>) -> R
         None => return Err("Missing executable in the command (first argument)".to_string()),
     };
 
-    let mut j = jail::Jail::new(config.name.clone(), absolute_path!(config.fs.root.clone()));
+    let mut j = jail::Jail::new(
+        config.name.clone(),
+        absolute_path!(config.fs.root.clone()),
+        match config.fs.bind {
+            Some(ref b) => b.iter().map(
+                |x| jail::BindMount {
+                    src: absolute_path!(x.src.clone()),
+                    dst: match x.dst {
+                        Some(ref d) => absolute_path!(d.clone()),
+                        None => absolute_path!(x.src.clone()),
+                    },
+                    write: match x.write {
+                        Some(w) => w,
+                        None => false,
+                    },
+                }).collect(),
+            None => Vec::new(),
+        });
     j.run(Path::new(exe));
     Ok(())
 }

@@ -49,16 +49,24 @@ macro_rules! nested_dir(
     };
 )
 
+pub struct BindMount {
+    pub dst: Path,
+    pub src: Path,
+    pub write: bool,
+}
+
 pub struct Jail {
     name: String,
     root: Path,
+    binds: Vec<BindMount>,
 }
 
 impl Jail {
-    pub fn new(name: String, root: Path) -> Jail {
+    pub fn new(name: String, root: Path, binds: Vec<BindMount>) -> Jail {
         Jail {
             name: name,
             root: root,
+            binds: binds,
         }
     }
 
@@ -77,6 +85,20 @@ impl Jail {
         Ok(())
     }
 
+    fn add_bind(&self, bind: &BindMount) -> io::IoResult<()> {
+        // FIXME: There must be no submount (maybe fs_fully_visible check?)
+        let dst = nested_dir!(self.root, bind.dst);
+        let flags = fs::MsMgcVal | fs::MsBind;
+        mkdir_if_not!(&dst);
+        try!(mount(&bind.src, &dst, &"none".to_string(),
+                    &flags, &None));
+        if ! bind.write {
+            let flags = flags | fs::MsRemount | fs::MsRdonly;
+            try!(mount(&bind.src, &dst, &"none".to_string(), &flags, &None));
+        }
+        Ok(())
+    }
+
     // TODO: impl Drop to unmount
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
@@ -90,6 +112,10 @@ impl Jail {
         mkdir_if_not!(&proc_dst);
         try!(mount(&proc_src, &proc_dst, &"proc".to_string(),
                     &fs::MsMgcVal, &None));
+
+        for bind in self.binds.iter() {
+            try!(self.add_bind(bind));
+        }
 
         // Finalize the pivot
         let old_root = Path::new("old_root");

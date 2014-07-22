@@ -8,5 +8,13 @@ path = "./portal.sock"
 [fs]
 root = "./tmp-chroot"
 
+[[fs.bind]]
+src = "/tmp"
+write = true
+
+[[fs.bind]]
+src = "/home"
+dst = "/data-ro"
+
 [run]
 cmd = ["/bin/sh", "-c", "id"]

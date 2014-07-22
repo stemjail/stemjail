@@ -26,6 +26,14 @@ pub struct PortalConfig {
 #[deriving(Decodable, PartialEq, Show)]
 pub struct FsConfig {
     pub root: String,
+    pub bind: Option<Vec<BindConfig>>,
+}
+
+#[deriving(Decodable, PartialEq, Show)]
+pub struct BindConfig {
+    pub src: String,
+    pub dst: Option<String>,
+    pub write: Option<bool>,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
@@ -65,8 +73,24 @@ fn test_get_config_example1() {
     let c1 = get_config(&Path::new("./config/example1.toml"));
     let c2: Result<PortalConfig, String> = Ok(PortalConfig {
         name: "example1".to_string(),
-        socket: SocketConfig { path: "./portal.sock".to_string() },
-        fs: FsConfig { root: "./tmp-chroot".to_string() },
+        socket: SocketConfig {
+            path: "./portal.sock".to_string(),
+        },
+        fs: FsConfig {
+            root: "./tmp-chroot".to_string(),
+            bind: Some(vec!(
+                BindConfig {
+                    src: "/tmp".to_string(),
+                    dst: None,
+                    write: Some(true),
+                },
+                BindConfig {
+                    src: "/home".to_string(),
+                    dst: Some("/data-ro".to_string()),
+                    write: None,
+                },
+            )),
+        },
         run: RunConfig {
             cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
         },
