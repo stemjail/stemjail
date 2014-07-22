@@ -27,3 +27,4 @@ pub mod plugins;
 pub mod config;
 
 pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
+pub static PORTAL_CONFIG_PATH: &'static str = "./config/example1.toml";

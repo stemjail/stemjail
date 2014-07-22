@@ -26,7 +26,7 @@ use std::io::fs;
 use std::io::{Listener, Acceptor};
 use std::io::net::unix::{UnixListener, UnixStream};
 use serialize::json;
-use self::stemjail::plugins;
+use stemjail::{config, plugins};
 
 fn handle_client(mut stream: UnixStream) -> Result<(), String> {
     let encoded_str = match stream.read_to_string() {
@@ -55,7 +55,11 @@ macro_rules! exit_error(
 )
 
 fn main() {
-    let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
+    let config = match config::get_config(&Path::new(stemjail::PORTAL_CONFIG_PATH)) {
+        Ok(c) => c,
+        Err(e) => exit_error!("Configuration error: {}", e),
+    };
+    let server = Path::new(config.socket.path);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::unlink(&server);
     let stream = UnixListener::bind(&server);
