@@ -41,6 +41,7 @@ mod raw {
         pub fn setgroups(size: size_t, list: *const gid_t) -> c_int;
         pub fn umount2(target: *const c_char, flags: c_uint) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
+        pub fn waitpid(pid: pid_t, status: *mut c_int, options: c_int) -> pid_t;
     }
 
     // Syscall without argument
