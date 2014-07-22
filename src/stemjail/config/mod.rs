@@ -38,6 +38,7 @@ pub struct SocketConfig {
     pub path: String,
 }
 
+// TODO: Check for absolute path only
 pub fn get_config(config_file: &Path) -> Result<PortalConfig, String> {
     let root = match toml::parse_from_file(format!("{}", config_file.display()).as_slice()) {
         Ok(r) => r,

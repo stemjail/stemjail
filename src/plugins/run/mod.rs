@@ -19,8 +19,8 @@ use self::getopts::{optflag, getopts, OptGroup};
 
 #[deriving(Clone, Decodable, Encodable, Show)]
 pub struct PortalRunCommand {
-    profile: String,
-    command: Vec<String>,
+    pub profile: String,
+    pub command: Vec<String>,
 }
 
 pub struct RunPlugin {

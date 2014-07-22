@@ -22,13 +22,21 @@
 extern crate stemjail;
 extern crate serialize;
 
-use stemjail::{config, plugins};
+use stemjail::{config, jail, plugins};
 use serialize::json;
 use std::io::fs;
 use std::io::{Listener, Acceptor};
 use std::io::net::unix::{UnixListener, UnixStream};
+use std::os;
+use std::sync::Arc;
 
-fn handle_client(mut stream: UnixStream) -> Result<(), String> {
+macro_rules! absolute_path(
+    ($dir: expr) => {
+        os::getcwd().join(&Path::new($dir))
+    };
+)
+
+fn handle_client(mut stream: UnixStream, config: Arc<config::PortalConfig>) -> Result<(), String> {
     let encoded_str = match stream.read_to_string() {
         Ok(s) => s,
         Err(e) => {
@@ -41,6 +49,22 @@ fn handle_client(mut stream: UnixStream) -> Result<(), String> {
         Err(e) => return Err(e.to_string()),
     };
     println!("Portal got: {}", decoded);
+
+    // Use the client command if any or the configuration command otherwise
+    let cmd = match decoded {
+        plugins::RunCommand(r) => match r.command.iter().next() {
+            Some(_) => r.command.clone(),
+            None => config.run.cmd.clone(),
+        },
+        //_ => config.run.cmd,
+    };
+    let exe = match cmd.iter().next() {
+        Some(c) => c.clone(),
+        None => return Err("Missing executable in the command (first argument)".to_string()),
+    };
+
+    let mut j = jail::Jail::new(config.name.clone(), absolute_path!(config.fs.root.clone()));
+    j.run(Path::new(exe));
     Ok(())
 }
 
@@ -56,18 +80,19 @@ macro_rules! exit_error(
 
 fn main() {
     let config = match config::get_config(&Path::new(stemjail::PORTAL_CONFIG_PATH)) {
-        Ok(c) => c,
+        Ok(c) => Arc::new(c),
         Err(e) => exit_error!("Configuration error: {}", e),
     };
-    let server = Path::new(config.socket.path);
+    let server = Path::new(config.socket.path.clone());
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::unlink(&server);
     let stream = UnixListener::bind(&server);
     for stream in stream.listen().incoming() {
         match stream {
             Ok(s) => {
+                let config = config.clone();
                 spawn(proc() {
-                    match handle_client(s) {
+                    match handle_client(s, config) {
                         Ok(_) => {},
                         Err(e) => println!("Error reading client: {}", e),
                     }

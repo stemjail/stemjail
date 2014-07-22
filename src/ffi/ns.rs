@@ -20,13 +20,13 @@ use std::{io, os};
 use std::ptr;
 
 #[path = "gen/sched.rs"]
-mod sched;
+pub mod sched;
 #[path = "gen/fs.rs"]
-mod fs;
+pub mod fs;
 #[path = "gen/fs0.rs"]
-mod fs0;
+pub mod fs0;
 
-mod raw {
+pub mod raw {
     extern crate libc;
 
     use self::libc::{c_char, c_int, size_t, c_uint, c_ulong};
@@ -74,7 +74,7 @@ macro_rules! path2str(
     );
 )
 
-fn chdir(dir: &Path) -> io::IoResult<()> {
+pub fn chdir(dir: &Path) -> io::IoResult<()> {
     match os::change_dir(dir) {
         true => Ok(()),
         false => Err(io::standard_error(io::OtherIoError)),
@@ -93,7 +93,6 @@ pub fn chroot(path: &Path) -> io::IoResult<()> {
     })
 }
 
-#[allow(dead_code)]
 pub fn mount(source: &Path, target: &Path, filesystemtype: &String,
              mountflags: &fs::MsFlags, data: &Option<String>) -> io::IoResult<()> {
     let src = path2str!(source);
@@ -118,7 +117,6 @@ pub fn mount(source: &Path, target: &Path, filesystemtype: &String,
     })
 }
 
-#[allow(dead_code)]
 pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
     let new_root = path2str!(new_root);
     let put_old = path2str!(put_old);
@@ -132,7 +130,6 @@ pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
     })
 }
 
-#[allow(dead_code)]
 pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
     match unsafe { raw::setgroups(groups.len() as size_t, groups.as_ptr()) } {
         -1 => Err(io::IoError::last_error()),
@@ -140,7 +137,6 @@ pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
     }
 }
 
-#[allow(dead_code)]
 pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
     let target = path2str!(target);
     target.with_c_str(|target| {
@@ -151,7 +147,6 @@ pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
     })
 }
 
-#[allow(dead_code)]
 pub fn unshare(flags: sched::CloneFlags) -> io::IoResult<()> {
     match unsafe { raw::unshare(flags.bits()) } {
         0 => Ok(()),
