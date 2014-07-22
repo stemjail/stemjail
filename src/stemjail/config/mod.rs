@@ -58,3 +58,19 @@ pub fn get_config(config_file: &Path) -> Result<PortalConfig, String> {
         },
     }
 }
+
+#[test]
+fn test_get_config_example1() {
+    // TODO: Use absolute configuration path
+    let c1 = get_config(&Path::new("./config/example1.toml"));
+    let c2: Result<PortalConfig, String> = Ok(PortalConfig {
+        name: "example1".to_string(),
+        socket: SocketConfig { path: "./portal.sock".to_string() },
+        fs: FsConfig { root: "./tmp-chroot".to_string() },
+        run: RunConfig {
+            exe: "/bin/sh".to_string(),
+            args: Some(vec!("-c".to_string(), "id".to_string())),
+        },
+    });
+    assert!(c1 == c2);
+}
