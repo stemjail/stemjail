@@ -9,5 +9,4 @@ path = "./portal.sock"
 root = "./tmp-chroot"
 
 [run]
-exe = "/bin/sh"
-args = ["-c", "id"]
+cmd = ["/bin/sh", "-c", "id"]

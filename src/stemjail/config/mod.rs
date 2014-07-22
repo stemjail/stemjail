@@ -30,8 +30,7 @@ pub struct FsConfig {
 
 #[deriving(Decodable, PartialEq, Show)]
 pub struct RunConfig {
-    pub exe: String,
-    pub args: Option<Vec<String>>,
+    pub cmd: Vec<String>,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
@@ -68,8 +67,7 @@ fn test_get_config_example1() {
         socket: SocketConfig { path: "./portal.sock".to_string() },
         fs: FsConfig { root: "./tmp-chroot".to_string() },
         run: RunConfig {
-            exe: "/bin/sh".to_string(),
-            args: Some(vec!("-c".to_string(), "id".to_string())),
+            cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
         },
     });
     assert!(c1 == c2);
