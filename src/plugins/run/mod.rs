@@ -58,7 +58,7 @@ impl super::Plugin for RunPlugin {
             Ok(m) => m,
             Err(e) => return Err(format!("{}", e)),
         };
-        if matches.opt_present("h") {
+        if matches.opt_present("help") {
             return Ok(super::PrintHelp);
         }
         let mut argi = matches.free.iter();
