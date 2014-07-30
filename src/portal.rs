@@ -51,7 +51,6 @@ fn handle_client(stream: UnixStream, config: Arc<config::PortalConfig>) -> Resul
         Ok(d) => d,
         Err(e) => return Err(format!("Fail to decode command: {}", e)),
     };
-    println!("Portal got: {}", decoded);
 
     // Use the client command if any or the configuration command otherwise
     let (cmd, do_stdio) = match decoded {
@@ -145,7 +144,7 @@ fn main() {
                 spawn(proc() {
                     match handle_client(s, config) {
                         Ok(_) => {},
-                        Err(e) => println!("Error reading client: {}", e),
+                        Err(e) => println!("Error handling client: {}", e),
                     }
                 });
             }
