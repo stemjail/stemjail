@@ -22,7 +22,7 @@
 extern crate stemjail;
 extern crate serialize;
 
-use stemjail::{config, jail, plugins};
+use stemjail::{config, fdpass, jail, plugins};
 use serialize::json;
 use std::io::{BufferedStream, Listener, Acceptor};
 use std::io::fs;
@@ -54,10 +54,13 @@ fn handle_client(stream: UnixStream, config: Arc<config::PortalConfig>) -> Resul
     println!("Portal got: {}", decoded);
 
     // Use the client command if any or the configuration command otherwise
-    let cmd = match decoded {
-        plugins::RunCommand(r) => match r.command.iter().next() {
-            Some(_) => r.command.clone(),
-            None => config.run.cmd.clone(),
+    let (cmd, do_stdio) = match decoded {
+        plugins::RunCommand(r) => {
+            let c = match r.command.iter().next() {
+                Some(_) => r.command.clone(),
+                None => config.run.cmd.clone(),
+            };
+            (c, r.stdio)
         },
         //_ => config.run.cmd,
     };
@@ -84,7 +87,35 @@ fn handle_client(stream: UnixStream, config: Arc<config::PortalConfig>) -> Resul
                 }).collect(),
             None => Vec::new(),
         });
-    j.run(Path::new(exe));
+
+    // Ask stdio FD
+    let cmd = plugins::PortalAck {
+        //result: Ok(()),
+        request: plugins::RequestFileDescriptor,
+    };
+    let json = json::encode(&cmd);
+    match bstream.write_line(json.as_slice()) {
+        Ok(_) => {},
+        Err(e) => return Err(format!("Fail to send acknowledgement: {}", e)),
+    }
+    let stream = bstream.unwrap();
+
+    // TODO: Replace 0u8 with a JSON match
+    let fd = match fdpass::recv_fd(&stream, vec!(0u8)) {
+        Ok(fd) => fd,
+        Err(e) => return Err(format!("Fail to receive stdio FD: {}", e)),
+    };
+
+    let stdio = match do_stdio {
+        true => match jail::Stdio::new(fd) {
+            Ok(f) => Some(f),
+            Err(e) => fail!("Fail create stdio: {}", e),
+        },
+        false => None,
+    };
+    j.run(Path::new(exe), stdio);
+
+    // TODO: Send ACK
     Ok(())
 }
 

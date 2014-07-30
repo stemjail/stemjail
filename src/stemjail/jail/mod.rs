@@ -13,11 +13,13 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate libc;
+extern crate native;
 
 use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
 use self::ns::{fs, fs0, raw, sched};
 use self::libc::funcs::posix88::unistd::{fork, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
+use self::native::io::file::{fd_t, FileDesc};
 use std::io;
 use std::io::{File, Open, Write};
 
@@ -48,6 +50,29 @@ macro_rules! nested_dir(
         );
     };
 )
+
+fn dup(fd: fd_t) -> io::IoResult<fd_t> {
+    match unsafe { libc::funcs::posix88::unistd::dup(fd) } {
+        -1 => Err(io::IoError::last_error()),
+        n => Ok(n as fd_t),
+    }
+}
+
+pub struct Stdio {
+    pub stdin: fd_t,
+    pub stdout: fd_t,
+    pub stderr: fd_t,
+}
+
+impl Stdio {
+    pub fn new(fd: FileDesc) -> io::IoResult<Stdio> {
+        Ok(Stdio {
+            stdin: try!(dup(fd.fd())),
+            stdout: try!(dup(fd.fd())),
+            stderr: try!(dup(fd.fd())),
+        })
+    }
+}
 
 pub struct BindMount {
     pub dst: Path,
@@ -128,7 +153,7 @@ impl Jail {
         Ok(())
     }
 
-    pub fn run(&mut self, run: Path) {
+    pub fn run(&mut self, run: Path, stdio: Option<Stdio>) {
         println!("Running jail {}", self.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
@@ -188,10 +213,22 @@ impl Jail {
                     Err(e) => fail!("Fail to initialize the file system: {}", e),
                 }
 
+                let (stdin, stdout, stderr) = match stdio {
+                    Some(s) => {(
+                        io::process::InheritFd(s.stdin),
+                        io::process::InheritFd(s.stdout),
+                        io::process::InheritFd(s.stderr),
+                    )},
+                    None => {(
+                        io::process::InheritFd(libc::STDIN_FILENO),
+                        io::process::InheritFd(libc::STDOUT_FILENO),
+                        io::process::InheritFd(libc::STDERR_FILENO),
+                    )}
+                };
                 match io::Command::new(&run)
-                        .stdin(io::process::InheritFd(libc::STDIN_FILENO))
-                        .stdout(io::process::InheritFd(libc::STDOUT_FILENO))
-                        .stderr(io::process::InheritFd(libc::STDERR_FILENO))
+                        .stdin(stdin)
+                        .stdout(stdout)
+                        .stderr(stderr)
                         .spawn() {
                     Ok(_) => {},
                     Err(e) => fail!("Fail to execute process: {}", e),

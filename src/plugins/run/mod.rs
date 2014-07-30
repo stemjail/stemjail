@@ -21,6 +21,7 @@ use self::getopts::{optflag, getopts, OptGroup};
 pub struct PortalRunCommand {
     pub profile: String,
     pub command: Vec<String>,
+    pub stdio: bool,
 }
 
 pub struct RunPlugin {
@@ -35,6 +36,7 @@ impl RunPlugin {
             name: "run".to_string(),
             opts: vec!(
                 optflag("h", "help", "Print this message"),
+                optflag("s", "stdio", "Redirect stdin, stdout and stderr"),
             ),
             portal_cmd: None,
         }
@@ -69,6 +71,7 @@ impl super::Plugin for RunPlugin {
         self.portal_cmd = Some(PortalRunCommand {
             profile: profile.clone(),
             command: argi.map(|x| x.to_string()).collect(),
+            stdio: matches.opt_present("stdio")
         });
         Ok(super::SendPortalCommand)
     }

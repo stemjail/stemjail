@@ -17,10 +17,12 @@
 #![desc = "stemjail CLI"]
 #![license = "LGPL-3.0"]
 
+extern crate libc;
 extern crate stemjail;
 extern crate serialize;
 
-use stemjail::plugins;
+use stemjail::{fdpass, plugins};
+use self::native::io::file::FileDesc;
 use serialize::json;
 use std::io::BufferedStream;
 use std::io::net::unix::UnixStream;
@@ -62,6 +64,35 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Resu
             match bstream.flush() {
                 Ok(_) => {},
                 Err(e) => return Err(format!("Fail to send command (flush): {}", e)),
+            }
+
+            // Recv ack and infos (e.g. FD passing)
+            let encoded_str = match bstream.read_line() {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Error reading client: {}", e)),
+            };
+            let decoded: plugins::PortalAck = match json::decode(encoded_str.as_slice()) {
+                Ok(d) => d,
+                Err(e) => return Err(e.to_string()),
+            };
+            // TODO: match decoded.result
+            let stream = bstream.unwrap();
+            match decoded.request {
+                plugins::PortalNop => {}
+                plugins::RequestFileDescriptor => {
+                    let fd = FileDesc::new(libc::STDIN_FILENO, false);
+                    // TODO: Replace &[0] with a JSON command
+                    let iov = &[0];
+                    // Block the read stream with a FD barrier
+                    match fdpass::send_fd(&stream, iov, &fd) {
+                        Ok(_) => {},
+                        Err(e) => return Err(format!("Fail to synchronise: {}", e)),
+                    }
+                    match fdpass::send_fd(&stream, iov, &fd) {
+                        Ok(_) => {},
+                        Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
+                    }
+                }
             }
         }
     }

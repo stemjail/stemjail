@@ -20,6 +20,18 @@ pub enum KageAction {
     SendPortalCommand,
 }
 
+#[deriving(Decodable, Encodable)]
+pub enum PortalRequest {
+    PortalNop,
+    RequestFileDescriptor,
+}
+
+#[deriving(Decodable, Encodable)]
+pub struct PortalAck {
+    //pub result: Result<(), String>,
+    pub request: PortalRequest,
+}
+
 #[deriving(Decodable, Encodable, Show)]
 pub enum PortalPluginCommand {
     RunCommand(self::run::PortalRunCommand),
