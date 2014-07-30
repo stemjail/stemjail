@@ -24,8 +24,8 @@ extern crate serialize;
 
 use stemjail::{config, jail, plugins};
 use serialize::json;
+use std::io::{BufferedStream, Listener, Acceptor};
 use std::io::fs;
-use std::io::{Listener, Acceptor};
 use std::io::net::unix::{UnixListener, UnixStream};
 use std::os;
 use std::sync::Arc;
@@ -36,17 +36,20 @@ macro_rules! absolute_path(
     };
 )
 
-fn handle_client(mut stream: UnixStream, config: Arc<config::PortalConfig>) -> Result<(), String> {
-    let encoded_str = match stream.read_to_string() {
+fn handle_client(stream: UnixStream, config: Arc<config::PortalConfig>) -> Result<(), String> {
+    let mut bstream = BufferedStream::new(stream);
+    let encoded_str = match bstream.read_line() {
         Ok(s) => s,
-        Err(e) => {
-                return Err(format!("Error reading client: {}", e));
-        }
+        Err(e) => return Err(format!("Fail to read command: {}", e)),
     };
+    match bstream.flush() {
+        Ok(_) => {},
+        Err(e) => return Err(format!("Fail to read command (flush): {}", e)),
+    }
     // FIXME: task '<main>' failed at 'called `Option::unwrap()` on a `None` value', .../rust/src/libcore/option.rs:265
     let decoded: plugins::PortalPluginCommand = match json::decode(encoded_str.as_slice()) {
         Ok(d) => d,
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(format!("Fail to decode command: {}", e)),
     };
     println!("Portal got: {}", decoded);
 

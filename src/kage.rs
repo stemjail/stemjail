@@ -22,6 +22,7 @@ extern crate serialize;
 
 use stemjail::plugins;
 use serialize::json;
+use std::io::BufferedStream;
 use std::io::net::unix::UnixStream;
 use std::{io, os};
 
@@ -49,10 +50,18 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Resu
             };
             let json = json::encode(&cmd);
             let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
-            let mut stream = UnixStream::connect(&server);
-            match stream.write_str(json.as_slice()) {
+            let stream = match UnixStream::connect(&server) {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Fail to connect to client: {}", e)),
+            };
+            let mut bstream = BufferedStream::new(stream);
+            match bstream.write_line(json.as_slice()) {
                 Ok(_) => {},
-                Err(e) => return Err(format!("{}", e)),
+                Err(e) => return Err(format!("Fail to send command: {}", e)),
+            }
+            match bstream.flush() {
+                Ok(_) => {},
+                Err(e) => return Err(format!("Fail to send command (flush): {}", e)),
             }
         }
     }
