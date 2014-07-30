@@ -39,7 +39,7 @@ fn args_fail(msg: String) {
 
 fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Result<(), String> {
     match cmd {
-        plugins::Nop => {}
+        plugins::KageNop => {}
         plugins::PrintHelp => {
             println!("{}\n{}", plugin.get_usage(), get_usage());
         }

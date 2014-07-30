@@ -15,7 +15,7 @@
 pub mod run;
 
 pub enum KageAction {
-    Nop,
+    KageNop,
     PrintHelp,
     SendPortalCommand,
 }
