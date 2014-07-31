@@ -168,7 +168,7 @@ impl Jail {
         };
         let pid = unsafe { fork() };
         if pid < 0 {
-            fail!("Fail to fork");
+            fail!("Fail to fork #1");
         } else if pid == 0 {
             // Child
             println!("Child jailing into {}", self.root.display());
@@ -191,14 +191,12 @@ impl Jail {
             }
             let _ = sync_child.reader.read_i8();
 
-            // Need to fork to be able to mount /proc
+            // Need to fork because of the PID namespace
             let pid = unsafe { fork() };
-            if pid != 0 {
-                // Parent
-                let mut status: libc::c_int = 0;
-                let _ = unsafe { raw::waitpid(pid, &mut status, 0) };
-                return;
-            } else {
+            if pid < 0 {
+                fail!("Fail to fork #2");
+            } else if pid == 0 {
+                // Child
                 let groups = Vec::new();
                 match setgroups(groups) {
                     Ok(_) => {}
@@ -233,6 +231,11 @@ impl Jail {
                     Ok(_) => {},
                     Err(e) => fail!("Fail to execute process: {}", e),
                 }
+                return;
+            } else {
+                // Parent
+                let mut status: libc::c_int = 0;
+                let _ = unsafe { raw::waitpid(pid, &mut status, 0) };
                 return;
             }
         } else {
