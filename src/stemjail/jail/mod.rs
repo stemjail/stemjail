@@ -17,7 +17,7 @@ extern crate native;
 
 use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
 use self::ns::{fs, fs0, raw, sched};
-use self::libc::funcs::posix88::unistd::{fork, getgid, getuid};
+use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::native::io::file::{fd_t, FileDesc};
 use std::io;
@@ -172,6 +172,12 @@ impl Jail {
         } else if pid == 0 {
             // Child
             println!("Child jailing into {}", self.root.display());
+            // Become a process group leader
+            // TODO: Change behavior for dedicated TTY
+            match unsafe { setsid() } {
+                -1 => fail!("Fail setsid: {}", io::IoError::last_error()),
+                _ => {}
+            }
             match unshare(
                     sched::CloneNewipc |
                     sched::CloneNewnet |
@@ -191,7 +197,7 @@ impl Jail {
             }
             let _ = sync_child.reader.read_i8();
 
-            // Need to fork because of the PID namespace
+            // Need to fork because of the PID namespace and the group ID
             let pid = unsafe { fork() };
             if pid < 0 {
                 fail!("Fail to fork #2");
