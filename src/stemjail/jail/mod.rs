@@ -112,6 +112,7 @@ impl Jail {
 
     fn add_bind(&self, bind: &BindMount) -> io::IoResult<()> {
         // FIXME: There must be no submount (maybe fs_fully_visible check?)
+        info!("Bind mounting {}", bind.dst.display());
         let dst = nested_dir!(self.root, bind.dst);
         let flags = fs::MsMgcVal | fs::MsBind;
         mkdir_if_not!(&dst);
@@ -154,7 +155,7 @@ impl Jail {
     }
 
     pub fn run(&mut self, run: Path, stdio: Option<Stdio>) {
-        println!("Running jail {}", self.name);
+        info!("Running jail {}", self.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
         // Fork a new process
@@ -171,7 +172,7 @@ impl Jail {
             fail!("Fail to fork #1");
         } else if pid == 0 {
             // Child
-            println!("Child jailing into {}", self.root.display());
+            info!("Child jailing into {}", self.root.display());
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
             match unsafe { setsid() } {
@@ -256,7 +257,7 @@ impl Jail {
                 Ok(_) => {}
                 Err(e) => fail!("Fail to synchronise with child: {}", e),
             }
-            println!("Waiting for child {} to terminate", pid);
+            debug!("Waiting for child {} to terminate", pid);
             let mut status: libc::c_int = 0;
             match unsafe { raw::waitpid(pid, &mut status, 0) } {
                 -1 => fail!("Fail to wait for child {}", pid),
