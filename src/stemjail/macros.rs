@@ -12,26 +12,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![crate_name = "stemjail"]
-#![crate_type = "lib"]
-#![desc = "stemjail library"]
-#![license = "LGPL-3.0"]
+#![macro_escape]
 
-#![feature(macro_rules)]
-#![feature(phase)]
-
-#[phase(plugin, link)]
-extern crate log;
-extern crate serialize;
-
-mod macros;
-
-#[path = "../plugins/mod.rs"]
-pub mod plugins;
-
-pub mod config;
-pub mod fdpass;
-pub mod jail;
-
-pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
-pub static PORTAL_PROFILE_PATH: &'static str = "./config/profiles/example1.toml";
+macro_rules! path2str(
+    ($path: expr) => (
+        match $path.as_str() {
+            Some(p) => p,
+            None => return Err(io::IoError {
+                kind: io::PathDoesntExist,
+                desc: "path conversion fail",
+                detail: None,
+            }),
+        }
+    );
+)

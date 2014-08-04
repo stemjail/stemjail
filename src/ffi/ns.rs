@@ -61,19 +61,6 @@ pub mod raw {
     }
 }
 
-macro_rules! path2str(
-    ($path: expr) => (
-        match $path.as_str() {
-            Some(p) => p,
-            None => return Err(io::IoError {
-                kind: io::PathDoesntExist,
-                desc: "path conversion fail",
-                detail: None,
-            }),
-        }
-    );
-)
-
 pub fn chdir(dir: &Path) -> io::IoResult<()> {
     match os::change_dir(dir) {
         true => Ok(()),
