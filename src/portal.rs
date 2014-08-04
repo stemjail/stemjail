@@ -22,7 +22,9 @@
 extern crate stemjail;
 extern crate serialize;
 
-use stemjail::{config, fdpass, jail, plugins};
+use stemjail::config::get_config;
+use stemjail::config::profile::ProfileConfig;
+use stemjail::{fdpass, jail, plugins};
 use serialize::json;
 use std::io::{BufferedStream, Listener, Acceptor};
 use std::io::fs;
@@ -36,7 +38,7 @@ macro_rules! absolute_path(
     };
 )
 
-fn handle_client(stream: UnixStream, config: Arc<config::PortalConfig>) -> Result<(), String> {
+fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), String> {
     let mut bstream = BufferedStream::new(stream);
     let encoded_str = match bstream.read_line() {
         Ok(s) => s,
@@ -129,7 +131,7 @@ macro_rules! exit_error(
 )
 
 fn main() {
-    let config = match config::get_config(&Path::new(stemjail::PORTAL_CONFIG_PATH)) {
+    let config = match get_config::<ProfileConfig>(&Path::new(stemjail::PORTAL_CONFIG_PATH)) {
         Ok(c) => Arc::new(c),
         Err(e) => exit_error!("Configuration error: {}", e),
     };

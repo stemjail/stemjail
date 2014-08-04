@@ -15,44 +15,15 @@
 extern crate serialize;
 extern crate toml;
 
-#[deriving(Decodable, PartialEq, Show)]
-pub struct PortalConfig {
-    pub name: String,
-    pub fs: FsConfig,
-    pub run: RunConfig,
-    pub socket: SocketConfig,
-}
-
-#[deriving(Decodable, PartialEq, Show)]
-pub struct FsConfig {
-    pub root: String,
-    pub bind: Option<Vec<BindConfig>>,
-}
-
-#[deriving(Decodable, PartialEq, Show)]
-pub struct BindConfig {
-    pub src: String,
-    pub dst: Option<String>,
-    pub write: Option<bool>,
-}
-
-#[deriving(Decodable, PartialEq, Show)]
-pub struct RunConfig {
-    pub cmd: Vec<String>,
-}
-
-#[deriving(Decodable, PartialEq, Show)]
-pub struct SocketConfig {
-    pub path: String,
-}
+pub mod profile;
 
 // TODO: Check for absolute path only
-pub fn get_config(config_file: &Path) -> Result<PortalConfig, String> {
+pub fn get_config<T: serialize::Decodable<toml::Decoder, toml::Error>>(config_file: &Path) -> Result<T, String> {
     let root = match toml::parse_from_file(format!("{}", config_file.display()).as_slice()) {
         Ok(r) => r,
         Err(e) => return Err(format!("Error parsing config file: {}", e)),
     };
-    let config: Result<PortalConfig, toml::Error> = toml::from_toml(root);
+    let config: Result<T, toml::Error> = toml::from_toml(root);
     match config {
         Ok(c) => Ok(c),
         Err(toml::ParseError) => {
@@ -65,35 +36,4 @@ pub fn get_config(config_file: &Path) -> Result<PortalConfig, String> {
             Err(format!("I/O error: {}", e))
         },
     }
-}
-
-#[test]
-fn test_get_config_example1() {
-    // TODO: Use absolute configuration path
-    let c1 = get_config(&Path::new("./config/example1.toml"));
-    let c2: Result<PortalConfig, String> = Ok(PortalConfig {
-        name: "example1".to_string(),
-        socket: SocketConfig {
-            path: "./portal.sock".to_string(),
-        },
-        fs: FsConfig {
-            root: "./tmp-chroot".to_string(),
-            bind: Some(vec!(
-                BindConfig {
-                    src: "/tmp".to_string(),
-                    dst: None,
-                    write: Some(true),
-                },
-                BindConfig {
-                    src: "/home".to_string(),
-                    dst: Some("/data-ro".to_string()),
-                    write: None,
-                },
-            )),
-        },
-        run: RunConfig {
-            cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
-        },
-    });
-    assert!(c1 == c2);
 }
