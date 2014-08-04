@@ -29,7 +29,7 @@ mod ns;
 /// Do not return error if the directory already exist
 macro_rules! mkdir_if_not(
     ($path: expr) => {
-        match io::fs::mkdir($path, io::UserRWX) {
+        match io::fs::mkdir_recursive($path, io::UserRWX) {
             Ok(_) => {}
             Err(e) => match e.kind {
                 // TODO: Fix io::PathAlreadyExists
