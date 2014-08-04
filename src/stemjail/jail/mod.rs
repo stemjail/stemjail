@@ -15,14 +15,17 @@
 extern crate libc;
 extern crate native;
 
+use self::fsb::dup;
 use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
 use self::ns::{fs, fs0, raw, sched};
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
-use self::native::io::file::{fd_t, FileDesc};
+use self::native::io::file::FileDesc;
 use std::io;
 use std::io::{File, Open, Write};
 
+#[path = "../../ffi/fs.rs" ]
+mod fsb;
 #[path = "../../ffi/ns.rs" ]
 mod ns;
 
@@ -49,25 +52,19 @@ fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
     }
 }
 
-fn dup(fd: fd_t) -> io::IoResult<fd_t> {
-    match unsafe { libc::funcs::posix88::unistd::dup(fd) } {
-        -1 => Err(io::IoError::last_error()),
-        n => Ok(n as fd_t),
-    }
-}
-
 pub struct Stdio {
-    pub stdin: fd_t,
-    pub stdout: fd_t,
-    pub stderr: fd_t,
+    pub stdin: FileDesc,
+    pub stdout: FileDesc,
+    pub stderr: FileDesc,
 }
 
 impl Stdio {
     pub fn new(fd: FileDesc) -> io::IoResult<Stdio> {
         Ok(Stdio {
-            stdin: try!(dup(fd.fd())),
-            stdout: try!(dup(fd.fd())),
-            stderr: try!(dup(fd.fd())),
+            // Can't close on drop because of the io::Command FD auto-closing
+            stdin: try!(dup(&fd, false)),
+            stdout: try!(dup(&fd, false)),
+            stderr: try!(dup(&fd, false)),
         })
     }
 }
@@ -218,9 +215,9 @@ impl Jail {
 
                 let (stdin, stdout, stderr) = match stdio {
                     Some(s) => {(
-                        io::process::InheritFd(s.stdin),
-                        io::process::InheritFd(s.stdout),
-                        io::process::InheritFd(s.stderr),
+                        io::process::InheritFd(s.stdin.fd()),
+                        io::process::InheritFd(s.stdout.fd()),
+                        io::process::InheritFd(s.stderr.fd()),
                     )},
                     None => {(
                         io::process::InheritFd(libc::STDIN_FILENO),
