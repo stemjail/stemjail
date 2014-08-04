@@ -308,10 +308,13 @@ impl Jail {
                         io::process::InheritFd(libc::STDERR_FILENO),
                     )}
                 };
+                // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
+                let env: Vec<(String, String)> = Vec::with_capacity(0);
                 match io::Command::new(&run)
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
+                        .env_set_all(env.as_slice())
                         .spawn() {
                     Ok(_) => {},
                     Err(e) => fail!("Fail to execute process: {}", e),
