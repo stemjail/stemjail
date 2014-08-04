@@ -46,7 +46,7 @@ pub struct SocketConfig {
 #[test]
 fn test_get_config_example1() {
     // TODO: Use absolute configuration path
-    let c1 = super::get_config::<ProfileConfig>(&Path::new("./config/example1.toml"));
+    let c1 = super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example1.toml"));
     let c2: Result<ProfileConfig, String> = Ok(ProfileConfig {
         name: "example1".to_string(),
         socket: SocketConfig {

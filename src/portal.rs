@@ -131,7 +131,7 @@ macro_rules! exit_error(
 )
 
 fn main() {
-    let config = match get_config::<ProfileConfig>(&Path::new(stemjail::PORTAL_CONFIG_PATH)) {
+    let config = match get_config::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILE_PATH)) {
         Ok(c) => Arc::new(c),
         Err(e) => exit_error!("Configuration error: {}", e),
     };
