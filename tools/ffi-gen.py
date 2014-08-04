@@ -44,6 +44,9 @@ def gen_flags(define, output, defbinds):
         with open(define, "r") as fin:
             with open(output, "w") as fout:
                 print("Generating {0} FFI…".format(define))
+                re_octal_header = re.compile(r"^0")
+                re_octal_value = re.compile(r"^0[0-9]+")
+
                 fout.write(get_header(defbinds))
                 for defbind in defbinds:
                     fout.write("\nbitflags!(\n    flags {0}Flags: {1} {{\n".format(to_camel(defbind.name), defbind.ctype))
@@ -59,7 +62,10 @@ def gen_flags(define, output, defbinds):
                             comment = match.group("comment")
                             if comment:
                                 fout.write("        {0}\n".format(comment))
-                            fout.write("        static {0} = {1}".format(to_camel(match.group("name")), to_bits(defbind.prefix, match.group("value"))))
+                            value = match.group("value")
+                            if re_octal_value.match(value):
+                                value = re_octal_header.sub("0o", value)
+                            fout.write("        static {0} = {1}".format(to_camel(match.group("name")), to_bits(defbind.prefix, value)))
                     fout.write("\n    }\n)\n")
                     fin.seek(0)
     except FileNotFoundError as e:
