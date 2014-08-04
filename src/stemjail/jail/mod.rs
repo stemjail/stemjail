@@ -26,20 +26,6 @@ use std::io::{File, Open, Write};
 #[path = "../../ffi/ns.rs" ]
 mod ns;
 
-/// Do not return error if the directory already exist
-macro_rules! mkdir_if_not(
-    ($path: expr) => {
-        match io::fs::mkdir_recursive($path, io::UserRWX) {
-            Ok(_) => {}
-            Err(e) => match e.kind {
-                // TODO: Fix io::PathAlreadyExists
-                io::OtherIoError => {}
-                _ => return Err(e)
-            },
-        }
-    };
-)
-
 macro_rules! nested_dir(
     ($root: expr, $subdir: expr) => {
         $root.clone().join(
@@ -50,6 +36,18 @@ macro_rules! nested_dir(
         );
     };
 )
+
+/// Do not return error if the directory already exist
+fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
+    match io::fs::mkdir_recursive(path, io::UserRWX) {
+        Ok(_) => Ok(()),
+        Err(e) => match e.kind {
+            // TODO: Fix io::PathAlreadyExists
+            io::OtherIoError => Ok(()),
+            _ => Err(e)
+        },
+    }
+}
 
 fn dup(fd: fd_t) -> io::IoResult<fd_t> {
     match unsafe { libc::funcs::posix88::unistd::dup(fd) } {
@@ -115,7 +113,7 @@ impl Jail {
         info!("Bind mounting {}", bind.dst.display());
         let dst = nested_dir!(self.root, bind.dst);
         let flags = fs::MsMgcVal | fs::MsBind;
-        mkdir_if_not!(&dst);
+        try!(mkdir_if_not(&dst));
         try!(mount(&bind.src, &dst, &"none".to_string(),
                     &flags, &None));
         if ! bind.write {
@@ -135,7 +133,7 @@ impl Jail {
 
         let proc_src = Path::new("proc");
         let proc_dst = self.root.clone().join(proc_src.clone());
-        mkdir_if_not!(&proc_dst);
+        try!(mkdir_if_not(&proc_dst));
         try!(mount(&proc_src, &proc_dst, &"proc".to_string(),
                     &fs::MsMgcVal, &None));
 
