@@ -231,7 +231,7 @@ impl Jail {
         Ok(())
     }
 
-    pub fn run(&mut self, run: Path, stdio: Option<Stdio>) {
+    pub fn run(&mut self, run: &Path, args: &Vec<String>, stdio: &Option<Stdio>) {
         info!("Running jail {}", self.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
@@ -295,8 +295,8 @@ impl Jail {
                     Err(e) => fail!("Fail to initialize the file system: {}", e),
                 }
 
-                let (stdin, stdout, stderr) = match stdio {
-                    Some(s) => {(
+                let (stdin, stdout, stderr) = match *stdio {
+                    Some(ref s) => {(
                         io::process::InheritFd(s.stdin.fd()),
                         io::process::InheritFd(s.stdout.fd()),
                         io::process::InheritFd(s.stderr.fd()),
@@ -309,11 +309,12 @@ impl Jail {
                 };
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
                 let env: Vec<(String, String)> = Vec::with_capacity(0);
-                match io::Command::new(&run)
+                match io::Command::new(run)
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
                         .env_set_all(env.as_slice())
+                        .args(args.as_slice())
                         .spawn() {
                     Ok(_) => {},
                     Err(e) => fail!("Fail to execute process: {}", e),

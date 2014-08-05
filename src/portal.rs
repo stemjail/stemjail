@@ -55,7 +55,7 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     };
 
     // Use the client command if any or the configuration command otherwise
-    let (cmd, do_stdio) = match decoded {
+    let (args, do_stdio) = match decoded {
         plugins::RunCommand(r) => {
             let c = match r.command.iter().next() {
                 Some(_) => r.command.clone(),
@@ -65,7 +65,7 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
         },
         //_ => config.run.cmd,
     };
-    let exe = match cmd.iter().next() {
+    let exe = match args.iter().next() {
         Some(c) => c.clone(),
         None => return Err("Missing executable in the command (first argument)".to_string()),
     };
@@ -117,8 +117,12 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     } else {
         None
     };
-    j.run(Path::new(exe), stdio);
 
+    // Safe tail
+    let args = args.iter().enumerate().filter_map(
+        |(i, x)| if i == 0 { None } else { Some(x.clone()) } ).collect();
+
+    j.run(&Path::new(exe), &args, &stdio);
     // TODO: Send ACK
     Ok(())
 }
