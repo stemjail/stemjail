@@ -89,10 +89,13 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
             None => Vec::new(),
         });
 
-    // Ask stdio FD
     let cmd = plugins::PortalAck {
         //result: Ok(()),
-        request: plugins::RequestFileDescriptor,
+        request: if do_stdio {
+            plugins::RequestFileDescriptor
+        } else {
+            plugins::PortalNop
+        }
     };
     let json = json::encode(&cmd);
     match bstream.write_line(json.as_slice()) {
@@ -101,18 +104,18 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     }
     let stream = bstream.unwrap();
 
-    // TODO: Replace 0u8 with a JSON match
-    let fd = match fdpass::recv_fd(&stream, vec!(0u8)) {
-        Ok(fd) => fd,
-        Err(e) => return Err(format!("Fail to receive stdio FD: {}", e)),
-    };
-
-    let stdio = match do_stdio {
-        true => match jail::Stdio::new(fd) {
+    let stdio = if do_stdio {
+        // TODO: Replace 0u8 with a JSON match
+        let fd = match fdpass::recv_fd(&stream, vec!(0u8)) {
+            Ok(fd) => fd,
+            Err(e) => return Err(format!("Fail to receive stdio FD: {}", e)),
+        };
+        match jail::Stdio::new(fd) {
             Ok(f) => Some(f),
             Err(e) => fail!("Fail create stdio: {}", e),
-        },
-        false => None,
+        }
+    } else {
+        None
     };
     j.run(Path::new(exe), stdio);
 
