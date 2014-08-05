@@ -222,13 +222,12 @@ impl Jail {
         }
 
         // Finalize the pivot
-        let old_root = Path::new("old_root");
-        try!(io::fs::mkdir(&old_root, io::UserRWX));
+        let old_root = Path::new("tmp");
+        try!(mkdir_if_not(&old_root));
         try!(pivot_root(&self.root, &old_root));
 
         // Cleanup parent mounts
         try!(umount(&old_root, &fs0::MntDetach));
-        try!(io::fs::rmdir(&old_root));
         Ok(())
     }
 
