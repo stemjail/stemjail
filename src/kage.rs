@@ -75,6 +75,9 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Resu
                 Ok(d) => d,
                 Err(e) => return Err(e.to_string()),
             };
+            if ! cmd.is_valid_request(&decoded.request) {
+                return Err(format!("Invalid request: {}", &decoded.request));
+            }
             // TODO: match decoded.result
             let stream = bstream.unwrap();
             match decoded.request {

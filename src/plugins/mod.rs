@@ -20,7 +20,7 @@ pub enum KageAction {
     SendPortalCommand,
 }
 
-#[deriving(Decodable, Encodable)]
+#[deriving(Decodable, Encodable, Show)]
 pub enum PortalRequest {
     PortalNop,
     RequestFileDescriptor,
@@ -35,6 +35,20 @@ pub struct PortalAck {
 #[deriving(Decodable, Encodable, Show)]
 pub enum PortalPluginCommand {
     RunCommand(self::run::PortalRunCommand),
+}
+
+impl PortalPluginCommand {
+    pub fn is_valid_request(&self, req: &PortalRequest) -> bool {
+        match *self {
+            RunCommand(ref c) => {
+                match *req {
+                    PortalNop => true,
+                    RequestFileDescriptor => c.stdio,
+                    //_ => false,
+                }
+            }
+        }
+    }
 }
 
 pub trait Plugin {
