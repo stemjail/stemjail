@@ -17,7 +17,11 @@
 #![desc = "stemjail CLI"]
 #![license = "LGPL-3.0"]
 
+#![feature(phase)]
+
 extern crate libc;
+#[phase(plugin, link)]
+extern crate log;
 extern crate stemjail;
 extern crate serialize;
 
@@ -78,6 +82,8 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Resu
             if ! cmd.is_valid_request(&decoded.request) {
                 return Err(format!("Invalid request: {}", &decoded.request));
             }
+            debug!("Receive {}", &decoded.request);
+
             // TODO: match decoded.result
             let stream = bstream.unwrap();
             match decoded.request {
