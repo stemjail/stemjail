@@ -74,6 +74,7 @@ impl NodeType {
     }
 }
 
+#[allow(dead_code)]
 pub fn dup(fd: &FileDesc, close_on_drop: bool) -> io::IoResult<FileDesc> {
     match unsafe { self::libc::funcs::posix88::unistd::dup(fd.fd()) } {
         -1 => Err(io::IoError::last_error()),

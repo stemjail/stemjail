@@ -13,21 +13,21 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate libc;
-extern crate native;
 
-use self::fsb::dup;
-use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
-use self::ns::{fs, fs0, raw, sched};
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
-use self::native::io::file::FileDesc;
+use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
+use self::ns::{fs, fs0, raw, sched};
 use std::io;
 use std::io::{File, Open, Write};
+
+pub use self::session::Stdio;
 
 #[path = "../../ffi/fs.rs" ]
 mod fsb;
 #[path = "../../ffi/ns.rs" ]
 mod ns;
+mod session;
 
 macro_rules! nested_dir(
     ($root: expr, $subdir: expr) => {
@@ -84,23 +84,6 @@ fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
         }
     }
     Ok(())
-}
-
-pub struct Stdio {
-    pub stdin: FileDesc,
-    pub stdout: FileDesc,
-    pub stderr: FileDesc,
-}
-
-impl Stdio {
-    pub fn new(fd: FileDesc) -> io::IoResult<Stdio> {
-        Ok(Stdio {
-            // Can't close on drop because of the io::Command FD auto-closing
-            stdin: try!(dup(&fd, false)),
-            stdout: try!(dup(&fd, false)),
-            stderr: try!(dup(&fd, false)),
-        })
-    }
 }
 
 pub struct BindMount {
