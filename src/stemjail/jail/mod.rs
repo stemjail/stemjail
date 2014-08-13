@@ -127,8 +127,8 @@ impl Jail {
         let devdir_full = nested_dir!(self.root, devdir);
         try!(mkdir_if_not(&devdir_full));
         let name = Path::new("dev");
-        let flags = fs::MsMgcVal;
-        try!(mount(&name, &devdir_full, &"tmpfs".to_string(), &flags, &None));
+        let dev_flags = fs::MsFlags::empty();
+        try!(mount(&name, &devdir_full, &"tmpfs".to_string(), &dev_flags, &None));
 
         // Create mount points
         let devs = &[
@@ -169,15 +169,15 @@ impl Jail {
         // FIXME: There must be no submount (maybe fs_fully_visible check?)
         info!("Bind mounting {}", bind.dst.display());
         let dst = nested_dir!(self.root, bind.dst);
-        let flags = fs::MsMgcVal | fs::MsBind;
+        let bind_flags = fs::MsBind | fs::MsRec;
 
         // Create needed directorie(s) and/or file
         try!(create_same_type(&bind.src, &dst));
 
-        try!(mount(&bind.src, &dst, &"none".to_string(), &flags, &None));
+        try!(mount(&bind.src, &dst, &"none".to_string(), &bind_flags, &None));
         if ! bind.write {
-            let flags = flags | fs::MsRemount | fs::MsRdonly;
-            try!(mount(&bind.src, &dst, &"none".to_string(), &flags, &None));
+            let bind_flags = bind_flags | fs::MsRemount | fs::MsRdonly;
+            try!(mount(&bind.src, &dst, &"none".to_string(), &bind_flags, &None));
         }
         Ok(())
     }
@@ -185,17 +185,16 @@ impl Jail {
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
-        let root_flags = fs::MsMgcVal | fs::MsBind;
-        try!(mount(&self.root, &self.root, &"none".to_string(),
-                    &root_flags, &None));
+        let root_flags = fs::MsBind | fs::MsRec;
+        try!(mount(&self.root, &self.root, &"none".to_string(), &root_flags, &None));
         try!(chdir(&self.root));
 
         // procfs
         let proc_src = Path::new("proc");
         let proc_dst = self.root.clone().join(proc_src.clone());
         try!(mkdir_if_not(&proc_dst));
-        try!(mount(&proc_src, &proc_dst, &"proc".to_string(),
-                    &fs::MsMgcVal, &None));
+        let proc_flags = fs::MsFlags::empty();
+        try!(mount(&proc_src, &proc_dst, &"proc".to_string(), &proc_flags, &None));
 
         // Devices
         try!(self.init_dev(&Path::new("/dev")));
