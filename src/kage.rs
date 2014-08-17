@@ -33,13 +33,13 @@ use std::io::net::unix::UnixStream;
 use std::{io, os};
 
 fn get_usage() -> String {
-    let name: String = os::args().shift().unwrap_or("stemjail-cli".to_string());
+    let name = os::args().shift().unwrap_or("stemjail-cli".to_string());
     format!("usage: {} {}", name, plugins::get_plugins_name().connect("|"))
 }
 
-fn args_fail(msg: String) {
-    io::stderr().write_line(msg.append("\n").as_slice()).unwrap();
-    io::stderr().write_line(get_usage().as_slice()).unwrap();
+fn args_fail<T: Str>(msg: T) {
+    let msg = format!("{}\n\n{}\n", msg.as_slice(), get_usage().as_slice());
+    io::stderr().write_str(msg.as_slice()).unwrap();
     os::set_exit_status(1);
 }
 
@@ -119,7 +119,7 @@ fn main() {
             let mut plugin = match plugins::get_plugin(cmd) {
                 Some(p) => p,
                 None => {
-                    args_fail("No command with this name".to_string());
+                    args_fail("No command with this name");
                     return;
                 }
             };
@@ -138,7 +138,7 @@ fn main() {
             }
         }
         None => {
-            args_fail("No command".to_string());
+            args_fail("No command");
             return;
         }
     }
