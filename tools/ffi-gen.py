@@ -65,7 +65,7 @@ def gen_flags(define, output, defbinds):
                             value = match.group("value")
                             if re_octal_value.match(value):
                                 value = re_octal_header.sub("0o", value)
-                            fout.write("        static {0} = {1}".format(to_camel(match.group("name")), to_bits(defbind.prefix, value)))
+                            fout.write("        const {0} = {1}".format(to_camel(match.group("name")), to_bits(defbind.prefix, value)))
                     fout.write("\n    }\n)\n")
                     fin.seek(0)
     except FileNotFoundError as e:
