@@ -18,7 +18,7 @@ extern crate native;
 use self::libc::{size_t, c_void};
 use self::native::io::file::{fd_t, FileDesc};
 use std::io;
-use std::io::net::unix::UnixStream;
+use std::io::net::pipe::UnixStream;
 use std::rt::rtio::RtioPipe;
 
 #[path = "../../ffi/net.rs" ]
