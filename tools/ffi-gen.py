@@ -36,7 +36,7 @@ def to_camel(data):
 def to_bits(prefix, data):
     re_name = re.compile(r"({0})_\w+".format(prefix))
     def sub_name(match):
-        return "{0}.bits".format(to_camel(match.group()))
+        return "{0}.bits".format(match.group())
     return re_name.sub(sub_name, data)
 
 def gen_flags(define, output, defbinds):
@@ -65,7 +65,7 @@ def gen_flags(define, output, defbinds):
                             value = match.group("value")
                             if re_octal_value.match(value):
                                 value = re_octal_header.sub("0o", value)
-                            fout.write("        const {0} = {1}".format(to_camel(match.group("name")), to_bits(defbind.prefix, value)))
+                            fout.write("        const {0} = {1}".format(match.group("name"), to_bits(defbind.prefix, value)))
                     fout.write("\n    }\n)\n")
                     fin.seek(0)
     except FileNotFoundError as e:
