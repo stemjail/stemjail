@@ -15,25 +15,28 @@
 extern crate serialize;
 extern crate toml;
 
+use self::toml::{Decoder, DecodeError};
+use serialize::Decodable;
+use std::io::File;
+
 pub mod profile;
 
 // TODO: Check for absolute path only
-pub fn get_config<T: serialize::Decodable<toml::Decoder, toml::Error>>(config_file: &Path) -> Result<T, String> {
-    let root = match toml::parse_from_file(format!("{}", config_file.display()).as_slice()) {
+pub fn get_config<T>(config_file: &Path) -> Result<T, String>
+        where T: Decodable<Decoder, DecodeError> {
+    let contents = match File::open(config_file).read_to_string() {
         Ok(r) => r,
-        Err(e) => return Err(format!("Error parsing config file: {}", e)),
+        Err(e) => return Err(format!("Error reading config file: {}", e)),
     };
-    let config: Result<T, toml::Error> = toml::from_toml(root);
-    match config {
-        Ok(c) => Ok(c),
-        Err(toml::ParseError) => {
-            Err("Parsing error".to_string())
-        },
-        Err(toml::ParseErrorInField(field)) => {
-            Err(format!("Parsing error in field: {}", field))
-        },
-        Err(toml::IOError(e)) => {
-            Err(format!("I/O error: {}", e))
-        },
-    }
+    let mut parser = toml::Parser::new(contents.as_slice());
+    let toml = match parser.parse() {
+        Some(r) => toml::Table(r),
+        None => return Err(format!("Error parsing config file: {}", parser.errors)),
+    };
+    let mut decoder = Decoder::new(toml);
+    let config = match Decodable::decode(&mut decoder) {
+        Ok(r) => r,
+        Err(e) => return Err(format!("Error decoding config file: {}", e)),
+    };
+    Ok(config)
 }

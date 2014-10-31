@@ -16,4 +16,4 @@ name = "stemjail"
 path = "src/stemjail/mod.rs"
 
 [dependencies.toml]
-path = "../rust-toml"
+path = "../toml-rs"
