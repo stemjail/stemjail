@@ -23,6 +23,7 @@ extern crate libc;
 #[phase(plugin, link)]
 extern crate log;
 extern crate stemjail;
+extern crate native;
 extern crate serialize;
 
 use stemjail::{fdpass, plugins};
