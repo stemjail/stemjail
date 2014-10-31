@@ -34,7 +34,9 @@ use std::io::net::pipe::UnixStream;
 use std::{io, os};
 
 fn get_usage() -> String {
-    let name = os::args().shift().unwrap_or("stemjail-cli".to_string());
+    let default = "stemjail-cli".to_string();
+    let args = os::args();
+    let name = args.iter().next().unwrap_or(&default);
     format!("usage: {} {}", name, plugins::get_plugins_name().connect("|"))
 }
 
