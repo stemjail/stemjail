@@ -58,14 +58,14 @@ pub trait Plugin {
     fn init_client(&mut self, args: &Vec<String>) -> Result<KageAction, String>;
 }
 
-fn get_plugins() -> Vec<Box<Plugin>> {
+fn get_plugins<'a>() -> Vec<Box<Plugin + 'a>> {
     vec!(
         box self::run::RunPlugin::new() as Box<Plugin>,
     )
 }
 
 pub fn get_plugin(name: &String) -> Option<Box<Plugin>> {
-    for plugin in get_plugins().move_iter() {
+    for plugin in get_plugins().into_iter() {
         if plugin.get_name() == name {
             return Some(plugin);
         }
