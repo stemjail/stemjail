@@ -43,6 +43,7 @@ impl Dev {
     }
 }
 
+#[allow(dead_code)]
 pub enum NodeType {
     Block(Dev),
     Character(Dev),

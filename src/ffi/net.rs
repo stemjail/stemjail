@@ -114,6 +114,7 @@ impl<T> Msghdr<T> {
     }
 }
 
+#[allow(dead_code)]
 #[repr(C)]
 pub enum ScmType {
     /** rw: access rights (array of int) */
