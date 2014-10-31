@@ -20,6 +20,7 @@ use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
 use self::ns::{fs, fs0, raw, sched};
 use std::io;
 use std::io::{File, Open, Write};
+use std::io::fs::PathExtensions;
 
 pub use self::session::Stdio;
 
