@@ -43,7 +43,7 @@ macro_rules! nested_dir(
 
 /// Do not return error if the directory already exist
 fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
-    match io::fs::mkdir_recursive(path, io::UserRWX) {
+    match io::fs::mkdir_recursive(path, io::USER_RWX) {
         Ok(_) => Ok(()),
         Err(e) => match e.kind {
             // TODO: Fix io::PathAlreadyExists
