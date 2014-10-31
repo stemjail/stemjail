@@ -7,84 +7,84 @@ use self::libc::c_ulong;
 bitflags!(
     flags MsFlags: c_ulong {
         /* Mount read-only */
-        const MsRdonly = 1,
+        const MS_RDONLY = 1,
 
         /* Ignore suid and sgid bits */
-        const MsNosuid = 2,
+        const MS_NOSUID = 2,
 
         /* Disallow access to device special files */
-        const MsNodev = 4,
+        const MS_NODEV = 4,
 
         /* Disallow program execution */
-        const MsNoexec = 8,
+        const MS_NOEXEC = 8,
 
         /* Writes are synced at once */
-        const MsSynchronous = 16,
+        const MS_SYNCHRONOUS = 16,
 
         /* Alter flags of a mounted FS */
-        const MsRemount = 32,
+        const MS_REMOUNT = 32,
 
         /* Allow mandatory locks on an FS */
-        const MsMandlock = 64,
+        const MS_MANDLOCK = 64,
 
         /* Directory modifications are synchronous */
-        const MsDirsync = 128,
+        const MS_DIRSYNC = 128,
 
         /* Do not update access times. */
-        const MsNoatime = 1024,
+        const MS_NOATIME = 1024,
 
         /* Do not update directory access times */
-        const MsNodiratime = 2048,
+        const MS_NODIRATIME = 2048,
 
-        const MsBind = 4096,
+        const MS_BIND = 4096,
 
-        const MsMove = 8192,
+        const MS_MOVE = 8192,
 
-        const MsRec = 16384,
+        const MS_REC = 16384,
 
-        const MsVerbose = 32768,
+        const MS_VERBOSE = 32768,
 
-        const MsSilent = 32768,
+        const MS_SILENT = 32768,
 
         /* VFS does not apply the umask */
-        const MsPosixacl = (1<<16),
+        const MS_POSIXACL = (1<<16),
 
         /* change to unbindable */
-        const MsUnbindable = (1<<17),
+        const MS_UNBINDABLE = (1<<17),
 
         /* change to private */
-        const MsPrivate = (1<<18),
+        const MS_PRIVATE = (1<<18),
 
         /* change to slave */
-        const MsSlave = (1<<19),
+        const MS_SLAVE = (1<<19),
 
         /* change to shared */
-        const MsShared = (1<<20),
+        const MS_SHARED = (1<<20),
 
         /* Update atime relative to mtime/ctime. */
-        const MsRelatime = (1<<21),
+        const MS_RELATIME = (1<<21),
 
         /* this is a kern_mount call */
-        const MsKernmount = (1<<22),
+        const MS_KERNMOUNT = (1<<22),
 
         /* Update inode I_version field */
-        const MsIVersion = (1<<23),
+        const MS_I_VERSION = (1<<23),
 
         /* Always perform atime updates */
-        const MsStrictatime = (1<<24),
+        const MS_STRICTATIME = (1<<24),
 
-        const MsNosec = (1<<28),
+        const MS_NOSEC = (1<<28),
 
-        const MsBorn = (1<<29),
+        const MS_BORN = (1<<29),
 
-        const MsActive = (1<<30),
+        const MS_ACTIVE = (1<<30),
 
-        const MsNouser = (1<<31),
+        const MS_NOUSER = (1<<31),
 
-        const MsRmtMask = (MsRdonly.bits|MsSynchronous.bits|MsMandlock.bits|MsIVersion.bits),
+        const MS_RMT_MASK = (MS_RDONLY.bits|MS_SYNCHRONOUS.bits|MS_MANDLOCK.bits|MS_I_VERSION.bits),
 
-        const MsMgcVal = 0xC0ED0000,
+        const MS_MGC_VAL = 0xC0ED0000,
 
-        const MsMgcMsk = 0xffff0000
+        const MS_MGC_MSK = 0xffff0000
     }
 )
