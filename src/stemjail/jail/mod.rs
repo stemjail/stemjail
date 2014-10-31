@@ -170,14 +170,14 @@ impl Jail {
         // FIXME: There must be no submount (maybe fs_fully_visible check?)
         info!("Bind mounting {}", bind.dst.display());
         let dst = nested_dir!(self.root, bind.dst);
-        let bind_flags = fs::MsBind | fs::MsRec;
+        let bind_flags = fs::MS_BIND | fs::MS_REC;
 
         // Create needed directorie(s) and/or file
         try!(create_same_type(&bind.src, &dst));
 
         try!(mount(&bind.src, &dst, &"none".to_string(), &bind_flags, &None));
         if ! bind.write {
-            let bind_flags = bind_flags | fs::MsRemount | fs::MsRdonly;
+            let bind_flags = bind_flags | fs::MS_REMOUNT | fs::MS_RDONLY;
             try!(mount(&bind.src, &dst, &"none".to_string(), &bind_flags, &None));
         }
         Ok(())
@@ -186,7 +186,7 @@ impl Jail {
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
-        let root_flags = fs::MsBind | fs::MsRec;
+        let root_flags = fs::MS_BIND | fs::MS_REC;
         try!(mount(&self.root, &self.root, &"none".to_string(), &root_flags, &None));
         try!(chdir(&self.root));
 
@@ -210,7 +210,7 @@ impl Jail {
         try!(pivot_root(&self.root, &old_root));
 
         // Cleanup parent mounts
-        try!(umount(&old_root, &fs0::MntDetach));
+        try!(umount(&old_root, &fs0::MNT_DETACH));
         Ok(())
     }
 
@@ -240,12 +240,12 @@ impl Jail {
                 _ => {}
             }
             match unshare(
-                    sched::CloneNewipc |
-                    sched::CloneNewnet |
-                    sched::CloneNewns |
-                    sched::CloneNewpid |
-                    sched::CloneNewuser |
-                    sched::CloneNewuts
+                    sched::CLONE_NEWIPC |
+                    sched::CLONE_NEWNET |
+                    sched::CLONE_NEWNS |
+                    sched::CLONE_NEWPID |
+                    sched::CLONE_NEWUSER |
+                    sched::CLONE_NEWUTS
             ) {
                 Ok(_) => {},
                 Err(e) => fail!("Fail to unshare: {}", e),
