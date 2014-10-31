@@ -28,7 +28,7 @@ use stemjail::{fdpass, jail, plugins};
 use serialize::json;
 use std::io::{BufferedStream, Listener, Acceptor};
 use std::io::fs;
-use std::io::net::unix::{UnixListener, UnixStream};
+use std::io::net::pipe::{UnixListener, UnixStream};
 use std::os;
 use std::sync::Arc;
 

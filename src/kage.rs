@@ -29,7 +29,7 @@ use stemjail::{fdpass, plugins};
 use self::native::io::file::FileDesc;
 use serialize::json;
 use std::io::BufferedStream;
-use std::io::net::unix::UnixStream;
+use std::io::net::pipe::UnixStream;
 use std::{io, os};
 
 fn get_usage() -> String {
