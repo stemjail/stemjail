@@ -61,16 +61,9 @@ pub mod raw {
     }
 }
 
-pub fn chdir(dir: &Path) -> io::IoResult<()> {
-    match os::change_dir(dir) {
-        true => Ok(()),
-        false => Err(io::standard_error(io::OtherIoError)),
-    }
-}
-
 #[allow(dead_code)]
 pub fn chroot(path: &Path) -> io::IoResult<()> {
-    try!(chdir(path));
+    try!(os::change_dir(path));
     let p = path2str!(path);
     p.with_c_str(|s| {
         match unsafe { raw::chroot(s) } {

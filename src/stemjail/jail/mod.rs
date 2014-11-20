@@ -16,11 +16,12 @@ extern crate libc;
 
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
-use self::ns::{chdir, mount, pivot_root, setgroups, umount, unshare};
 use self::ns::{fs, fs0, raw, sched};
+use self::ns::{mount, pivot_root, setgroups, umount, unshare};
 use std::io;
 use std::io::{File, Open, Write};
 use std::io::fs::PathExtensions;
+use std::os::change_dir;
 
 pub use self::session::Stdio;
 
@@ -188,7 +189,7 @@ impl Jail {
         // Prepare to remove all parent mounts with a pivot
         let root_flags = fs::MS_BIND | fs::MS_REC;
         try!(mount(&self.root, &self.root, &"none".to_string(), &root_flags, &None));
-        try!(chdir(&self.root));
+        try!(change_dir(&self.root));
 
         // procfs
         let proc_src = Path::new("proc");
