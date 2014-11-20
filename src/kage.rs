@@ -27,6 +27,7 @@ extern crate native;
 extern crate serialize;
 
 use stemjail::{fdpass, plugins};
+use stemjail::plugins::{PortalRequest, KageAction};
 use self::native::io::file::FileDesc;
 use serialize::json;
 use std::io::BufferedStream;
@@ -46,13 +47,13 @@ fn args_fail<T: Str>(msg: T) {
     os::set_exit_status(1);
 }
 
-fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Result<(), String> {
+fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), String> {
     match cmd {
-        plugins::KageNop => {}
-        plugins::PrintHelp => {
+        KageAction::Nop => {}
+        KageAction::PrintHelp => {
             println!("{}\n{}", plugin.get_usage(), get_usage());
         }
-        plugins::SendPortalCommand => {
+        KageAction::SendPortalCommand => {
             let cmd = match plugin.get_portal_cmd() {
                 Some(c) => c,
                 None => return Err("No command".to_string()),
@@ -90,8 +91,8 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: plugins::KageAction) -> Resu
             // TODO: match decoded.result
             let stream = bstream.unwrap();
             match decoded.request {
-                plugins::PortalNop => {}
-                plugins::RequestFileDescriptor => {
+                PortalRequest::Nop => {}
+                PortalRequest::FileDescriptor => {
                     let fd = FileDesc::new(libc::STDIN_FILENO, false);
                     // TODO: Replace &[0] with a JSON command
                     let iov = &[0];

@@ -25,6 +25,7 @@ extern crate serialize;
 use stemjail::config::get_config;
 use stemjail::config::profile::ProfileConfig;
 use stemjail::{fdpass, jail, plugins};
+use stemjail::plugins::{PluginCommand, PortalRequest};
 use serialize::json;
 use std::io::{BufferedStream, Listener, Acceptor};
 use std::io::fs;
@@ -49,14 +50,14 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
         Err(e) => return Err(format!("Fail to read command (flush): {}", e)),
     }
     // FIXME: task '<main>' failed at 'called `Option::unwrap()` on a `None` value', .../rust/src/libcore/option.rs:265
-    let decoded: plugins::PortalPluginCommand = match json::decode(encoded_str.as_slice()) {
+    let decoded: PluginCommand = match json::decode(encoded_str.as_slice()) {
         Ok(d) => d,
         Err(e) => return Err(format!("Fail to decode command: {}", e)),
     };
 
     // Use the client command if any or the configuration command otherwise
     let (args, do_stdio) = match decoded {
-        plugins::RunCommand(r) => {
+        PluginCommand::Run(r) => {
             let c = match r.command.iter().next() {
                 Some(_) => r.command.clone(),
                 None => config.run.cmd.clone(),
@@ -92,9 +93,9 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     let cmd = plugins::PortalAck {
         //result: Ok(()),
         request: if do_stdio {
-            plugins::RequestFileDescriptor
+            PortalRequest::FileDescriptor
         } else {
-            plugins::PortalNop
+            PortalRequest::Nop
         }
     };
     let json = json::encode(&cmd);

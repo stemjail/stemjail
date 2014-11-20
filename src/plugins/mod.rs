@@ -15,15 +15,15 @@
 pub mod run;
 
 pub enum KageAction {
-    KageNop,
+    Nop,
     PrintHelp,
     SendPortalCommand,
 }
 
 #[deriving(Decodable, Encodable, Show)]
 pub enum PortalRequest {
-    PortalNop,
-    RequestFileDescriptor,
+    Nop,
+    FileDescriptor,
 }
 
 #[deriving(Decodable, Encodable)]
@@ -33,17 +33,17 @@ pub struct PortalAck {
 }
 
 #[deriving(Decodable, Encodable, Show)]
-pub enum PortalPluginCommand {
-    RunCommand(self::run::PortalRunCommand),
+pub enum PluginCommand {
+    Run(self::run::RunCommand),
 }
 
-impl PortalPluginCommand {
+impl PluginCommand {
     pub fn is_valid_request(&self, req: &PortalRequest) -> bool {
         match *self {
-            RunCommand(ref c) => {
+            PluginCommand::Run(ref c) => {
                 match *req {
-                    PortalNop => true,
-                    RequestFileDescriptor => c.stdio,
+                    PortalRequest::Nop => true,
+                    PortalRequest::FileDescriptor => c.stdio,
                     //_ => false,
                 }
             }
@@ -54,7 +54,7 @@ impl PortalPluginCommand {
 pub trait Plugin {
     fn get_name<'a>(&'a self) -> &'a String;
     fn get_usage(&self) -> String;
-    fn get_portal_cmd(&self) -> Option<PortalPluginCommand>;
+    fn get_portal_cmd(&self) -> Option<PluginCommand>;
     fn init_client(&mut self, args: &Vec<String>) -> Result<KageAction, String>;
 }
 

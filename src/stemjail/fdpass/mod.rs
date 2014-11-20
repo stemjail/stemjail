@@ -59,7 +59,7 @@ pub fn send_fd(stream: &UnixStream, id: &[u8], fd: &FileDesc) -> io::IoResult<()
         iov_len: id.len() as size_t,
     };
     let fda = FdPadding::new(fd.fd());
-    let ctrl = net::Cmsghdr::new(net::SOL_SOCKET, net::ScmRights, fda);
+    let ctrl = net::Cmsghdr::new(net::SOL_SOCKET, net::Scm::Rights, fda);
     let msg = net::Msghdr::new(None, vec!(iov), &ctrl, None);
     match net::sendmsg(stream.get_fd().unwrap(), msg) {
         Ok(_) => Ok(()),

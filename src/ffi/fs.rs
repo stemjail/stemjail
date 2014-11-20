@@ -44,7 +44,7 @@ impl Dev {
 }
 
 #[allow(dead_code)]
-pub enum NodeType {
+pub enum Node {
     Block(Dev),
     Character(Dev),
     Fifo,
@@ -52,24 +52,24 @@ pub enum NodeType {
     Socket,
 }
 
-impl NodeType {
+impl Node {
     fn get_stat(&self) -> mode_t {
         match *self {
-            Block(..) => self::libc::S_IFBLK,
-            Character(..) => self::libc::S_IFCHR,
-            Fifo => self::libc::S_IFIFO,
-            Regular => self::libc::S_IFREG,
+            Node::Block(..) => self::libc::S_IFBLK,
+            Node::Character(..) => self::libc::S_IFCHR,
+            Node::Fifo => self::libc::S_IFIFO,
+            Node::Regular => self::libc::S_IFREG,
             // FIXME: Missing libc::S_ISOCK
             // From Linux v3.14 include/uapi/linux/stat.h
             #[cfg(target_arch = "x86_64")]
-            Socket => 0o140000,
+            Node::Socket => 0o140000,
         }
     }
 
     fn get_dev(&self) -> dev_t {
         match *self {
-            Block(d) => d.makedev(),
-            Character(d) => d.makedev(),
+            Node::Block(d) => d.makedev(),
+            Node::Character(d) => d.makedev(),
             _ => 0,
         }
     }
@@ -85,7 +85,7 @@ pub fn dup(fd: &FileDesc, close_on_drop: bool) -> io::IoResult<FileDesc> {
 
 // TODO: Set and restore umask, or return an error if permissions are masked
 #[allow(dead_code)]
-pub fn mknod(path: &Path, nodetype: &NodeType, permission: &io::FilePermission) -> io::IoResult<()> {
+pub fn mknod(path: &Path, nodetype: &Node, permission: &io::FilePermission) -> io::IoResult<()> {
     let path = path2str!(path);
     let mode = nodetype.get_stat() | permission.bits();
     path.with_c_str(|p| {

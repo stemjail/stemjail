@@ -18,7 +18,7 @@ extern crate serialize;
 use self::getopts::{optflag, getopts, OptGroup};
 
 #[deriving(Clone, Decodable, Encodable, Show)]
-pub struct PortalRunCommand {
+pub struct RunCommand {
     pub profile: String,
     pub command: Vec<String>,
     pub stdio: bool,
@@ -27,7 +27,7 @@ pub struct PortalRunCommand {
 pub struct RunPlugin {
     name: String,
     opts: Vec<OptGroup>,
-    portal_cmd: Option<PortalRunCommand>,
+    portal_cmd: Option<RunCommand>,
 }
 
 impl RunPlugin {
@@ -48,9 +48,9 @@ impl super::Plugin for RunPlugin {
         &self.name
     }
 
-    fn get_portal_cmd(&self) -> Option<super::PortalPluginCommand> {
+    fn get_portal_cmd(&self) -> Option<super::PluginCommand> {
         match self.portal_cmd {
-            Some(ref c) => Some(super::RunCommand(c.clone())),
+            Some(ref c) => Some(super::PluginCommand::Run(c.clone())),
             None => None,
         }
     }
@@ -61,19 +61,19 @@ impl super::Plugin for RunPlugin {
             Err(e) => return Err(format!("{}", e)),
         };
         if matches.opt_present("help") {
-            return Ok(super::PrintHelp);
+            return Ok(super::KageAction::PrintHelp);
         }
         let mut argi = matches.free.iter();
         let profile = match argi.next() {
             Some(p) => p,
             None => return Err("Need a profile name".to_string()),
         };
-        self.portal_cmd = Some(PortalRunCommand {
+        self.portal_cmd = Some(RunCommand {
             profile: profile.clone(),
             command: argi.map(|x| x.to_string()).collect(),
             stdio: matches.opt_present("stdio")
         });
-        Ok(super::SendPortalCommand)
+        Ok(super::KageAction::SendPortalCommand)
     }
 
     fn get_usage(&self) -> String {

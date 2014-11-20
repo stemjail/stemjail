@@ -116,15 +116,15 @@ impl<T> Msghdr<T> {
 
 #[allow(dead_code)]
 #[repr(C)]
-pub enum ScmType {
+pub enum Scm {
     /** rw: access rights (array of int) */
-    ScmRights = 0x01,
+    Rights = 0x01,
 
     /** rw: struct ucred */
-    ScmCredentials = 0x02,
+    Credentials = 0x02,
 
     /** rw: security label */
-    ScmSecurity = 0x03
+    Security = 0x03
 }
 
 /** Structure used for storage of ancillary data object information. */
@@ -142,7 +142,7 @@ pub struct Cmsghdr<T> {
     cmsg_level: c_int,
 
     /** Protocol specific type. */
-    cmsg_type: ScmType,
+    cmsg_type: Scm,
 
     /** Ancillary data. */
     /* __cmsg_data must be align with size_t */
@@ -153,7 +153,7 @@ pub struct Cmsghdr<T> {
 pub static SOL_SOCKET: c_int = 1;
 
 impl<T> Cmsghdr<T> {
-    pub fn new(level: c_int, scm: ScmType, data: T) -> Cmsghdr<T> {
+    pub fn new(level: c_int, scm: Scm, data: T) -> Cmsghdr<T> {
         // Check alignement
         assert_eq!(size_of::<T>() % size_of::<size_t>(), 0);
         assert_eq!((size_of::<Cmsghdr<T>>() - size_of::<T>()) % size_of::<size_t>(), 0);
@@ -176,7 +176,7 @@ pub fn recvmsg<T>(sockfd: fd_t, iov_len: uint, mut cmsg_data: T) -> io::IoResult
         iov_base: unsafe { transmute(iov_data_ptr) },
         iov_len: iov_len as size_t,
     });
-    let mut ctrl = Cmsghdr::new(SOL_SOCKET, ScmRights, cmsg_data);
+    let mut ctrl = Cmsghdr::new(SOL_SOCKET, Scm::Rights, cmsg_data);
     let mut msg = Msghdr::new(None, iovv, &mut ctrl, None);
     let size = match unsafe { raw::recvmsg(sockfd as c_int, transmute(&mut msg), 0) } {
         -1 => return Err(io::IoError::last_error()),
