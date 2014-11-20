@@ -11,7 +11,7 @@ path = "src/kage.rs"
 name = "portal"
 path = "src/portal.rs"
 
-[[lib]]
+[lib]
 name = "stemjail"
 path = "src/stemjail/mod.rs"
 
