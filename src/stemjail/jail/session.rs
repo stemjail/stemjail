@@ -12,11 +12,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-extern crate native;
-
 use self::fs::dup;
-use self::native::io::file::FileDesc;
 use std::io;
+use std::io::fs::FileDesc;
 
 #[path = "../../ffi/fs.rs" ]
 mod fs;

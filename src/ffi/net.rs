@@ -13,11 +13,10 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate libc;
-extern crate native;
 
-use self::native::io::file::fd_t;
 use self::libc::{c_int, size_t, ssize_t, c_uint, c_void};
 use std::io;
+use std::io::fs::fd_t;
 use std::mem::{size_of, size_of_val};
 use std::mem::transmute;
 use std::ptr;

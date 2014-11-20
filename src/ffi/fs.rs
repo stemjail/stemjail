@@ -13,12 +13,11 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate libc;
-extern crate native;
 
 use self::libc::c_uint;
 use self::libc::types::os::arch::posix88::{dev_t, mode_t};
-use self::native::io::file::{fd_t, FileDesc};
 use std::io;
+use std::io::fs::{fd_t, FileDesc};
 
 mod raw {
     extern crate libc;

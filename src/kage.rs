@@ -23,14 +23,13 @@ extern crate libc;
 #[phase(plugin, link)]
 extern crate log;
 extern crate stemjail;
-extern crate native;
 extern crate serialize;
 
 use stemjail::{fdpass, plugins};
 use stemjail::plugins::{PortalRequest, KageAction};
-use self::native::io::file::FileDesc;
 use serialize::json;
 use std::io::BufferedStream;
+use std::io::fs::FileDesc;
 use std::io::net::pipe::UnixStream;
 use std::{io, os};
 
