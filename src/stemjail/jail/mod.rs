@@ -221,22 +221,22 @@ impl Jail {
         // Fork a new process
         let mut sync_parent = match io::pipe::PipeStream::pair() {
             Ok(p) => p,
-            Err(e) => fail!("Fail to fork: {}", e),
+            Err(e) => panic!("Fail to fork: {}", e),
         };
         let mut sync_child = match io::pipe::PipeStream::pair() {
             Ok(p) => p,
-            Err(e) => fail!("Fail to fork: {}", e),
+            Err(e) => panic!("Fail to fork: {}", e),
         };
         let pid = unsafe { fork() };
         if pid < 0 {
-            fail!("Fail to fork #1");
+            panic!("Fail to fork #1");
         } else if pid == 0 {
             // Child
             info!("Child jailing into {}", self.root.display());
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
             match unsafe { setsid() } {
-                -1 => fail!("Fail setsid: {}", io::IoError::last_error()),
+                -1 => panic!("Fail setsid: {}", io::IoError::last_error()),
                 _ => {}
             }
             match unshare(
@@ -248,34 +248,34 @@ impl Jail {
                     sched::CLONE_NEWUTS
             ) {
                 Ok(_) => {},
-                Err(e) => fail!("Fail to unshare: {}", e),
+                Err(e) => panic!("Fail to unshare: {}", e),
             }
 
             // Sync with parent
             match sync_parent.writer.write_i8(0) {
                 Ok(_) => {}
-                Err(e) => fail!("Fail to synchronise with parent: {}", e),
+                Err(e) => panic!("Fail to synchronise with parent: {}", e),
             }
             let _ = sync_child.reader.read_i8();
 
             // Need to fork because of the PID namespace and the group ID
             let pid = unsafe { fork() };
             if pid < 0 {
-                fail!("Fail to fork #2");
+                panic!("Fail to fork #2");
             } else if pid == 0 {
                 // Child
                 let groups = Vec::new();
                 match setgroups(groups) {
                     Ok(_) => {}
-                    Err(e) => fail!("Fail to set groups: {}", e),
+                    Err(e) => panic!("Fail to set groups: {}", e),
                 }
                 match unsafe { getuid() } {
                     0 => {}
-                    _ => fail!("Fail to got root"),
+                    _ => panic!("Fail to got root"),
                 }
                 match self.init_fs() {
                     Ok(_) => {}
-                    Err(e) => fail!("Fail to initialize the file system: {}", e),
+                    Err(e) => panic!("Fail to initialize the file system: {}", e),
                 }
 
                 let (stdin, stdout, stderr) = match *stdio {
@@ -300,7 +300,7 @@ impl Jail {
                         .args(args.as_slice())
                         .spawn() {
                     Ok(_) => {},
-                    Err(e) => fail!("Fail to execute process: {}", e),
+                    Err(e) => panic!("Fail to execute process: {}", e),
                 }
                 return;
             } else {
@@ -315,16 +315,16 @@ impl Jail {
             let _ = sync_parent.reader.read_i8();
             match self.init_userns(pid) {
                 Ok(_) => {}
-                Err(e) => fail!("Fail to initialize user namespace: {}", e),
+                Err(e) => panic!("Fail to initialize user namespace: {}", e),
             }
             match sync_child.writer.write_i8(0) {
                 Ok(_) => {}
-                Err(e) => fail!("Fail to synchronise with child: {}", e),
+                Err(e) => panic!("Fail to synchronise with child: {}", e),
             }
             debug!("Waiting for child {} to terminate", pid);
             let mut status: libc::c_int = 0;
             match unsafe { raw::waitpid(pid, &mut status, 0) } {
-                -1 => fail!("Fail to wait for child {}", pid),
+                -1 => panic!("Fail to wait for child {}", pid),
                 _ => {}
             }
         }

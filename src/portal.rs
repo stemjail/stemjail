@@ -113,7 +113,7 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
         };
         match jail::Stdio::new(fd) {
             Ok(f) => Some(f),
-            Err(e) => fail!("Fail create stdio: {}", e),
+            Err(e) => panic!("Fail create stdio: {}", e),
         }
     } else {
         None
