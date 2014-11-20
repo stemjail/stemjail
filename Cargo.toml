@@ -16,4 +16,5 @@ name = "stemjail"
 path = "src/stemjail/mod.rs"
 
 [dependencies.toml]
-path = "../toml-rs"
+git = "https://github.com/alexcrichton/toml-rs.git"
+rev = "4bb575fdaf5fd88580abbac6fdb057ef76d32251"
