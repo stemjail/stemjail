@@ -15,6 +15,9 @@ path = "src/portal.rs"
 name = "stemjail"
 path = "src/stemjail/mod.rs"
 
+[dependencies.pty]
+path = "../pty-rs"
+
 [dependencies.toml]
 git = "https://github.com/alexcrichton/toml-rs.git"
 rev = "4bb575fdaf5fd88580abbac6fdb057ef76d32251"
