@@ -34,8 +34,8 @@ use std::os;
 use std::sync::Arc;
 
 macro_rules! absolute_path(
-    ($dir: expr) => {
-        os::getcwd().join(&Path::new($dir))
+    ($cwd: expr, $dir: expr) => {
+        $cwd.join(&Path::new($dir.clone()))
     };
 )
 
@@ -71,16 +71,21 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
         None => return Err("Missing executable in the command (first argument)".to_string()),
     };
 
+    let cwd = match os::getcwd() {
+        Ok(d) => d,
+        Err(e) => return Err(format!("Fail to get CWD: {}", e)),
+    };
+
     let mut j = jail::Jail::new(
         config.name.clone(),
-        absolute_path!(config.fs.root.clone()),
+        absolute_path!(cwd, config.fs.root),
         match config.fs.bind {
             Some(ref b) => b.iter().map(
                 |x| jail::BindMount {
-                    src: absolute_path!(x.src.clone()),
+                    src: absolute_path!(cwd, x.src),
                     dst: match x.dst {
-                        Some(ref d) => absolute_path!(d.clone()),
-                        None => absolute_path!(x.src.clone()),
+                        Some(ref d) => absolute_path!(cwd, d),
+                        None => absolute_path!(cwd, x.src),
                     },
                     write: match x.write {
                         Some(w) => w,
