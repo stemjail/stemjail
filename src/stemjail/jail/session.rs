@@ -12,26 +12,37 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use self::fs::dup;
+extern crate pty;
+
+use self::pty::TtyProxy;
 use std::io;
-use std::io::fs::FileDesc;
+use std::io::fs::{FileDesc, fd_t};
 
 #[path = "../../ffi/fs.rs" ]
 mod fs;
 
 pub struct Stdio {
-    pub stdin: FileDesc,
-    pub stdout: FileDesc,
-    pub stderr: FileDesc,
+    tty: TtyProxy,
 }
 
 impl Stdio {
     pub fn new(fd: FileDesc) -> io::IoResult<Stdio> {
+        let tty = try!(TtyProxy::new(fd));
         Ok(Stdio {
-            // Can't close on drop because of the io::Command FD auto-closing
-            stdin: try!(dup(&fd, false)),
-            stdout: try!(dup(&fd, false)),
-            stderr: try!(dup(&fd, false)),
+            tty: tty,
         })
+    }
+
+    // Take care of the return FD lifetime
+    pub unsafe fn stdin(&self) -> fd_t {
+        self.tty.pty.slave.fd()
+    }
+
+    pub unsafe fn stdout(&self) -> fd_t {
+        self.tty.pty.slave.fd()
+    }
+
+    pub unsafe fn stderr(&self) -> fd_t {
+        self.tty.pty.slave.fd()
     }
 }

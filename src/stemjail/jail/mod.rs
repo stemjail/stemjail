@@ -98,6 +98,7 @@ pub struct Jail {
     name: String,
     root: Path,
     binds: Vec<BindMount>,
+    terms: Vec<Stdio>,
 }
 
 impl Jail {
@@ -106,6 +107,7 @@ impl Jail {
             name: name,
             root: root,
             binds: binds,
+            terms: vec!(),
         }
     }
 
@@ -215,7 +217,7 @@ impl Jail {
         Ok(())
     }
 
-    pub fn run(&mut self, run: &Path, args: &Vec<String>, stdio: &Option<Stdio>) {
+    pub fn run(&mut self, run: &Path, args: &Vec<String>, stdio: Option<Stdio>) {
         info!("Running jail {}", self.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
@@ -279,12 +281,17 @@ impl Jail {
                     Err(e) => panic!("Fail to initialize the file system: {}", e),
                 }
 
-                let (stdin, stdout, stderr) = match *stdio {
-                    Some(ref s) => {(
-                        io::process::InheritFd(s.stdin.fd()),
-                        io::process::InheritFd(s.stdout.fd()),
-                        io::process::InheritFd(s.stderr.fd()),
-                    )},
+                let (stdin, stdout, stderr) = match stdio {
+                    // TODO: Use pipes if no TTY
+                    Some(s) => {
+                        let r = unsafe {(
+                            io::process::InheritFd(s.stdin()),
+                            io::process::InheritFd(s.stdout()),
+                            io::process::InheritFd(s.stderr()),
+                        )};
+                        self.terms.push(s);
+                        r
+                    },
                     None => {(
                         io::process::InheritFd(libc::STDIN_FILENO),
                         io::process::InheritFd(libc::STDOUT_FILENO),

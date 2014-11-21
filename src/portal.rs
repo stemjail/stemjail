@@ -98,7 +98,7 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     let cmd = plugins::PortalAck {
         //result: Ok(()),
         request: if do_stdio {
-            PortalRequest::FileDescriptor
+            PortalRequest::CreateTty
         } else {
             PortalRequest::Nop
         }
@@ -128,7 +128,7 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     let args = args.iter().enumerate().filter_map(
         |(i, x)| if i == 0 { None } else { Some(x.clone()) } ).collect();
 
-    j.run(&Path::new(exe), &args, &stdio);
+    j.run(&Path::new(exe), &args, stdio);
     // TODO: Send ACK
     Ok(())
 }

@@ -23,7 +23,7 @@ pub enum KageAction {
 #[deriving(Decodable, Encodable, Show)]
 pub enum PortalRequest {
     Nop,
-    FileDescriptor,
+    CreateTty,
 }
 
 #[deriving(Decodable, Encodable)]
@@ -43,7 +43,7 @@ impl PluginCommand {
             PluginCommand::Run(ref c) => {
                 match *req {
                     PortalRequest::Nop => true,
-                    PortalRequest::FileDescriptor => c.stdio,
+                    PortalRequest::CreateTty => c.stdio,
                     //_ => false,
                 }
             }

@@ -36,7 +36,7 @@ impl RunPlugin {
             name: "run".to_string(),
             opts: vec!(
                 optflag("h", "help", "Print this message"),
-                optflag("s", "stdio", "Redirect stdin, stdout and stderr"),
+                optflag("t", "tty", "Create and connect to the remote TTY"),
             ),
             portal_cmd: None,
         }
@@ -71,7 +71,7 @@ impl super::Plugin for RunPlugin {
         self.portal_cmd = Some(RunCommand {
             profile: profile.clone(),
             command: argi.map(|x| x.to_string()).collect(),
-            stdio: matches.opt_present("stdio")
+            stdio: matches.opt_present("tty")
         });
         Ok(super::KageAction::SendPortalCommand)
     }

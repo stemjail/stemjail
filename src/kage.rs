@@ -91,7 +91,7 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), St
             let stream = bstream.unwrap();
             match decoded.request {
                 PortalRequest::Nop => {}
-                PortalRequest::FileDescriptor => {
+                PortalRequest::CreateTty => {
                     let fd = FileDesc::new(libc::STDIN_FILENO, false);
                     // TODO: Replace &[0] with a JSON command
                     let iov = &[0];
@@ -128,7 +128,9 @@ fn main() {
             };
             match plugin.init_client(&plugin_args) {
                 Ok(cmd) => match plugin_action(plugin, cmd) {
-                    Ok(_) => {}
+                    Ok(_) => {
+                        // TODO: Wait for the portal ack if PortalRequest::CreateTty
+                    }
                     Err(e) => {
                         args_fail(format!("Command action error: {}", e));
                         return;
