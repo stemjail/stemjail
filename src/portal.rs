@@ -18,7 +18,10 @@
 #![license = "LGPL-3.0"]
 
 #![feature(macro_rules)]
+#![feature(phase)]
 
+#[phase(plugin, link)]
+extern crate log;
 extern crate stemjail;
 extern crate serialize;
 
@@ -114,9 +117,10 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
         // TODO: Replace 0u8 with a JSON match
         let fd = match fdpass::recv_fd(&stream, vec!(0u8)) {
             Ok(fd) => fd,
-            Err(e) => return Err(format!("Fail to receive stdio FD: {}", e)),
+            Err(e) => return Err(format!("Fail to receive template FD: {}", e)),
         };
-        match jail::Stdio::new(fd) {
+        // XXX: Allocate a new TTY inside the jail?
+        match jail::Stdio::new(&fd) {
             Ok(f) => Some(f),
             Err(e) => panic!("Fail create stdio: {}", e),
         }
@@ -129,7 +133,24 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
         |(i, x)| if i == 0 { None } else { Some(x.clone()) } ).collect();
 
     j.run(&Path::new(exe), &args, stdio);
-    // TODO: Send ACK
+    match j.get_stdio() {
+        &Some(ref s) => {
+            // TODO: Replace &[0] with a JSON command
+            let iov = &[0];
+            match fdpass::send_fd(&stream, iov, s.get_master()) {
+                Ok(_) => {},
+                Err(e) => return Err(format!("Fail to synchronise: {}", e)),
+            }
+            match fdpass::send_fd(&stream, iov, s.get_master()) {
+                Ok(_) => {},
+                Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
+            }
+        },
+        &None => {},
+    }
+    debug!("Waiting jail to end");
+    let ret = j.wait();
+    debug!("Jail end: {}", ret);
     Ok(())
 }
 

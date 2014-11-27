@@ -14,35 +14,31 @@
 
 extern crate pty;
 
-use self::pty::TtyProxy;
+use self::pty::TtyServer;
 use std::io;
-use std::io::fs::{FileDesc, fd_t};
+use std::io::fs::FileDesc;
 
 #[path = "../../ffi/fs.rs" ]
 mod fs;
 
 pub struct Stdio {
-    tty: TtyProxy,
+    tty: TtyServer,
 }
 
 impl Stdio {
-    pub fn new(fd: FileDesc) -> io::IoResult<Stdio> {
-        let tty = try!(TtyProxy::new(fd));
+    pub fn new(fd: &FileDesc) -> io::IoResult<Stdio> {
+        let tty = try!(TtyServer::new(Some(fd)));
         Ok(Stdio {
             tty: tty,
         })
     }
 
     // Take care of the return FD lifetime
-    pub unsafe fn stdin(&self) -> fd_t {
-        self.tty.pty.slave.fd()
+    pub fn take_slave_fd(&mut self) -> Option<FileDesc> {
+        self.tty.take_slave()
     }
 
-    pub unsafe fn stdout(&self) -> fd_t {
-        self.tty.pty.slave.fd()
-    }
-
-    pub unsafe fn stderr(&self) -> fd_t {
-        self.tty.pty.slave.fd()
+    pub fn get_master(&self) -> &FileDesc {
+        self.tty.get_master()
     }
 }

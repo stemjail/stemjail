@@ -23,10 +23,12 @@ extern crate libc;
 #[phase(plugin, link)]
 extern crate log;
 extern crate stemjail;
+extern crate pty;
 extern crate serialize;
 
 use stemjail::{fdpass, plugins};
 use stemjail::plugins::{PortalRequest, KageAction};
+use pty::TtyClient;
 use serialize::json;
 use std::io::BufferedStream;
 use std::io::fs::FileDesc;
@@ -92,17 +94,29 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), St
             match decoded.request {
                 PortalRequest::Nop => {}
                 PortalRequest::CreateTty => {
-                    let fd = FileDesc::new(libc::STDIN_FILENO, false);
+                    // Send the template TTY
+                    let peer = FileDesc::new(libc::STDIN_FILENO, false);
                     // TODO: Replace &[0] with a JSON command
                     let iov = &[0];
                     // Block the read stream with a FD barrier
-                    match fdpass::send_fd(&stream, iov, &fd) {
+                    match fdpass::send_fd(&stream, iov, &peer) {
                         Ok(_) => {},
                         Err(e) => return Err(format!("Fail to synchronise: {}", e)),
                     }
-                    match fdpass::send_fd(&stream, iov, &fd) {
+                    match fdpass::send_fd(&stream, iov, &peer) {
                         Ok(_) => {},
-                        Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
+                        Err(e) => return Err(format!("Fail to send template FD: {}", e)),
+                    }
+
+                    // Receive the master TTY
+                    // TODO: Replace 0u8 with a JSON match
+                    let master = match fdpass::recv_fd(&stream, vec!(0u8)) {
+                        Ok(master) => master,
+                        Err(e) => return Err(format!("Fail to receive master FD: {}", e)),
+                    };
+                    match TtyClient::new(master, peer) {
+                        Ok(p) => p.wait(),
+                        Err(e) => panic!("Fail create TTY client: {}", e),
                     }
                 }
             }

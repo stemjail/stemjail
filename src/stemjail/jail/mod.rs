@@ -22,6 +22,7 @@ use std::io;
 use std::io::{File, Open, Write};
 use std::io::fs::PathExtensions;
 use std::os::change_dir;
+use std::sync::{Arc, RWLock};
 
 pub use self::session::Stdio;
 
@@ -94,11 +95,14 @@ pub struct BindMount {
     pub write: bool,
 }
 
+// TODO: Add UUID
 pub struct Jail {
     name: String,
     root: Path,
     binds: Vec<BindMount>,
-    terms: Vec<Stdio>,
+    stdio: Option<Stdio>,
+    pid: Arc<RWLock<Option<pid_t>>>,
+    end_event: Option<Receiver<Result<(), ()>>>,
 }
 
 impl Jail {
@@ -107,7 +111,9 @@ impl Jail {
             name: name,
             root: root,
             binds: binds,
-            terms: vec!(),
+            stdio: None,
+            pid: Arc::new(RWLock::new(None)),
+            end_event: None,
         }
     }
 
@@ -217,6 +223,7 @@ impl Jail {
         Ok(())
     }
 
+    // TODO: Return IoResult<()>
     pub fn run(&mut self, run: &Path, args: &Vec<String>, stdio: Option<Stdio>) {
         info!("Running jail {}", self.name);
 
@@ -224,17 +231,53 @@ impl Jail {
         // Fork a new process
         let mut sync_parent = match io::pipe::PipeStream::pair() {
             Ok(p) => p,
-            Err(e) => panic!("Fail to fork: {}", e),
+            Err(e) => panic!("Fail to create pipe #1: {}", e),
         };
         let mut sync_child = match io::pipe::PipeStream::pair() {
             Ok(p) => p,
-            Err(e) => panic!("Fail to fork: {}", e),
+            Err(e) => panic!("Fail to create pipe #2: {}", e),
         };
+        let (mut jail_pid_rx, mut jail_pid_tx) = match io::pipe::PipeStream::pair() {
+            Ok(p) => (p.reader, p.writer),
+            Err(e) => panic!("Fail to create pipe #3: {}", e),
+        };
+
+        let (mut slave_fd, stdin, stdout, stderr) = match stdio {
+            // TODO: Use pipes if no TTY
+            Some(mut s) => {
+                // XXX: The TTY must be new
+                let slave_fd = s.take_slave_fd().unwrap();
+                let fd = slave_fd.fd();
+                //pty::set_nonblock(&fd);
+                self.stdio = Some(s);
+                // Keep the slave FD open until the spawn
+                (
+                    Some(slave_fd),
+                    io::process::InheritFd(fd),
+                    io::process::InheritFd(fd),
+                    io::process::InheritFd(fd),
+                )
+            },
+            None => {(
+                None,
+                io::process::InheritFd(libc::STDIN_FILENO),
+                io::process::InheritFd(libc::STDOUT_FILENO),
+                io::process::InheritFd(libc::STDERR_FILENO),
+            )}
+        };
+        let (end_tx, end_rx) = channel();
+        //let (end_rx, end_tx): (Receiver<()>, Sender<()>)= channel();
+        self.end_event = Some(end_rx);
+        let jail_pid = self.pid.clone();
+
+        // Dedicated task to wait for the jail process end
+        // TODO: Use Rust (synchronised) task wrapping fork to get free Rust extra checks
         let pid = unsafe { fork() };
         if pid < 0 {
             panic!("Fail to fork #1");
         } else if pid == 0 {
             // Child
+            drop(jail_pid_rx);
             info!("Child jailing into {}", self.root.display());
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
@@ -257,9 +300,12 @@ impl Jail {
             // Sync with parent
             match sync_parent.writer.write_i8(0) {
                 Ok(_) => {}
-                Err(e) => panic!("Fail to synchronise with parent: {}", e),
+                Err(e) => panic!("Fail to synchronise with parent #1: {}", e),
             }
-            let _ = sync_child.reader.read_i8();
+            match sync_child.reader.read_i8() {
+                Ok(_) => {}
+                Err(e) => panic!("Fail to synchronise with parent #2: {}", e),
+            }
 
             // Need to fork because of the PID namespace and the group ID
             let pid = unsafe { fork() };
@@ -276,49 +322,50 @@ impl Jail {
                     0 => {}
                     _ => panic!("Fail to got root"),
                 }
+                // TODO: Expose the TTY
                 match self.init_fs() {
                     Ok(_) => {}
                     Err(e) => panic!("Fail to initialize the file system: {}", e),
                 }
 
-                let (stdin, stdout, stderr) = match stdio {
-                    // TODO: Use pipes if no TTY
-                    Some(s) => {
-                        let r = unsafe {(
-                            io::process::InheritFd(s.stdin()),
-                            io::process::InheritFd(s.stdout()),
-                            io::process::InheritFd(s.stderr()),
-                        )};
-                        self.terms.push(s);
-                        r
-                    },
-                    None => {(
-                        io::process::InheritFd(libc::STDIN_FILENO),
-                        io::process::InheritFd(libc::STDOUT_FILENO),
-                        io::process::InheritFd(libc::STDERR_FILENO),
-                    )}
-                };
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
                 let env: Vec<(String, String)> = Vec::with_capacity(0);
-                match io::Command::new(run)
+                // TODO: Try using detached()
+                let mut process = match io::Command::new(run)
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
                         .env_set_all(env.as_slice())
                         .args(args.as_slice())
                         .spawn() {
-                    Ok(_) => {},
+                    Ok(p) => p,
                     Err(e) => panic!("Fail to execute process: {}", e),
+                };
+                // Need to keep the slave TTY open until passing to the child
+                drop(slave_fd.take());
+                // TODO: Check 32-bits compatibility with other arch
+                match jail_pid_tx.write_le_i32(process.id()) {
+                    Ok(_) => {}
+                    Err(e) => panic!("Fail to send child PID: {}", e),
                 }
-                return;
+                drop(jail_pid_tx);
+                // TODO: Forward the ProcessExit to the jail object
+                let ret = process.wait();
+                debug!("Jail process exit: {}", ret);
+                unsafe { libc::exit(0); }
             } else {
                 // Parent
+                drop(jail_pid_tx);
+                drop(slave_fd.take());
                 let mut status: libc::c_int = 0;
+                // TODO: Replace waitpid(2) with wait(2)
                 let _ = unsafe { raw::waitpid(pid, &mut status, 0) };
-                return;
+                unsafe { libc::exit(0); }
             }
         } else {
             // Parent
+            drop(jail_pid_tx);
+            drop(slave_fd.take());
             // TODO: Send fail command to the child if any error
             let _ = sync_parent.reader.read_i8();
             match self.init_userns(pid) {
@@ -329,12 +376,44 @@ impl Jail {
                 Ok(_) => {}
                 Err(e) => panic!("Fail to synchronise with child: {}", e),
             }
-            debug!("Waiting for child {} to terminate", pid);
-            let mut status: libc::c_int = 0;
-            match unsafe { raw::waitpid(pid, &mut status, 0) } {
-                -1 => panic!("Fail to wait for child {}", pid),
-                _ => {}
+            // Get the child PID
+            match jail_pid_rx.read_le_i32() {
+                Ok(p) => {
+                    let mut lock = jail_pid.write();
+                    *lock = Some(p);
+                }
+                Err(e) => panic!("Fail to get jail PID: {}", e),
             }
+            debug!("Got jail PID: {}", *jail_pid.read());
+            debug!("Waiting for child {} to terminate", pid);
+            spawn(proc() {
+                let mut status: libc::c_int = 0;
+                // TODO: Replace waitpid(2) with wait(2)
+                match unsafe { raw::waitpid(pid, &mut status, 0) } {
+                    //-1 => panic!("Fail to wait for child {}", pid),
+                    -1 => drop(end_tx.send_opt(Err(()))),
+                    _ => { {
+                            let mut lock = jail_pid.write();
+                            *lock = None;
+                        }
+                        drop(end_tx.send_opt(Ok(())));
+                    }
+                }
+            });
+        }
+    }
+
+    pub fn get_stdio(&self) -> &Option<Stdio> {
+        &self.stdio
+    }
+
+    pub fn wait(&self) -> Result<(), ()> {
+        match &self.end_event {
+            &Some(ref event) =>  match event.recv_opt() {
+                Ok(_) => Ok(()),
+                Err(_) => Err(()),
+            },
+            &None => Err(()),
         }
     }
 }
