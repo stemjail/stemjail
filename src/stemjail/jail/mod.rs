@@ -143,6 +143,7 @@ impl Jail {
         let dev_flags = fs::MsFlags::empty();
         try!(mount(&name, &devdir_full, &"tmpfs".to_string(), &dev_flags, &None));
 
+        // TODO: Use macro
         // Create mount points
         let devs = &[
             "null",
@@ -150,10 +151,22 @@ impl Jail {
             "full",
             "urandom",
             ];
+        let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
+            let src = Path::new("/dev").join(Path::new(*dev));
+            BindMount { src: src.clone(), dst: src, write: true }
+        }).collect();
+        // Add current TTY
+        match self.stdio {
+            Some(ref s) => match s.get_path() {
+                    Some(p) => devs.push(BindMount { src: p.clone(), dst: p.clone(), write: true }),
+                    None => {}
+                },
+            None => {}
+        }
         for dev in devs.iter() {
-            let src = Path::new(format!("/dev/{}", dev));
-            let dst = devdir_full.clone().join(Path::new(*dev));
-            try!(create_same_type(&src, &dst));
+            debug!("Creating {}", dev.dst.display());
+            let dst = nested_dir!(self.root_dst, dev.dst);
+            try!(create_same_type(&dev.src, &dst));
         }
         let links = &[
             ("fd", "/proc/self/fd"),
@@ -171,9 +184,7 @@ impl Jail {
         try!(self.add_bind(&bind));
 
         for dev in devs.iter() {
-            let src = Path::new(format!("/dev/{}", dev));
-            let bind = BindMount { src: src.clone(), dst: src, write: true };
-            try!(self.add_bind(&bind));
+            try!(self.add_bind(dev));
         }
         Ok(())
     }

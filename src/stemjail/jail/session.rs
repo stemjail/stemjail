@@ -41,4 +41,8 @@ impl Stdio {
     pub fn get_master(&self) -> &FileDesc {
         self.tty.get_master()
     }
+
+    pub fn get_path(&self) -> Option<&Path> {
+        Some(self.tty.get_path())
+    }
 }
