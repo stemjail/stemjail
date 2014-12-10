@@ -18,6 +18,7 @@ use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::ns::{fs, fs0, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, umount, unshare};
+use std::borrow::{Borrowed, Owned};
 use std::io;
 use std::io::{File, Open, Write};
 use std::io::fs::PathExtensions;
@@ -110,7 +111,7 @@ impl Jail {
         Jail {
             name: name,
             // TODO: Add a fallback for root.dst
-            root: BindMount { src: root, dst: Path::new("/proc/self/fdinfo"), write: true },
+            root: BindMount { src: root, dst: Path::new("/proc/self/fdinfo"), write: false },
             binds: binds,
             stdio: None,
             pid: Arc::new(RWLock::new(None)),
@@ -179,27 +180,43 @@ impl Jail {
         // Seal /dev
         // TODO: Drop the root user to realy seal something…
         let bind = BindMount { src: devdir_full.clone(), dst: devdir.clone(), write: false };
-        try!(self.add_bind(&bind));
+        try!(self.add_bind(&bind, false));
 
         for dev in devs.iter() {
-            try!(self.add_bind(dev));
+            try!(self.add_bind(dev, false));
         }
         Ok(())
     }
 
-    fn add_bind(&self, bind: &BindMount) -> io::IoResult<()> {
-        // FIXME: There must be no submount (maybe fs_fully_visible check?)
-        info!("Bind mounting {}", bind.dst.display());
-        let dst = nested_dir!(self.root.dst, bind.dst);
-        let bind_flags = fs::MS_BIND | fs::MS_REC;
+    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+        let dst = if is_absolute {
+            Borrowed(&bind.dst)
+        } else {
+            Owned(nested_dir!(self.root.dst, bind.dst))
+        };
+        let dst = dst.deref();
+        info!("Bind mounting {}", bind.src.display());
 
         // Create needed directorie(s) and/or file
-        try!(create_same_type(&bind.src, &dst));
+        try!(create_same_type(&bind.src, dst));
 
-        try!(mount(&bind.src, &dst, &"none".to_string(), &bind_flags, &None));
+        let none_str = "none".to_string();
+        // The clone_mnt kernel function forbid unprivileged users (i.e. CL_UNPRIVILEGED) to reveal
+        // what is under a mount, so we must recursively bind mount.
+        let bind_flags = fs::MS_BIND | fs::MS_REC;
+        try!(mount(&bind.src, dst, &none_str, &bind_flags, &None));
         if ! bind.write {
-            let bind_flags = bind_flags | fs::MS_REMOUNT | fs::MS_RDONLY;
-            try!(mount(&bind.src, &dst, &"none".to_string(), &bind_flags, &None));
+            // When write action is forbiden we must not use the MS_REC to avoid unattended
+            // read/write files during the jail life.
+            let none_path = Path::new("none");
+            // Freeze the vfsmount: good to not receive new mounts but block unmount as well
+            // TODO: Add a "unshare <path>" command to remove a to-be-unmounted path
+            let bind_flags = fs::MS_PRIVATE | fs::MS_REC;
+            try!(mount(&none_path, dst, &none_str, &bind_flags, &None));
+            // Remount read-only
+            let bind_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
+            try!(mount(&none_path, dst, &none_str, &bind_flags, &None));
+            // TODO: Propagate MS_RDONLY to all sub mounts
         }
         Ok(())
     }
@@ -208,8 +225,7 @@ impl Jail {
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
         // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
-        let root_flags = fs::MS_BIND | fs::MS_REC;
-        try!(mount(&self.root.src, &self.root.dst, &"none".to_string(), &root_flags, &None));
+        try!(self.add_bind(&self.root, true));
         try!(change_dir(&self.root.dst));
 
         // procfs
@@ -223,7 +239,7 @@ impl Jail {
         try!(self.init_dev(&Path::new("/dev")));
 
         for bind in self.binds.iter() {
-            try!(self.add_bind(bind));
+            try!(self.add_bind(bind, false));
         }
 
         // Finalize the pivot
