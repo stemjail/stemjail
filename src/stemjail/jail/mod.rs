@@ -90,16 +90,15 @@ fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
 }
 
 pub struct BindMount {
-    pub dst: Path,
     pub src: Path,
+    pub dst: Path,
     pub write: bool,
 }
 
 // TODO: Add UUID
 pub struct Jail {
     name: String,
-    root_src: Path,
-    root_dst: Path,
+    root: BindMount,
     binds: Vec<BindMount>,
     stdio: Option<Stdio>,
     pid: Arc<RWLock<Option<pid_t>>>,
@@ -110,9 +109,8 @@ impl Jail {
     pub fn new(name: String, root: Path, binds: Vec<BindMount>) -> Jail {
         Jail {
             name: name,
-            root_src: root,
-            // TODO: Add a fallback for root_dst
-            root_dst: Path::new("/proc/self/fdinfo"),
+            // TODO: Add a fallback for root.dst
+            root: BindMount { src: root, dst: Path::new("/proc/self/fdinfo"), write: true },
             binds: binds,
             stdio: None,
             pid: Arc::new(RWLock::new(None)),
@@ -137,7 +135,7 @@ impl Jail {
 
     fn init_dev(&self, devdir: &Path) -> io::IoResult<()> {
         info!("Populating /dev");
-        let devdir_full = nested_dir!(self.root_dst, devdir);
+        let devdir_full = nested_dir!(self.root.dst, devdir);
         try!(mkdir_if_not(&devdir_full));
         let name = Path::new("dev");
         let dev_flags = fs::MsFlags::empty();
@@ -165,7 +163,7 @@ impl Jail {
         }
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
-            let dst = nested_dir!(self.root_dst, dev.dst);
+            let dst = nested_dir!(self.root.dst, dev.dst);
             try!(create_same_type(&dev.src, &dst));
         }
         let links = &[
@@ -192,7 +190,7 @@ impl Jail {
     fn add_bind(&self, bind: &BindMount) -> io::IoResult<()> {
         // FIXME: There must be no submount (maybe fs_fully_visible check?)
         info!("Bind mounting {}", bind.dst.display());
-        let dst = nested_dir!(self.root_dst, bind.dst);
+        let dst = nested_dir!(self.root.dst, bind.dst);
         let bind_flags = fs::MS_BIND | fs::MS_REC;
 
         // Create needed directorie(s) and/or file
@@ -209,14 +207,14 @@ impl Jail {
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
-        // TODO: Add a path blacklist to hide some directories (e.g. when root_src == /)
+        // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
         let root_flags = fs::MS_BIND | fs::MS_REC;
-        try!(mount(&self.root_src, &self.root_dst, &"none".to_string(), &root_flags, &None));
-        try!(change_dir(&self.root_dst));
+        try!(mount(&self.root.src, &self.root.dst, &"none".to_string(), &root_flags, &None));
+        try!(change_dir(&self.root.dst));
 
         // procfs
         let proc_src = Path::new("proc");
-        let proc_dst = self.root_dst.clone().join(proc_src.clone());
+        let proc_dst = self.root.dst.clone().join(proc_src.clone());
         try!(mkdir_if_not(&proc_dst));
         let proc_flags = fs::MsFlags::empty();
         try!(mount(&proc_src, &proc_dst, &"proc".to_string(), &proc_flags, &None));
@@ -231,7 +229,7 @@ impl Jail {
         // Finalize the pivot
         let old_root = Path::new("tmp");
         try!(mkdir_if_not(&old_root));
-        try!(pivot_root(&self.root_dst, &old_root));
+        try!(pivot_root(&self.root.dst, &old_root));
 
         // Cleanup parent mounts
         try!(umount(&old_root, &fs0::MNT_DETACH));
@@ -293,7 +291,7 @@ impl Jail {
         } else if pid == 0 {
             // Child
             drop(jail_pid_rx);
-            info!("Child jailing into {}", self.root_src.display());
+            info!("Child jailing into {}", self.root.src.display());
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
             match unsafe { setsid() } {
