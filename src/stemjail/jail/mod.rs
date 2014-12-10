@@ -342,11 +342,6 @@ impl Jail {
                 panic!("Fail to fork #2");
             } else if pid == 0 {
                 // Child
-                let groups = Vec::new();
-                match setgroups(groups) {
-                    Ok(_) => {}
-                    Err(e) => panic!("Fail to set groups: {}", e),
-                }
                 match unsafe { getuid() } {
                     0 => {}
                     _ => panic!("Fail to got root"),
@@ -355,6 +350,11 @@ impl Jail {
                 match self.init_fs() {
                     Ok(_) => {}
                     Err(e) => panic!("Fail to initialize the file system: {}", e),
+                }
+                let groups = Vec::new();
+                match setgroups(groups) {
+                    Ok(_) => {}
+                    Err(e) => panic!("Fail to set groups: {}", e),
                 }
 
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
