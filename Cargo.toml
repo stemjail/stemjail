@@ -15,6 +15,9 @@ path = "src/portal.rs"
 name = "stemjail"
 path = "src/stemjail/mod.rs"
 
+[dependencies.mnt]
+path = "../mnt-rs"
+
 [dependencies.pty]
 path = "../pty-rs"
 

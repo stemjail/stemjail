@@ -12,10 +12,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+extern crate mnt;
 extern crate libc;
 
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
+use self::mount::Mount;
 use self::ns::{fs, fs0, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, umount, unshare};
 use std::borrow::{Borrowed, Owned};
@@ -108,10 +110,12 @@ pub struct Jail {
 
 impl Jail {
     pub fn new(name: String, root: Path, binds: Vec<BindMount>) -> Jail {
+        // TODO: Check for a real procfs
+        let tmp_dir = Path::new(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
         Jail {
             name: name,
             // TODO: Add a fallback for root.dst
-            root: BindMount { src: root, dst: Path::new("/proc/self/fdinfo"), write: false },
+            root: BindMount { src: root, dst: tmp_dir, write: false },
             binds: binds,
             stdio: None,
             pid: Arc::new(RWLock::new(None)),
@@ -188,21 +192,21 @@ impl Jail {
         Ok(())
     }
 
-    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+    fn _add_one_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
             Owned(nested_dir!(self.root.dst, bind.dst))
         };
         let dst = dst.deref();
-        info!("Bind mounting {}", bind.src.display());
+        debug!("Bind mounting {}", bind.src.display());
 
         // Create needed directorie(s) and/or file
         try!(create_same_type(&bind.src, dst));
 
         let none_str = "none".to_string();
-        // The clone_mnt kernel function forbid unprivileged users (i.e. CL_UNPRIVILEGED) to reveal
-        // what is under a mount, so we must recursively bind mount.
+        // The fs/namespace.c:clone_mnt kernel function forbid unprivileged users (i.e.
+        // CL_UNPRIVILEGED) to reveal what is under a mount, so we need to recursively bind mount.
         let bind_flags = fs::MS_BIND | fs::MS_REC;
         try!(mount(&bind.src, dst, &none_str, &bind_flags, &None));
         if ! bind.write {
@@ -216,8 +220,32 @@ impl Jail {
             // Remount read-only
             let bind_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
             try!(mount(&none_path, dst, &none_str, &bind_flags, &None));
-            // TODO: Propagate MS_RDONLY to all sub mounts
         }
+        Ok(())
+    }
+
+    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+        if ! bind.write {
+            // Propagate MS_RDONLY to all sub mounts
+            match Mount::get_mounts(&bind.src) {
+                Ok(list) => {
+                    'sub: for mount in Mount::remove_overlaps(list).into_iter() {
+                        // FIXME: Extend the full path (like "readlink -f") to not recursively mount
+                        if self.root.dst.is_ancestor_of(&mount.file) {
+                            continue 'sub;
+                        }
+                        let submount = BindMount { src: mount.file.clone(), dst: mount.file, write: false };
+                        try!(self._add_one_bind(&submount, true));
+                    }
+                },
+                Err(e) => {
+                    // TODO: Add FromError impl to IoResult
+                    debug!("Error: get_mounts: {}", e);
+                    return Err(io::standard_error(io::OtherIoError));
+                }
+            }
+        }
+        try!(self._add_one_bind(bind, is_absolute));
         Ok(())
     }
 
