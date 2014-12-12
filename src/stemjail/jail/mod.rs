@@ -24,7 +24,7 @@ use std::borrow::{Borrowed, Owned};
 use std::io;
 use std::io::{File, Open, Write};
 use std::io::fs::PathExtensions;
-use std::os::change_dir;
+use std::os::{change_dir, env};
 use std::sync::{Arc, RWLock};
 
 pub use self::session::Stdio;
@@ -433,7 +433,16 @@ impl Jail {
                 }
 
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
-                let env: Vec<(String, String)> = Vec::with_capacity(0);
+                //let env: Vec<(String, String)> = Vec::with_capacity(0);
+                // XXX: Inherit HOME and TERM for now
+                // TODO: Pass env from the client
+                let env: Vec<(String, String)> = env().iter().filter_map(|&(ref n, ref v)| {
+                    if n.as_slice() == "HOME" || n.as_slice() == "TERM" {
+                        Some((n.clone(), v.clone()))
+                    } else {
+                        None
+                    }
+                }).collect();
                 // TODO: Try using detached()
                 let mut process = match io::Command::new(run)
                         .stdin(stdin)
