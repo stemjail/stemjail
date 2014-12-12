@@ -17,7 +17,6 @@ pub struct ProfileConfig {
     pub name: String,
     pub fs: FsConfig,
     pub run: RunConfig,
-    pub socket: SocketConfig,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
@@ -38,20 +37,12 @@ pub struct RunConfig {
     pub cmd: Vec<String>,
 }
 
-#[deriving(Decodable, PartialEq, Show)]
-pub struct SocketConfig {
-    pub path: String,
-}
-
 #[test]
 fn test_get_config_example1() {
     // TODO: Use absolute configuration path
     let c1 = super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example1.toml"));
     let c2: Result<ProfileConfig, String> = Ok(ProfileConfig {
         name: "example1".to_string(),
-        socket: SocketConfig {
-            path: "./portal.sock".to_string(),
-        },
         fs: FsConfig {
             root: "./tmp-chroot".to_string(),
             bind: Some(vec!(

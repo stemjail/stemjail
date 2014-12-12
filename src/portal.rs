@@ -169,7 +169,7 @@ fn main() {
         Ok(c) => Arc::new(c),
         Err(e) => exit_error!("Configuration error: {}", e),
     };
-    let server = Path::new(config.socket.path.clone());
+    let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::unlink(&server);
     let stream = UnixListener::bind(&server);

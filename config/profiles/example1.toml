@@ -2,9 +2,6 @@
 
 name = "example1"
 
-[socket]
-path = "./portal.sock"
-
 [fs]
 root = "./tmp-chroot"
 
