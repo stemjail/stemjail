@@ -167,7 +167,7 @@ macro_rules! exit_error(
 fn main() {
     let config = match get_config::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILE_PATH)) {
         Ok(c) => Arc::new(c),
-        Err(e) => exit_error!("Configuration error: {}", e),
+        Err(e) => exit_error!("{}", e),
     };
     let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file

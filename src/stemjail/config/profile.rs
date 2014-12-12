@@ -40,8 +40,11 @@ pub struct RunConfig {
 #[test]
 fn test_get_config_example1() {
     // TODO: Use absolute configuration path
-    let c1 = super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example1.toml"));
-    let c2: Result<ProfileConfig, String> = Ok(ProfileConfig {
+    let c1 = match super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example1.toml")) {
+        Ok(c) => c,
+        Err(e) => panic!("{}", e),
+    };
+    let c2 = ProfileConfig {
         name: "example1".to_string(),
         fs: FsConfig {
             root: "./tmp-chroot".to_string(),
@@ -61,6 +64,6 @@ fn test_get_config_example1() {
         run: RunConfig {
             cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
         },
-    });
+    };
     assert!(c1 == c2);
 }

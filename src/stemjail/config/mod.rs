@@ -19,24 +19,22 @@ use self::toml::{Decoder, DecodeError};
 use serialize::Decodable;
 use std::io::File;
 
+pub use self::error::ConfigError;
+
+mod error;
+
 pub mod profile;
 
 // TODO: Check for absolute path only
-pub fn get_config<T>(config_file: &Path) -> Result<T, String>
+pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
         where T: Decodable<Decoder, DecodeError> {
-    let contents = match File::open(config_file).read_to_string() {
-        Ok(r) => r,
-        Err(e) => return Err(format!("Error reading config file: {}", e)),
-    };
+    let contents = try!(File::open(config_file).read_to_string());
     let mut parser = toml::Parser::new(contents.as_slice());
     let toml = match parser.parse() {
         Some(r) => toml::Table(r),
-        None => return Err(format!("Error parsing config file: {}", parser.errors)),
+        None => return Err(ConfigError::new(format!("Parse error: {}", parser.errors))),
     };
     let mut decoder = Decoder::new(toml);
-    let config = match Decodable::decode(&mut decoder) {
-        Ok(r) => r,
-        Err(e) => return Err(format!("Error decoding config file: {}", e)),
-    };
+    let config = try!(Decodable::decode(&mut decoder));
     Ok(config)
 }
