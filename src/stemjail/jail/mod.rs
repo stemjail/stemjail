@@ -46,6 +46,8 @@ macro_rules! nested_dir(
     };
 )
 
+// TODO: Add tmpfs prelude to not pollute the root
+
 /// Do not return error if the directory already exist
 fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
     match io::fs::mkdir_recursive(path, io::USER_RWX) {
@@ -92,6 +94,7 @@ fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
     Ok(())
 }
 
+#[deriving(Clone)]
 pub struct BindMount {
     pub src: Path,
     pub dst: Path,
@@ -109,14 +112,19 @@ pub struct Jail {
 }
 
 impl Jail {
+    // TODO: Check configuration for duplicate binds entries and refuse to use it if so
     pub fn new(name: String, root: Path, binds: Vec<BindMount>) -> Jail {
         // TODO: Check for a real procfs
         let tmp_dir = Path::new(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
+        // Hack to cleanly manage the root bind mount
+        let mut root_binds = vec!( BindMount { src: root.clone(), dst: Path::new("/"), write: false } );
+        root_binds.push_all(binds.as_slice());
+        //let root_binds = binds;
         Jail {
             name: name,
             // TODO: Add a fallback for root.dst
             root: BindMount { src: root, dst: tmp_dir, write: false },
-            binds: binds,
+            binds: root_binds,
             stdio: None,
             pid: Arc::new(RWLock::new(None)),
             end_event: None,
@@ -177,6 +185,8 @@ impl Jail {
             debug!("Creating {}", dev.dst.display());
             let dst = nested_dir!(self.root.dst, dev.dst);
             try!(create_same_type(&dev.src, &dst));
+            let bind = BindMount { src: dev.src.clone(), dst: dst.clone(), write: true };
+            try!(self.add_bind(&bind, true));
         }
         let links = &[
             ("fd", "/proc/self/fd"),
@@ -190,16 +200,13 @@ impl Jail {
 
         // Seal /dev
         // TODO: Drop the root user to realy seal something…
-        let bind = BindMount { src: devdir_full.clone(), dst: devdir.clone(), write: false };
-        try!(self.add_bind(&bind, false));
+        let dev_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
+        try!(mount(&Path::new("none"), &devdir_full, &"".to_string(), &dev_flags, &None));
 
-        for dev in devs.iter() {
-            try!(self.add_bind(dev, false));
-        }
         Ok(())
     }
 
-    fn _add_one_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
@@ -231,19 +238,21 @@ impl Jail {
         Ok(())
     }
 
-    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
-        if ! bind.write {
-            // Propagate MS_RDONLY to all sub mounts
-            match Mount::get_mounts(&bind.src) {
+    fn expand_binds(&self) -> io::IoResult<Vec<BindMount>> {
+        let host_mounts = {
+            match Mount::get_mounts(&Path::new("/")) {
                 Ok(list) => {
-                    'sub: for mount in Mount::remove_overlaps(list).into_iter() {
-                        // FIXME: Extend the full path (like "readlink -f") to not recursively mount
-                        if self.root.dst.is_ancestor_of(&mount.file) {
-                            continue 'sub;
+                    let mut ret = vec!();
+                    let devdir = Path::new("/dev");
+                    let procdir = Path::new("/proc");
+                    for mount in Mount::remove_overlaps(list).into_iter() {
+                        if ! self.root.dst.is_ancestor_of(&mount.file)
+                                && ! devdir.is_ancestor_of(&mount.file)
+                                && ! procdir.is_ancestor_of(&mount.file) {
+                            ret.push(mount);
                         }
-                        let submount = BindMount { src: mount.file.clone(), dst: mount.file, write: false };
-                        try!(self._add_one_bind(&submount, true));
                     }
+                    ret
                 },
                 Err(e) => {
                     // TODO: Add FromError impl to IoResult
@@ -251,16 +260,51 @@ impl Jail {
                     return Err(io::standard_error(io::OtherIoError));
                 }
             }
+        };
+        // Need to keep the mount points order and prioritize the last (i.e. user) mount points
+        let mut all_binds = vec!();
+        // TODO: Add a black list with /dev and /proc
+        for bind in self.binds.iter() {
+            // TODO: Check to not replace the root.dst mount points
+            // FIXME: Extend the full path (like "readlink -f") to not recursively mount
+            // Complete with all child mount points if needed (i.e. read-only mount tree)
+            let bind = bind.clone();
+            if bind.write {
+                all_binds.push(bind);
+            } else {
+                let bind_ref = bind.clone();
+                let mut sub_binds = vec!(bind);
+                for mount in host_mounts.iter() {
+                    if bind_ref.src.is_ancestor_of(&mount.file) && bind_ref.src != mount.file {
+                        let file = mount.file.clone();
+                        let new_bind = BindMount { src: file.clone(), dst: file, write: false };
+                        sub_binds.push(new_bind);
+                    }
+                }
+                // Take all new sub mounts and remove overlaps from all_binds while keeping the order
+                let mut new_all_binds = vec!();
+                for cur_bind in all_binds.into_iter() {
+                    if ! bind_ref.dst.is_ancestor_of(&cur_bind.dst) {
+                        new_all_binds.push(cur_bind);
+                    }
+                }
+                new_all_binds.push_all(sub_binds.as_slice());
+                all_binds = new_all_binds;
+            }
         }
-        try!(self._add_one_bind(bind, is_absolute));
-        Ok(())
+        Ok(all_binds)
     }
 
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
         // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
-        try!(self.add_bind(&self.root, true));
+
+        // TODO: Bind mount and seal the root before expanding bind mounts
+        let all_binds = try!(self.expand_binds());
+        for bind in all_binds.iter() {
+            try!(self.add_bind(bind, false));
+        }
         try!(change_dir(&self.root.dst));
 
         // procfs
@@ -272,10 +316,6 @@ impl Jail {
 
         // Devices
         try!(self.init_dev(&Path::new("/dev")));
-
-        for bind in self.binds.iter() {
-            try!(self.add_bind(bind, false));
-        }
 
         // Finalize the pivot
         let old_root = Path::new("tmp");
