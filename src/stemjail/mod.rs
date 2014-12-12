@@ -34,4 +34,4 @@ pub mod fdpass;
 pub mod jail;
 
 pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
-pub static PORTAL_PROFILE_PATH: &'static str = "./config/profiles/example1.toml";
+pub static PORTAL_PROFILES_PATH: &'static str = "./config/profiles";

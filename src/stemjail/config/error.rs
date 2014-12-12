@@ -18,7 +18,7 @@ use std::io::IoError;
 use super::toml::DecodeError;
 
 pub struct ConfigError {
-    detail: String,
+    pub detail: String,
 }
 
 impl ConfigError {

@@ -25,7 +25,7 @@ extern crate log;
 extern crate stemjail;
 extern crate serialize;
 
-use stemjail::config::get_config;
+use stemjail::config::get_configs;
 use stemjail::config::profile::ProfileConfig;
 use stemjail::{fdpass, jail, plugins};
 use stemjail::plugins::{PluginCommand, PortalRequest};
@@ -42,7 +42,7 @@ macro_rules! absolute_path(
     };
 )
 
-fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), String> {
+fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result<(), String> {
     let mut bstream = BufferedStream::new(stream);
     let encoded_str = match bstream.read_line() {
         Ok(s) => s,
@@ -59,15 +59,18 @@ fn handle_client(stream: UnixStream, config: Arc<ProfileConfig>) -> Result<(), S
     };
 
     // Use the client command if any or the configuration command otherwise
-    let (args, do_stdio) = match decoded {
+    let (args, do_stdio, config) = match decoded {
         PluginCommand::Run(r) => {
-            let c = match r.command.iter().next() {
-                Some(_) => r.command.clone(),
-                None => config.run.cmd.clone(),
+            let conf = match configs.iter().find(|c| { c.name == r.profile }) {
+                Some(c) => c,
+                None => return Err(format!("No profile named `{}`", r.profile)),
             };
-            (c, r.stdio)
+            let cmd = match r.command.iter().next() {
+                Some(_) => r.command.clone(),
+                None => conf.run.cmd.clone(),
+            };
+            (cmd, r.stdio, conf)
         },
-        //_ => config.run.cmd,
     };
     let exe = match args.iter().next() {
         Some(c) => c.clone(),
@@ -165,10 +168,13 @@ macro_rules! exit_error(
 )
 
 fn main() {
-    let config = match get_config::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILE_PATH)) {
+    // TODO: Add dynamic configuration reload
+    let configs = match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
         Ok(c) => Arc::new(c),
         Err(e) => exit_error!("{}", e),
     };
+    let names: Vec<&String> = configs.iter().map(|x| &x.name ).collect();
+    info!("Loaded configurations: {}", names);
     let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::unlink(&server);
@@ -176,9 +182,9 @@ fn main() {
     for stream in stream.listen().incoming() {
         match stream {
             Ok(s) => {
-                let config = config.clone();
+                let configs = configs.clone();
                 spawn(proc() {
-                    match handle_client(s, config) {
+                    match handle_client(s, configs) {
                         Ok(_) => {},
                         Err(e) => println!("Error handling client: {}", e),
                     }

@@ -17,7 +17,7 @@ extern crate toml;
 
 use self::toml::{Decoder, DecodeError};
 use serialize::Decodable;
-use std::io::File;
+use std::io::{File, fs};
 
 pub use self::error::ConfigError;
 
@@ -37,4 +37,24 @@ pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
     let mut decoder = Decoder::new(toml);
     let config = try!(Decodable::decode(&mut decoder));
     Ok(config)
+}
+
+pub fn get_configs<T>(profile_dir: &Path) -> Result<Vec<T>, ConfigError>
+        where T: Decodable<Decoder, DecodeError> {
+    let mut ret = vec!();
+    for file in try!(fs::walk_dir(profile_dir)) {
+        match file.extension_str() {
+            Some(ext) => {
+                if ext == "toml" {
+                    match get_config::<T>(&file) {
+                        Ok(c) => ret.push(c),
+                        Err(e) => return Err(ConfigError::new(format!("(file `{}`) {}",
+                                             file.display(), e.detail))),
+                    };
+                }
+            },
+            None => {}
+        }
+    }
+    Ok(ret)
 }
