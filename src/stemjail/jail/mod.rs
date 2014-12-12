@@ -153,19 +153,26 @@ impl Jail {
             "zero",
             "full",
             "urandom",
+            // FIXME: temporary keep a devpts to be able to easely test nested jails
+            "pts",
             ];
-        let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
+        let devs: Vec<BindMount> = devs.iter().map(|dev| {
             let src = devdir.clone().join(&Path::new(*dev));
             BindMount { src: src.clone(), dst: src, write: true }
         }).collect();
+
         // Add current TTY
+        /*
         match self.stdio {
             Some(ref s) => match s.get_path() {
+                    // Assume `p` begin with "/dev/"
                     Some(p) => devs.push(BindMount { src: p.clone(), dst: p.clone(), write: true }),
                     None => {}
                 },
             None => {}
         }
+        */
+
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
             let dst = nested_dir!(self.root.dst, dev.dst);
