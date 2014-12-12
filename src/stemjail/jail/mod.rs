@@ -139,7 +139,7 @@ impl Jail {
     }
 
     fn init_dev(&self, devdir: &Path) -> io::IoResult<()> {
-        info!("Populating /dev");
+        info!("Populating {}", devdir.display());
         let devdir_full = nested_dir!(self.root.dst, devdir);
         try!(mkdir_if_not(&devdir_full));
         let name = Path::new("dev");
@@ -155,7 +155,7 @@ impl Jail {
             "urandom",
             ];
         let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
-            let src = Path::new("/dev").join(Path::new(*dev));
+            let src = devdir.clone().join(&Path::new(*dev));
             BindMount { src: src.clone(), dst: src, write: true }
         }).collect();
         // Add current TTY
@@ -175,10 +175,10 @@ impl Jail {
             ("fd", "/proc/self/fd"),
             ("random", "urandom")
             ];
-        for &(src, dst) in links.iter() {
-            let src = devdir_full.clone().join(Path::new(src));
-            let dst = Path::new(dst);
-            try!(io::fs::symlink(&dst, &src));
+        for &(dst, src) in links.iter() {
+            let src = Path::new(src);
+            let dst = devdir_full.clone().join(&dst);
+            try!(io::fs::symlink(&src, &dst));
         }
 
         // Seal /dev
@@ -213,7 +213,7 @@ impl Jail {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
             // read/write files during the jail life.
             let none_path = Path::new("none");
-            // Freeze the vfsmount: good to not receive new mounts but block unmount as well
+            // Seal the vfsmount: good to not receive new mounts but block unmount as well
             // TODO: Add a "unshare <path>" command to remove a to-be-unmounted path
             let bind_flags = fs::MS_PRIVATE | fs::MS_REC;
             try!(mount(&none_path, dst, &none_str, &bind_flags, &None));
