@@ -100,7 +100,7 @@ fn test_get_config_example2() {
             )),
         },
         run: RunConfig {
-            cmd: vec!("/bin/sh".to_string()),
+            cmd: vec!("/usr/bin/setsid".to_string(), "-c".to_string(), "/bin/sh".to_string()),
         },
     };
     assert!(c1 == c2);
