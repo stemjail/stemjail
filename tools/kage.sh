@@ -2,7 +2,7 @@
 
 DIR_BASE="$(readlink -f -- "$(dirname -- "$0")/..")"
 
-ARGS="run example1 -t sh"
+ARGS="run example2 -t"
 if [ $# -ne 0 ]; then
 	ARGS="$*"
 fi
