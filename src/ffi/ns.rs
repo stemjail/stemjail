@@ -73,8 +73,8 @@ pub fn chroot(path: &Path) -> io::IoResult<()> {
     })
 }
 
-pub fn mount(source: &Path, target: &Path, filesystemtype: &String,
-             mountflags: &fs::MsFlags, data: &Option<String>) -> io::IoResult<()> {
+pub fn mount(source: &Path, target: &Path, filesystemtype: &str,
+             mountflags: &fs::MsFlags, data: &Option<&str>) -> io::IoResult<()> {
     let src = path2str!(source);
     let tgt = path2str!(target);
     src.with_c_str(|src| {

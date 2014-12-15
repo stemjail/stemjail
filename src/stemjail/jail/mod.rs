@@ -204,7 +204,7 @@ impl<'a> Jail<'a> {
         // Seal /dev
         // TODO: Drop the root user to realy seal something…
         let dev_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
-        try!(mount(&Path::new("none"), &devdir_full, &"".to_string(), &dev_flags, &None));
+        try!(mount(&Path::new("none"), &devdir_full, "", &dev_flags, &None));
 
         Ok(())
     }
@@ -221,11 +221,11 @@ impl<'a> Jail<'a> {
         // Create needed directorie(s) and/or file
         try!(create_same_type(&bind.src, dst));
 
-        let none_str = "none".to_string();
+        let none_str = "none";
         // The fs/namespace.c:clone_mnt kernel function forbid unprivileged users (i.e.
         // CL_UNPRIVILEGED) to reveal what is under a mount, so we need to recursively bind mount.
         let bind_flags = fs::MS_BIND | fs::MS_REC;
-        try!(mount(&bind.src, dst, &none_str, &bind_flags, &None));
+        try!(mount(&bind.src, dst, none_str, &bind_flags, &None));
         if ! bind.write {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
             // read/write files during the jail life.
@@ -233,10 +233,10 @@ impl<'a> Jail<'a> {
             // Seal the vfsmount: good to not receive new mounts but block unmount as well
             // TODO: Add a "unshare <path>" command to remove a to-be-unmounted path
             let bind_flags = fs::MS_PRIVATE | fs::MS_REC;
-            try!(mount(&none_path, dst, &none_str, &bind_flags, &None));
+            try!(mount(&none_path, dst, none_str, &bind_flags, &None));
             // Remount read-only
             let bind_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
-            try!(mount(&none_path, dst, &none_str, &bind_flags, &None));
+            try!(mount(&none_path, dst, none_str, &bind_flags, &None));
         }
         Ok(())
     }
@@ -305,9 +305,9 @@ impl<'a> Jail<'a> {
         });
         let flags = fs::MsFlags::empty();
         let dst = nested_dir!(self.root.dst, tmp.dst);
-        let opt = "mode=0700".to_string();
+        let opt = "mode=0700";
         debug!("Creating tmpfs in {}", tmp.dst.display());
-        try!(mount(&name, &dst, &"tmpfs".to_string(), &flags, &Some(opt)));
+        try!(mount(&name, &dst, "tmpfs", &flags, &Some(opt)));
         Ok(())
     }
 
@@ -333,7 +333,7 @@ impl<'a> Jail<'a> {
         let proc_dst = self.root.dst.clone().join(proc_src.clone());
         try!(mkdir_if_not(&proc_dst));
         let proc_flags = fs::MsFlags::empty();
-        try!(mount(&proc_src, &proc_dst, &"proc".to_string(), &proc_flags, &None));
+        try!(mount(&proc_src, &proc_dst, "proc", &proc_flags, &None));
 
         // Devices
         try!(self.init_dev(&Path::new("/dev")));
