@@ -102,22 +102,23 @@ pub struct BindMount {
 }
 
 #[deriving(Clone)]
-pub struct TmpfsMount {
+pub struct TmpfsMount<'a> {
+    pub name: Option<&'a str>,
     pub dst: Path,
 }
 
 // TODO: Add UUID
-pub struct Jail {
+pub struct Jail<'a> {
     name: String,
     root: BindMount,
     binds: Vec<BindMount>,
-    tmps: Vec<TmpfsMount>,
+    tmps: Vec<TmpfsMount<'a>>,
     stdio: Option<Stdio>,
     pid: Arc<RWLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
 }
 
-impl Jail {
+impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
     pub fn new(name: String, root: Path, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
@@ -157,9 +158,7 @@ impl Jail {
         info!("Populating {}", devdir.display());
         let devdir_full = nested_dir!(self.root.dst, devdir);
         try!(mkdir_if_not(&devdir_full));
-        let name = Path::new("dev");
-        let dev_flags = fs::MsFlags::empty();
-        try!(mount(&name, &devdir_full, &"tmpfs".to_string(), &dev_flags, &None));
+        try!(self.add_tmpfs(&TmpfsMount { name: Some("dev"), dst: devdir.clone() }));
 
         // TODO: Use macro
         // Create mount points
@@ -303,7 +302,10 @@ impl Jail {
     }
 
     fn add_tmpfs(&self, tmp: &TmpfsMount) -> io::IoResult<()> {
-        let name = Path::new("tmpfs");
+        let name = Path::new(match tmp.name {
+            Some(n) => n,
+            None => "tmpfs",
+        });
         let flags = fs::MsFlags::empty();
         let dst = nested_dir!(self.root.dst, tmp.dst);
         let opt = "mode=0700".to_string();

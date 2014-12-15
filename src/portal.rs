@@ -104,6 +104,7 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
         match config.fs.tmp {
             Some(ref b) => b.iter().map(
                 |x| jail::TmpfsMount {
+                    name: None,
                     dst: Path::new(&x.dir),
                 }).collect(),
             None => Vec::new(),
