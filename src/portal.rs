@@ -36,6 +36,7 @@ use std::io::net::pipe::{UnixListener, UnixStream};
 use std::os;
 use std::sync::Arc;
 
+// FIXME: Replace Path::new with Path::new_opt
 macro_rules! absolute_path(
     ($cwd: expr, $dir: expr) => {
         $cwd.join(&Path::new($dir.clone()))
@@ -97,6 +98,13 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
                         Some(w) => w,
                         None => false,
                     },
+                }).collect(),
+            None => Vec::new(),
+        },
+        match config.fs.tmp {
+            Some(ref b) => b.iter().map(
+                |x| jail::TmpfsMount {
+                    dst: Path::new(&x.dir),
                 }).collect(),
             None => Vec::new(),
         });

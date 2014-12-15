@@ -1,0 +1,17 @@
+# Portal profile example #2
+
+name = "example2"
+
+[fs]
+root = "/"
+
+[[fs.bind]]
+src = "/dev/shm"
+dst = "/run"
+write = true
+
+[[fs.tmp]]
+dir = "/tmp"
+
+[run]
+cmd = ["/bin/sh"]

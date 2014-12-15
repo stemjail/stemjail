@@ -101,11 +101,17 @@ pub struct BindMount {
     pub write: bool,
 }
 
+#[deriving(Clone)]
+pub struct TmpfsMount {
+    pub dst: Path,
+}
+
 // TODO: Add UUID
 pub struct Jail {
     name: String,
     root: BindMount,
     binds: Vec<BindMount>,
+    tmps: Vec<TmpfsMount>,
     stdio: Option<Stdio>,
     pid: Arc<RWLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
@@ -113,7 +119,7 @@ pub struct Jail {
 
 impl Jail {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, root: Path, binds: Vec<BindMount>) -> Jail {
+    pub fn new(name: String, root: Path, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
         let tmp_dir = Path::new(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
         // Hack to cleanly manage the root bind mount
@@ -125,6 +131,7 @@ impl Jail {
             // TODO: Add a fallback for root.dst
             root: BindMount { src: root, dst: tmp_dir, write: false },
             binds: root_binds,
+            tmps: tmps,
             stdio: None,
             pid: Arc::new(RWLock::new(None)),
             end_event: None,
@@ -295,6 +302,15 @@ impl Jail {
         Ok(all_binds)
     }
 
+    fn add_tmpfs(&self, tmp: &TmpfsMount) -> io::IoResult<()> {
+        let name = Path::new("tmpfs");
+        let flags = fs::MsFlags::empty();
+        let dst = nested_dir!(self.root.dst, tmp.dst);
+        debug!("Creating tmpfs in {}", tmp.dst.display());
+        try!(mount(&name, &dst, &"tmpfs".to_string(), &flags, &None));
+        Ok(())
+    }
+
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
@@ -306,6 +322,11 @@ impl Jail {
             try!(self.add_bind(bind, false));
         }
         try!(change_dir(&self.root.dst));
+
+        // TODO: Check all bind and tmpfs mount points consistency
+        for tmp in self.tmps.iter() {
+            try!(self.add_tmpfs(tmp));
+        }
 
         // procfs
         let proc_src = Path::new("proc");

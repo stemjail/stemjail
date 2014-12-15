@@ -23,6 +23,7 @@ pub struct ProfileConfig {
 pub struct FsConfig {
     pub root: String,
     pub bind: Option<Vec<BindConfig>>,
+    pub tmp: Option<Vec<TmpConfig>>,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
@@ -30,6 +31,11 @@ pub struct BindConfig {
     pub src: String,
     pub dst: Option<String>,
     pub write: Option<bool>,
+}
+
+#[deriving(Decodable, PartialEq, Show)]
+pub struct TmpConfig {
+    pub dir: String,
 }
 
 #[deriving(Decodable, PartialEq, Show)]
@@ -60,9 +66,41 @@ fn test_get_config_example1() {
                     write: None,
                 },
             )),
+            tmp: None,
         },
         run: RunConfig {
             cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
+        },
+    };
+    assert!(c1 == c2);
+}
+
+#[test]
+fn test_get_config_example2() {
+    // TODO: Use absolute configuration path
+    let c1 = match super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example2.toml")) {
+        Ok(c) => c,
+        Err(e) => panic!("{}", e),
+    };
+    let c2 = ProfileConfig {
+        name: "example2".to_string(),
+        fs: FsConfig {
+            root: "/".to_string(),
+            bind: Some(vec!(
+                BindConfig {
+                    src: "/dev/shm".to_string(),
+                    dst: Some("/run".to_string()),
+                    write: Some(true),
+                },
+            )),
+            tmp: Some(vec!(
+                TmpConfig {
+                    dir: "/tmp".to_string(),
+                },
+            )),
+        },
+        run: RunConfig {
+            cmd: vec!("/bin/sh".to_string()),
         },
     };
     assert!(c1 == c2);
