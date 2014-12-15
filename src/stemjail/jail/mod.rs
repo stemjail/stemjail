@@ -306,8 +306,9 @@ impl Jail {
         let name = Path::new("tmpfs");
         let flags = fs::MsFlags::empty();
         let dst = nested_dir!(self.root.dst, tmp.dst);
+        let opt = "mode=0700".to_string();
         debug!("Creating tmpfs in {}", tmp.dst.display());
-        try!(mount(&name, &dst, &"tmpfs".to_string(), &flags, &None));
+        try!(mount(&name, &dst, &"tmpfs".to_string(), &flags, &Some(opt)));
         Ok(())
     }
 
