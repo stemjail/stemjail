@@ -167,25 +167,22 @@ impl<'a> Jail<'a> {
             "zero",
             "full",
             "urandom",
-            // FIXME: temporary keep a devpts to be able to easely test nested jails
-            "pts",
             ];
-        let devs: Vec<BindMount> = devs.iter().map(|dev| {
+        let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
             let src = devdir.clone().join(&Path::new(*dev));
             BindMount { src: src.clone(), dst: src, write: true }
         }).collect();
 
         // Add current TTY
-        /*
+        // TODO: Add dynamic TTY list reload
         match self.stdio {
             Some(ref s) => match s.get_path() {
-                    // Assume `p` begin with "/dev/"
+                    // FIXME: Assume `p` begin with "/dev/"
                     Some(p) => devs.push(BindMount { src: p.clone(), dst: p.clone(), write: true }),
                     None => {}
                 },
             None => {}
         }
-        */
 
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
