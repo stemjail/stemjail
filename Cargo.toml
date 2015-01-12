@@ -26,4 +26,4 @@ path = "../pty-rs"
 
 [dependencies.toml]
 git = "https://github.com/alexcrichton/toml-rs.git"
-rev = "4bb575fdaf5fd88580abbac6fdb057ef76d32251"
+rev = "aef183823c6de926cf1b598cae537e30dc6ad103"

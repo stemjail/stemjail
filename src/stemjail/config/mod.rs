@@ -15,7 +15,7 @@
 extern crate serialize;
 extern crate toml;
 
-use self::toml::{Decoder, DecodeError};
+use self::toml::Decoder;
 use serialize::Decodable;
 use std::io::{File, fs};
 
@@ -27,11 +27,11 @@ pub mod profile;
 
 // TODO: Check for absolute path only
 pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
-        where T: Decodable<Decoder, DecodeError> {
+        where T: Decodable {
     let contents = try!(File::open(config_file).read_to_string());
     let mut parser = toml::Parser::new(contents.as_slice());
     let toml = match parser.parse() {
-        Some(r) => toml::Table(r),
+        Some(r) => toml::Value::Table(r),
         None => return Err(ConfigError::new(format!("Parse error: {}", parser.errors))),
     };
     let mut decoder = Decoder::new(toml);
@@ -40,7 +40,7 @@ pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
 }
 
 pub fn get_configs<T>(profile_dir: &Path) -> Result<Vec<T>, ConfigError>
-        where T: Decodable<Decoder, DecodeError> {
+        where T: Decodable {
     let mut ret = vec!();
     for file in try!(fs::walk_dir(profile_dir)) {
         match file.extension_str() {
