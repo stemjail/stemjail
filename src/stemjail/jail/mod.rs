@@ -25,6 +25,7 @@ use std::io;
 use std::io::{File, Open, Write};
 use std::io::fs::PathExtensions;
 use std::os::{change_dir, env};
+use std::os::unix::AsRawFd;
 use std::sync::{Arc, RWLock};
 
 pub use self::session::Stdio;
@@ -372,7 +373,7 @@ impl<'a> Jail<'a> {
             Some(mut s) => {
                 // XXX: The TTY must be new
                 let slave_fd = s.take_slave_fd().unwrap();
-                let fd = slave_fd.fd();
+                let fd = slave_fd.as_raw_fd();
                 //pty::set_nonblock(&fd);
                 self.stdio = Some(s);
                 // Keep the slave FD open until the spawn

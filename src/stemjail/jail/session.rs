@@ -12,11 +12,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+extern crate iohandle;
 extern crate pty;
 
+use self::iohandle::FileDesc;
 use self::pty::TtyServer;
 use std::io;
-use std::io::fs::FileDesc;
 
 #[path = "../../ffi/fs.rs" ]
 mod fs;

@@ -12,24 +12,26 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+extern crate iohandle;
 extern crate libc;
 
+use self::iohandle::FileDesc;
 use self::libc::{size_t, c_void};
 use std::io;
-use std::io::fs::{AsFileDesc, fd_t, FileDesc};
 use std::io::net::pipe::UnixStream;
+use std::os::unix::{AsRawFd, Fd};
 
 #[path = "../../ffi/net.rs" ]
 mod net;
 
 #[repr(C)]
 struct FdPadding {
-    pub fd: fd_t,
-    _padding: [u8, ..2],
+    pub fd: Fd,
+    _padding: [u8; 2],
 }
 
 impl FdPadding {
-    pub fn new(fd: fd_t) -> FdPadding {
+    pub fn new(fd: Fd) -> FdPadding {
         FdPadding {
             fd: fd,
             _padding: [0, 0],
@@ -38,8 +40,8 @@ impl FdPadding {
 }
 
 pub fn recv_fd(stream: &UnixStream, iov_expect: Vec<u8>) -> io::IoResult<FileDesc> {
-    let fd = FdPadding::new(-1 as fd_t);
-    match net::recvmsg(stream.as_fd().fd(), iov_expect.len(), fd) {
+    let fd = FdPadding::new(-1 as Fd);
+    match net::recvmsg(stream, iov_expect.len(), fd) {
         // TODO: Check size?
         Ok((_, iov_recv, data)) => {
             if iov_recv != iov_expect {
@@ -51,15 +53,15 @@ pub fn recv_fd(stream: &UnixStream, iov_expect: Vec<u8>) -> io::IoResult<FileDes
     }
 }
 
-pub fn send_fd(stream: &UnixStream, id: &[u8], fd: &FileDesc) -> io::IoResult<()> {
+pub fn send_fd(stream: &UnixStream, id: &[u8], fd: &AsRawFd) -> io::IoResult<()> {
     let iov = net::Iovec {
         iov_base: id.as_ptr() as *const c_void,
         iov_len: id.len() as size_t,
     };
-    let fda = FdPadding::new(fd.fd());
+    let fda = FdPadding::new(fd.as_raw_fd());
     let ctrl = net::Cmsghdr::new(net::SOL_SOCKET, net::Scm::Rights, fda);
     let msg = net::Msghdr::new(None, vec!(iov), &ctrl, None);
-    match net::sendmsg(stream.as_fd().fd(), msg) {
+    match net::sendmsg(stream, msg) {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }

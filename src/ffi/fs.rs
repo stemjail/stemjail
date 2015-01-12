@@ -12,12 +12,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+extern crate iohandle;
 extern crate libc;
 
+use self::iohandle::FileDesc;
 use self::libc::c_uint;
 use self::libc::types::os::arch::posix88::{dev_t, mode_t};
 use std::io;
-use std::io::fs::{fd_t, FileDesc};
+use std::os::unix::{AsRawFd, Fd};
 
 mod raw {
     extern crate libc;
@@ -75,10 +77,10 @@ impl Node {
 }
 
 #[allow(dead_code)]
-pub fn dup(fd: &FileDesc, close_on_drop: bool) -> io::IoResult<FileDesc> {
-    match unsafe { self::libc::funcs::posix88::unistd::dup(fd.fd()) } {
+pub fn dup(fd: &AsRawFd, close_on_drop: bool) -> io::IoResult<FileDesc> {
+    match unsafe { self::libc::funcs::posix88::unistd::dup(fd.as_raw_fd()) } {
         -1 => Err(io::IoError::last_error()),
-        n => Ok(FileDesc::new(n as fd_t, close_on_drop)),
+        n => Ok(FileDesc::new(n as Fd, close_on_drop)),
     }
 }
 

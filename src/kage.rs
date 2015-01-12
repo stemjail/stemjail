@@ -19,6 +19,7 @@
 
 #![feature(phase)]
 
+extern crate iohandle;
 extern crate libc;
 #[phase(plugin, link)]
 extern crate log;
@@ -31,7 +32,7 @@ use stemjail::plugins::{PortalRequest, KageAction};
 use pty::TtyClient;
 use serialize::json;
 use std::io::BufferedStream;
-use std::io::fs::FileDesc;
+use iohandle::FileDesc;
 use std::io::net::pipe::UnixStream;
 use std::{io, os};
 

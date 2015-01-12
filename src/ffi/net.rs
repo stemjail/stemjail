@@ -16,9 +16,9 @@ extern crate libc;
 
 use self::libc::{c_int, size_t, ssize_t, c_uint, c_void};
 use std::io;
-use std::io::fs::fd_t;
 use std::mem::{size_of, size_of_val};
 use std::mem::transmute;
+use std::os::unix::AsRawFd;
 use std::ptr;
 
 pub mod raw {
@@ -167,7 +167,7 @@ impl<T> Cmsghdr<T> {
 
 // The cmsg_data will be modified by recvmsg
 #[allow(unused_mut)]
-pub fn recvmsg<T>(sockfd: fd_t, iov_len: uint, mut cmsg_data: T) -> io::IoResult<(ssize_t, Vec<u8>, T)> {
+pub fn recvmsg<T>(sockfd: &AsRawFd, iov_len: uint, mut cmsg_data: T) -> io::IoResult<(ssize_t, Vec<u8>, T)> {
     let mut iov_data = Vec::with_capacity(iov_len);
     let iov_data_ptr = iov_data.as_mut_ptr();
     // The iov will be modified by recvmsg
@@ -177,7 +177,7 @@ pub fn recvmsg<T>(sockfd: fd_t, iov_len: uint, mut cmsg_data: T) -> io::IoResult
     });
     let mut ctrl = Cmsghdr::new(SOL_SOCKET, Scm::Rights, cmsg_data);
     let mut msg = Msghdr::new(None, iovv, &mut ctrl, None);
-    let size = match unsafe { raw::recvmsg(sockfd as c_int, transmute(&mut msg), 0) } {
+    let size = match unsafe { raw::recvmsg(sockfd.as_raw_fd(), transmute(&mut msg), 0) } {
         -1 => return Err(io::IoError::last_error()),
         s => s,
     };
@@ -193,8 +193,8 @@ pub fn recvmsg<T>(sockfd: fd_t, iov_len: uint, mut cmsg_data: T) -> io::IoResult
     Ok((size, iov_data, ctrl.__cmsg_data))
 }
 
-pub fn sendmsg<T>(sockfd: fd_t, msg: Msghdr<T>) -> io::IoResult<ssize_t> {
-    match unsafe { raw::sendmsg(sockfd as c_int, transmute(&msg), 0) } {
+pub fn sendmsg<T>(sockfd: &AsRawFd, msg: Msghdr<T>) -> io::IoResult<ssize_t> {
+    match unsafe { raw::sendmsg(sockfd.as_raw_fd(), transmute(&msg), 0) } {
         -1 => Err(io::IoError::last_error()),
         s => Ok(s),
     }
