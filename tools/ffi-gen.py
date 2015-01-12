@@ -49,7 +49,7 @@ def gen_flags(define, output, defbinds):
 
                 fout.write(get_header(defbinds))
                 for defbind in defbinds:
-                    fout.write("\nbitflags!(\n    flags {0}Flags: {1} {{\n".format(to_camel(defbind.name), defbind.ctype))
+                    fout.write("\nbitflags! {{\n    flags {0}Flags: {1} {{\n".format(to_camel(defbind.name), defbind.ctype))
                     re_define = re.compile(r"^#define\s+(?P<name>(:?{0})_\w+)\s+(?P<value>\S+)\s*(?P<comment>/\*.+?\*/)?.*".format(defbind.prefix))
                     first_time = True
                     for line in fin:
@@ -66,7 +66,7 @@ def gen_flags(define, output, defbinds):
                             if re_octal_value.match(value):
                                 value = re_octal_header.sub("0o", value)
                             fout.write("        const {0} = {1}".format(match.group("name"), to_bits(defbind.prefix, value)))
-                    fout.write("\n    }\n)\n")
+                    fout.write("\n    }\n}\n")
                     fin.seek(0)
     except FileNotFoundError as e:
         print("File not found: {0}\n".format(e))
