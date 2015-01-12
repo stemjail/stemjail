@@ -20,13 +20,13 @@ use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::Mount;
 use self::ns::{fs, fs0, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, umount, unshare};
-use std::borrow::{Borrowed, Owned};
+use std::borrow::Cow::{Borrowed, Owned};
 use std::io;
-use std::io::{File, Open, Write};
+use std::io::{File, FileType, Open, Write};
 use std::io::fs::PathExtensions;
 use std::os::{change_dir, env};
 use std::os::unix::AsRawFd;
-use std::sync::{Arc, RWLock};
+use std::sync::{Arc, RwLock};
 
 pub use self::session::Stdio;
 
@@ -65,7 +65,7 @@ fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
 fn touch_if_not(path: &Path) -> io::IoResult<()> {
     match path.stat() {
         Ok(fs) => match fs.kind {
-            io::TypeDirectory =>
+            FileType::Directory =>
                 Err(io::standard_error(io::MismatchedFileTypeForOperation)),
             _ => Ok(()),
         },
@@ -82,7 +82,7 @@ fn touch_if_not(path: &Path) -> io::IoResult<()> {
 /// Create a dst file or directory according to the src
 fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
     match try!(src.stat()).kind {
-        io::TypeDirectory => {
+        FileType::Directory => {
             try!(mkdir_if_not(dst));
         }
         _ => {
@@ -115,7 +115,7 @@ pub struct Jail<'a> {
     binds: Vec<BindMount>,
     tmps: Vec<TmpfsMount<'a>>,
     stdio: Option<Stdio>,
-    pid: Arc<RWLock<Option<pid_t>>>,
+    pid: Arc<RwLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
 }
 
@@ -135,7 +135,7 @@ impl<'a> Jail<'a> {
             binds: root_binds,
             tmps: tmps,
             stdio: None,
-            pid: Arc::new(RWLock::new(None)),
+            pid: Arc::new(RwLock::new(None)),
             end_event: None,
         }
     }
