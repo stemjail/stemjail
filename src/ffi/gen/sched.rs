@@ -4,7 +4,7 @@ extern crate libc;
 
 use self::libc::c_uint;
 
-bitflags!(
+bitflags! {
     flags CloneFlags: c_uint {
         /* set if VM shared between processes */
         const CLONE_VM = 0x00000100,
@@ -72,4 +72,4 @@ bitflags!(
         /* Clone io context */
         const CLONE_IO = 0x80000000
     }
-)
+}

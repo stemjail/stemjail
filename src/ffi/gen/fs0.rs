@@ -4,7 +4,7 @@ extern crate libc;
 
 use self::libc::c_uint;
 
-bitflags!(
+bitflags! {
     flags MntFlags: c_uint {
         /* Attempt to forcibily umount */
         const MNT_FORCE = 0x00000001,
@@ -21,4 +21,4 @@ bitflags!(
         /* Flag guaranteed to be unused */
         const UMOUNT_UNUSED = 0x80000000
     }
-)
+}

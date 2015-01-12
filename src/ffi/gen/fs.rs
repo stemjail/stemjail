@@ -4,7 +4,7 @@ extern crate libc;
 
 use self::libc::c_ulong;
 
-bitflags!(
+bitflags! {
     flags MsFlags: c_ulong {
         /* Mount read-only */
         const MS_RDONLY = 1,
@@ -87,4 +87,4 @@ bitflags!(
 
         const MS_MGC_MSK = 0xffff0000
     }
-)
+}
