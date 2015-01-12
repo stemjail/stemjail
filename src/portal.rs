@@ -20,7 +20,7 @@
 #![feature(macro_rules)]
 #![feature(phase)]
 
-#[phase(plugin, link)]
+#[macro_use]
 extern crate log;
 extern crate stemjail;
 extern crate serialize;
@@ -37,11 +37,11 @@ use std::os;
 use std::sync::Arc;
 
 // FIXME: Replace Path::new with Path::new_opt
-macro_rules! absolute_path(
+macro_rules! absolute_path {
     ($cwd: expr, $dir: expr) => {
         $cwd.join(&Path::new($dir.clone()))
     };
-)
+}
 
 fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result<(), String> {
     let mut bstream = BufferedStream::new(stream);
@@ -166,15 +166,15 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
     Ok(())
 }
 
-macro_rules! exit_error(
+macro_rules! exit_error {
     ($($arg:tt)*) => {
         {
-            format_args!(::std::io::stdio::println_args, $($arg)*);
+            format!($($arg)*);
             std::os::set_exit_status(1);
             return;
         }
     };
-)
+}
 
 fn main() {
     // TODO: Add dynamic configuration reload

@@ -17,10 +17,7 @@
 #![desc = "stemjail library"]
 #![license = "LGPL-3.0"]
 
-#![feature(macro_rules)]
-#![feature(phase)]
-
-#[phase(plugin, link)]
+#[macro_use]
 extern crate log;
 extern crate serialize;
 

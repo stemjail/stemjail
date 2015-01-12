@@ -36,7 +36,7 @@ mod fsb;
 mod ns;
 mod session;
 
-macro_rules! nested_dir(
+macro_rules! nested_dir {
     ($root: expr, $subdir: expr) => {
         $root.clone().join(
             match $subdir.path_relative_from(&Path::new("/")) {
@@ -45,7 +45,7 @@ macro_rules! nested_dir(
             }
         );
     };
-)
+}
 
 // TODO: Add tmpfs prelude to not pollute the root
 

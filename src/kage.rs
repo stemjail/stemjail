@@ -21,7 +21,7 @@
 
 extern crate iohandle;
 extern crate libc;
-#[phase(plugin, link)]
+#[macro_use]
 extern crate log;
 extern crate stemjail;
 extern crate pty;

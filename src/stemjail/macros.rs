@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![macro_escape]
+#![macro_use]
 
-macro_rules! path2str(
+macro_rules! path2str {
     ($path: expr) => (
         match $path.as_str() {
             Some(p) => p,
@@ -25,4 +25,4 @@ macro_rules! path2str(
             }),
         }
     );
-)
+}
