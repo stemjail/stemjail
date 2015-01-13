@@ -83,12 +83,12 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), St
             };
             let decoded: plugins::PortalAck = match json::decode(encoded_str.as_slice()) {
                 Ok(d) => d,
-                Err(e) => return Err(e.to_string()),
+                Err(e) => return Err(format!("Fail to decode JSON: {:?}", e)),
             };
             if ! cmd.is_valid_request(&decoded.request) {
-                return Err(format!("Invalid request: {}", &decoded.request));
+                return Err(format!("Invalid request: {:?}", &decoded.request));
             }
-            debug!("Receive {}", &decoded.request);
+            debug!("Receive {:?}", &decoded.request);
 
             // TODO: match decoded.result
             let stream = bstream.unwrap();

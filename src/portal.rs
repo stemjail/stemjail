@@ -57,7 +57,7 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
     // FIXME: task '<main>' failed at 'called `Option::unwrap()` on a `None` value', .../rust/src/libcore/option.rs:265
     let decoded: PluginCommand = match json::decode(encoded_str.as_slice()) {
         Ok(d) => d,
-        Err(e) => return Err(format!("Fail to decode command: {}", e)),
+        Err(e) => return Err(format!("Fail to decode command: {:?}", e)),
     };
 
     // Use the client command if any or the configuration command otherwise
@@ -163,7 +163,7 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
     }
     debug!("Waiting jail to end");
     let ret = j.wait();
-    debug!("Jail end: {}", ret);
+    debug!("Jail end: {:?}", ret);
     Ok(())
 }
 
@@ -181,10 +181,10 @@ fn main() {
     // TODO: Add dynamic configuration reload
     let configs = match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
         Ok(c) => Arc::new(c),
-        Err(e) => exit_error!("{}", e),
+        Err(e) => exit_error!("{:?}", e),
     };
     let names: Vec<&String> = configs.iter().map(|x| &x.name ).collect();
-    info!("Loaded configurations: {}", names);
+    info!("Loaded configurations: {:?}", names);
     let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::unlink(&server);

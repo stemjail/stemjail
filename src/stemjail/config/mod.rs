@@ -32,7 +32,7 @@ pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
     let mut parser = toml::Parser::new(contents.as_slice());
     let toml = match parser.parse() {
         Some(r) => toml::Value::Table(r),
-        None => return Err(ConfigError::new(format!("Parse error: {}", parser.errors))),
+        None => return Err(ConfigError::new(format!("Parse error: {:?}", parser.errors))),
     };
     let mut decoder = Decoder::new(toml);
     let config = try!(Decodable::decode(&mut decoder));

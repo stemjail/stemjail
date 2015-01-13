@@ -262,7 +262,7 @@ impl<'a> Jail<'a> {
                 },
                 Err(e) => {
                     // TODO: Add FromError impl to IoResult
-                    debug!("Error: get_mounts: {}", e);
+                    debug!("Error: get_mounts: {:?}", e);
                     return Err(io::standard_error(io::OtherIoError));
                 }
             }
@@ -488,7 +488,7 @@ impl<'a> Jail<'a> {
                 drop(jail_pid_tx);
                 // TODO: Forward the ProcessExit to the jail object
                 let ret = process.wait();
-                debug!("Jail process exit: {}", ret);
+                debug!("Jail process exit: {:?}", ret);
                 unsafe { libc::exit(0); }
             } else {
                 // Parent
