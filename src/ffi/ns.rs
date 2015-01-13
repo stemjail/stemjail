@@ -16,6 +16,7 @@ extern crate libc;
 
 use self::libc::size_t;
 use self::libc::types::os::arch::posix88::gid_t;
+use std::ffi::CString;
 use std::{io, os};
 use std::ptr;
 
@@ -64,50 +65,40 @@ pub mod raw {
 #[allow(dead_code)]
 pub fn chroot(path: &Path) -> io::IoResult<()> {
     try!(os::change_dir(path));
-    let p = path2str!(path);
-    p.with_c_str(|s| {
-        match unsafe { raw::chroot(s) } {
-            0 => Ok(()),
-            _ => Err(io::IoError::last_error()),
-        }
-    })
+    let path = CString::from_slice(path.as_vec());
+    match unsafe { raw::chroot(path.as_ptr()) } {
+        0 => Ok(()),
+        _ => Err(io::IoError::last_error()),
+    }
 }
 
 pub fn mount(source: &Path, target: &Path, filesystemtype: &str,
              mountflags: &fs::MsFlags, data: &Option<&str>) -> io::IoResult<()> {
-    let src = path2str!(source);
-    let tgt = path2str!(target);
-    src.with_c_str(|src| {
-        tgt.with_c_str(|tgt| {
-            filesystemtype.with_c_str(|fst| {
-                let ret = match data {
-                    &Some(ref data) => data.with_c_str(|opt| { unsafe {
-                        raw::mount(src, tgt, fst, mountflags.bits(), opt)
-                    } }),
-                    &None => unsafe {
-                        raw::mount(src, tgt, fst, mountflags.bits(), ptr::null())
-                    }
-                };
-                match ret {
-                    0 => Ok(()),
-                    _ => Err(io::IoError::last_error()),
-                }
-            })
-        })
-    })
+    let src = CString::from_slice(source.as_vec());
+    let tgt = CString::from_slice(target.as_vec());
+    let fst = CString::from_slice(filesystemtype.as_bytes());
+    let ret = match data {
+        &Some(ref data) => {
+            let opt = CString::from_slice(data.as_bytes());
+            unsafe { raw::mount(src.as_ptr(), tgt.as_ptr(), fst.as_ptr(), mountflags.bits(), opt.as_ptr()) }
+        },
+        &None => unsafe {
+            raw::mount(src.as_ptr(), tgt.as_ptr(), fst.as_ptr(), mountflags.bits(), ptr::null())
+        }
+    };
+    match ret {
+        0 => Ok(()),
+        _ => Err(io::IoError::last_error()),
+    }
 }
 
 pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
-    let new_root = path2str!(new_root);
-    let put_old = path2str!(put_old);
-    new_root.with_c_str(|new_root| {
-        put_old.with_c_str(|put_old| {
-            match unsafe { raw::pivot_root(new_root, put_old) } {
-                0 => Ok(()),
-                _ => Err(io::IoError::last_error()),
-            }
-        })
-    })
+    let new_root = CString::from_slice(new_root.as_vec());
+    let put_old = CString::from_slice(put_old.as_vec());
+    match unsafe { raw::pivot_root(new_root.as_ptr(), put_old.as_ptr()) } {
+        0 => Ok(()),
+        _ => Err(io::IoError::last_error()),
+    }
 }
 
 pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
@@ -118,13 +109,11 @@ pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
 }
 
 pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
-    let target = path2str!(target);
-    target.with_c_str(|target| {
-        match unsafe { raw::umount2(target, flags.bits()) } {
-            0 => Ok(()),
-            _ => Err(io::IoError::last_error()),
-        }
-    })
+    let target = CString::from_slice(target.as_vec());
+    match unsafe { raw::umount2(target.as_ptr(), flags.bits()) } {
+        0 => Ok(()),
+        _ => Err(io::IoError::last_error()),
+    }
 }
 
 pub fn unshare(flags: sched::CloneFlags) -> io::IoResult<()> {

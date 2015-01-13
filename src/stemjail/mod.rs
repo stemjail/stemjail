@@ -21,7 +21,6 @@
 extern crate log;
 extern crate serialize;
 
-mod macros;
 
 #[path = "../plugins/mod.rs"]
 pub mod plugins;

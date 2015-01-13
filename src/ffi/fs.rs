@@ -18,6 +18,7 @@ extern crate libc;
 use self::iohandle::FileDesc;
 use self::libc::c_uint;
 use self::libc::types::os::arch::posix88::{dev_t, mode_t};
+use std::ffi::CString;
 use std::io;
 use std::os::unix::{AsRawFd, Fd};
 
@@ -87,12 +88,10 @@ pub fn dup(fd: &AsRawFd, close_on_drop: bool) -> io::IoResult<FileDesc> {
 // TODO: Set and restore umask, or return an error if permissions are masked
 #[allow(dead_code)]
 pub fn mknod(path: &Path, nodetype: &Node, permission: &io::FilePermission) -> io::IoResult<()> {
-    let path = path2str!(path);
+    let path = CString::from_slice(path.as_vec());
     let mode = nodetype.get_stat() | permission.bits();
-    path.with_c_str(|p| {
-        match unsafe { raw::mknod(p, mode, nodetype.get_dev()) } {
-            0 => Ok(()),
-            _ => return Err(io::IoError::last_error()),
-        }
-    })
+    match unsafe { raw::mknod(path.as_ptr(), mode, nodetype.get_dev()) } {
+        0 => Ok(()),
+        _ => return Err(io::IoError::last_error()),
+    }
 }
