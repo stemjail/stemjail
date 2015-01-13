@@ -27,6 +27,8 @@ use std::io::fs::PathExtensions;
 use std::os::{change_dir, env};
 use std::os::unix::AsRawFd;
 use std::sync::{Arc, RwLock};
+use std::sync::mpsc::{channel, Receiver};
+use std::thread::Thread;
 
 pub use self::session::Stdio;
 
@@ -514,24 +516,34 @@ impl<'a> Jail<'a> {
             // Get the child PID
             match jail_pid_rx.read_le_i32() {
                 Ok(p) => {
-                    let mut lock = jail_pid.write();
+                    let mut lock = match jail_pid.write() {
+                        Ok(g) => g,
+                        Err(e) => panic!("Fail to save the jail PID: {:?}", e),
+                    };
                     *lock = Some(p);
                 }
                 Err(e) => panic!("Fail to get jail PID: {}", e),
             }
-            debug!("Got jail PID: {}", *jail_pid.read());
+            debug!("Got jail PID: {}", {
+                match jail_pid.read() {
+                    Ok(v) => v.unwrap_or(-1),
+                    Err(e)=> panic!("Fail to read the jail PID: {:?}", e),
+            }});
             debug!("Waiting for child {} to terminate", pid);
-            spawn(proc() {
+            Thread::spawn(move || {
                 let mut status: libc::c_int = 0;
                 // TODO: Replace waitpid(2) with wait(2)
                 match unsafe { raw::waitpid(pid, &mut status, 0) } {
                     //-1 => panic!("Fail to wait for child {}", pid),
-                    -1 => drop(end_tx.send_opt(Err(()))),
+                    -1 => drop(end_tx.send(Err(()))),
                     _ => { {
-                            let mut lock = jail_pid.write();
+                            let mut lock = match jail_pid.write() {
+                                Ok(g) => g,
+                                Err(e) => panic!("Fail to reset the jail PID: {:?}", e),
+                            };
                             *lock = None;
                         }
-                        drop(end_tx.send_opt(Ok(())));
+                        drop(end_tx.send(Ok(())));
                     }
                 }
             });
@@ -544,7 +556,7 @@ impl<'a> Jail<'a> {
 
     pub fn wait(&self) -> Result<(), ()> {
         match &self.end_event {
-            &Some(ref event) =>  match event.recv_opt() {
+            &Some(ref event) =>  match event.recv() {
                 Ok(_) => Ok(()),
                 Err(_) => Err(()),
             },

@@ -35,6 +35,7 @@ use std::io::fs;
 use std::io::net::pipe::{UnixListener, UnixStream};
 use std::os;
 use std::sync::Arc;
+use std::thread::Thread;
 
 // FIXME: Replace Path::new with Path::new_opt
 macro_rules! absolute_path {
@@ -192,7 +193,7 @@ fn main() {
         match stream {
             Ok(s) => {
                 let configs = configs.clone();
-                spawn(proc() {
+                Thread::spawn(move || {
                     match handle_client(s, configs) {
                         Ok(_) => {},
                         Err(e) => println!("Error handling client: {}", e),
