@@ -218,7 +218,7 @@ impl<'a> Jail<'a> {
         } else {
             Owned(nested_dir!(self.root.dst, bind.dst))
         };
-        let dst = dst.deref();
+        let dst = &*dst;
         debug!("Bind mounting {}", bind.src.display());
 
         // Create needed directorie(s) and/or file

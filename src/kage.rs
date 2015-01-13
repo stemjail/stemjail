@@ -12,12 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![crate_name = "kage"]
-#![crate_type = "bin"]
-#![desc = "stemjail CLI"]
-#![license = "LGPL-3.0"]
-
-#![feature(phase)]
+#![allow(staged_unstable)]
+#![allow(staged_experimental)]
 
 extern crate iohandle;
 extern crate libc;
@@ -91,7 +87,7 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), St
             debug!("Receive {:?}", &decoded.request);
 
             // TODO: match decoded.result
-            let stream = bstream.unwrap();
+            let stream = bstream.into_inner();
             match decoded.request {
                 PortalRequest::Nop => {}
                 PortalRequest::CreateTty => {

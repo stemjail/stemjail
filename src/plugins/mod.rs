@@ -61,7 +61,7 @@ pub trait Plugin {
 
 fn get_plugins<'a>() -> Vec<Box<Plugin + 'a>> {
     vec!(
-        box self::run::RunPlugin::new() as Box<Plugin>,
+        Box::new(self::run::RunPlugin::new()) as Box<Plugin>,
     )
 }
 

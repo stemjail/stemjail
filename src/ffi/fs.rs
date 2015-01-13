@@ -70,8 +70,8 @@ impl Node {
 
     fn get_dev(&self) -> dev_t {
         match *self {
-            Node::Block(d) => d.makedev(),
-            Node::Character(d) => d.makedev(),
+            Node::Block(ref d) => d.makedev(),
+            Node::Character(ref d) => d.makedev(),
             _ => 0,
         }
     }

@@ -12,13 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![crate_name = "portal"]
-#![crate_type = "bin"]
-#![desc = "stemjail Portal"]
-#![license = "LGPL-3.0"]
-
-#![feature(macro_rules)]
-#![feature(phase)]
+#![allow(staged_unstable)]
+#![allow(staged_experimental)]
 
 #[macro_use]
 extern crate log;
@@ -125,7 +120,7 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
         Ok(_) => {},
         Err(e) => return Err(format!("Fail to send acknowledgement: {}", e)),
     }
-    let stream = bstream.unwrap();
+    let stream = bstream.into_inner();
 
     let stdio = if do_stdio {
         // TODO: Replace 0u8 with a JSON match
