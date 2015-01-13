@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 extern crate toml;
 
+use self::rustc_serialize::Decodable;
 use self::toml::Decoder;
-use serialize::Decodable;
 use std::io::{File, fs};
 
 pub use self::error::ConfigError;

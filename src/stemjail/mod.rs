@@ -19,8 +19,7 @@
 
 #[macro_use]
 extern crate log;
-extern crate serialize;
-
+extern crate "rustc-serialize" as rustc_serialize;
 
 #[path = "../plugins/mod.rs"]
 pub mod plugins;

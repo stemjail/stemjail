@@ -25,12 +25,12 @@ extern crate libc;
 extern crate log;
 extern crate stemjail;
 extern crate pty;
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 
 use stemjail::{fdpass, plugins};
 use stemjail::plugins::{PortalRequest, KageAction};
 use pty::TtyClient;
-use serialize::json;
+use rustc_serialize::json;
 use std::io::BufferedStream;
 use iohandle::FileDesc;
 use std::io::net::pipe::UnixStream;

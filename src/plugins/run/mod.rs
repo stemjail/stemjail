@@ -13,11 +13,11 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate getopts;
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 
 use self::getopts::{optflag, getopts, OptGroup};
 
-#[deriving(Clone, Decodable, Encodable, Show)]
+#[derive(Clone, RustcDecodable, RustcEncodable, Show)]
 pub struct RunCommand {
     pub profile: String,
     pub command: Vec<String>,

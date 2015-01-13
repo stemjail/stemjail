@@ -14,25 +14,26 @@
 
 pub mod run;
 
+#[derive(Copy)]
 pub enum KageAction {
     Nop,
     PrintHelp,
     SendPortalCommand,
 }
 
-#[deriving(Decodable, Encodable, Show)]
+#[derive(Copy, RustcDecodable, RustcEncodable, Show)]
 pub enum PortalRequest {
     Nop,
     CreateTty,
 }
 
-#[deriving(Decodable, Encodable)]
+#[derive(Copy, RustcDecodable, RustcEncodable, Show)]
 pub struct PortalAck {
     //pub result: Result<(), String>,
     pub request: PortalRequest,
 }
 
-#[deriving(Decodable, Encodable, Show)]
+#[derive(RustcDecodable, RustcEncodable, Show)]
 pub enum PluginCommand {
     Run(self::run::RunCommand),
 }

@@ -97,14 +97,14 @@ fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
     Ok(())
 }
 
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct BindMount {
     pub src: Path,
     pub dst: Path,
     pub write: bool,
 }
 
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct TmpfsMount<'a> {
     pub name: Option<&'a str>,
     pub dst: Path,

@@ -23,13 +23,14 @@
 #[macro_use]
 extern crate log;
 extern crate stemjail;
+extern crate "rustc-serialize" as rustc_serialize;
 extern crate serialize;
 
 use stemjail::config::get_configs;
 use stemjail::config::profile::ProfileConfig;
 use stemjail::{fdpass, jail, plugins};
 use stemjail::plugins::{PluginCommand, PortalRequest};
-use serialize::json;
+use rustc_serialize::json;
 use std::io::{BufferedStream, Listener, Acceptor};
 use std::io::fs;
 use std::io::net::pipe::{UnixListener, UnixStream};
