@@ -262,7 +262,7 @@ impl<'a> Jail<'a> {
                 },
                 Err(e) => {
                     // TODO: Add FromError impl to IoResult
-                    debug!("Error: get_mounts: {:?}", e);
+                    debug!("Error: get_mounts: {}", e);
                     return Err(io::standard_error(io::OtherIoError));
                 }
             }

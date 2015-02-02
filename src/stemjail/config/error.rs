@@ -18,30 +18,26 @@ use std::old_io::IoError;
 use super::toml::DecodeError;
 
 pub struct ConfigError {
-    pub detail: String,
+    desc: String,
 }
 
 impl ConfigError {
     pub fn new(detail: String) -> ConfigError {
         ConfigError {
-            detail: detail,
+            desc: format!("Configuration error: {}", detail),
         }
     }
 }
 
 impl Error for ConfigError {
     fn description(&self) -> &str {
-        "Configuration"
-    }
-
-    fn detail(&self) -> Option<String> {
-        Some(self.detail.clone())
+        self.desc.as_slice()
     }
 }
 
 impl FromError<DecodeError> for ConfigError {
     fn from_error(err: DecodeError) -> ConfigError {
-        ConfigError::new(format!("Decode error: {}", err))
+        ConfigError::new(format!("Fail to decode: {}", err))
     }
 }
 
@@ -51,8 +47,8 @@ impl FromError<IoError> for ConfigError {
     }
 }
 
-impl fmt::Show for ConfigError {
+impl fmt::Display for ConfigError {
     fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
-        write!(out, "{} error: {}", self.description(), self.detail)
+        write!(out, "{}", self.desc)
     }
 }

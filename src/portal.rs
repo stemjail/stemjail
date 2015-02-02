@@ -181,7 +181,7 @@ fn main() {
     // TODO: Add dynamic configuration reload
     let configs = match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
         Ok(c) => Arc::new(c),
-        Err(e) => exit_error!("{:?}", e),
+        Err(e) => exit_error!("{}", e),
     };
     let names: Vec<&String> = configs.iter().map(|x| &x.name ).collect();
     info!("Loaded configurations: {:?}", names);

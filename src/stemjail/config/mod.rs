@@ -49,7 +49,7 @@ pub fn get_configs<T>(profile_dir: &Path) -> Result<Vec<T>, ConfigError>
                     match get_config::<T>(&file) {
                         Ok(c) => ret.push(c),
                         Err(e) => return Err(ConfigError::new(format!("(file `{}`) {}",
-                                             file.display(), e.detail))),
+                                             file.display(), e))),
                     };
                 }
             },
