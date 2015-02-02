@@ -17,7 +17,7 @@ extern crate pty;
 
 use self::iohandle::FileDesc;
 use self::pty::TtyServer;
-use std::io;
+use std::old_io as io;
 
 #[path = "../../ffi/fs.rs" ]
 mod fs;

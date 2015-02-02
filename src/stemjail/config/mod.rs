@@ -17,7 +17,7 @@ extern crate toml;
 
 use self::rustc_serialize::Decodable;
 use self::toml::Decoder;
-use std::io::{File, fs};
+use std::old_io::{File, fs};
 
 pub use self::error::ConfigError;
 

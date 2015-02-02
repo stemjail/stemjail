@@ -15,7 +15,7 @@
 extern crate libc;
 
 use self::libc::{c_int, size_t, ssize_t, c_uint, c_void};
-use std::io;
+use std::old_io as io;
 use std::mem::{size_of, size_of_val};
 use std::mem::transmute;
 use std::os::unix::AsRawFd;

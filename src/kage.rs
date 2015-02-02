@@ -27,14 +27,15 @@ extern crate stemjail;
 extern crate pty;
 extern crate "rustc-serialize" as rustc_serialize;
 
+use iohandle::FileDesc;
 use stemjail::{fdpass, plugins};
 use stemjail::plugins::{PortalRequest, KageAction};
 use pty::TtyClient;
 use rustc_serialize::json;
-use std::io::BufferedStream;
-use iohandle::FileDesc;
-use std::io::net::pipe::UnixStream;
-use std::{io, os};
+use std::old_io as io;
+use std::old_io::BufferedStream;
+use std::old_io::net::pipe::UnixStream;
+use std::os;
 
 fn get_usage() -> String {
     let default = "stemjail-cli".to_string();

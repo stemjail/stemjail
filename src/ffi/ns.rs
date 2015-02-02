@@ -17,7 +17,8 @@ extern crate libc;
 use self::libc::size_t;
 use self::libc::types::os::arch::posix88::gid_t;
 use std::ffi::CString;
-use std::{io, os};
+use std::old_io as io;
+use std::os;
 use std::ptr;
 
 #[path = "gen/sched.rs"]

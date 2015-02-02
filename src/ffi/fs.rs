@@ -19,7 +19,7 @@ use self::iohandle::FileDesc;
 use self::libc::c_uint;
 use self::libc::types::os::arch::posix88::{dev_t, mode_t};
 use std::ffi::CString;
-use std::io;
+use std::old_io as io;
 use std::os::unix::{AsRawFd, Fd};
 
 mod raw {

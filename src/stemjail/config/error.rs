@@ -14,7 +14,7 @@
 
 use std::error::{Error, FromError};
 use std::fmt;
-use std::io::IoError;
+use std::old_io::IoError;
 use super::toml::DecodeError;
 
 pub struct ConfigError {
