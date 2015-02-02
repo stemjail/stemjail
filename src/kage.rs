@@ -61,7 +61,10 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), St
                 Some(c) => c,
                 None => return Err("No command".to_string()),
             };
-            let json = json::encode(&cmd);
+            let json = match json::encode(&cmd) {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Fail to encode command: {}", e)),
+            };
             let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
             let stream = match UnixStream::connect(&server) {
                 Ok(s) => s,

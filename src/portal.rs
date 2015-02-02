@@ -23,7 +23,6 @@
 extern crate log;
 extern crate stemjail;
 extern crate "rustc-serialize" as rustc_serialize;
-extern crate serialize;
 
 use stemjail::config::get_configs;
 use stemjail::config::profile::ProfileConfig;
@@ -119,7 +118,10 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
             PortalRequest::Nop
         }
     };
-    let json = json::encode(&cmd);
+    let json = match json::encode(&cmd) {
+        Ok(s) => s,
+        Err(e) => return Err(format!("Fail to encode command: {}", e)),
+    };
     match bstream.write_line(json.as_slice()) {
         Ok(_) => {},
         Err(e) => return Err(format!("Fail to send acknowledgement: {}", e)),
