@@ -12,8 +12,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(staged_unstable)]
-#![allow(staged_experimental)]
+#![feature(collections)]
+#![feature(core)]
+#![feature(io)]
+#![feature(os)]
+#![feature(path)]
+#![feature(std_misc)]
 
 #[macro_use]
 extern crate log;
