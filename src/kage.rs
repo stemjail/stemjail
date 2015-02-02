@@ -19,6 +19,7 @@
 #![feature(os)]
 #![feature(path)]
 
+extern crate env_logger;
 extern crate iohandle;
 extern crate libc;
 #[macro_use]
@@ -131,6 +132,8 @@ fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), St
 }
 
 fn main() {
+    env_logger::init().unwrap();
+
     let args = os::args().clone();
     let mut args = args.iter();
 

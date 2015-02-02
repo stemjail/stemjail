@@ -19,6 +19,7 @@
 #![feature(path)]
 #![feature(std_misc)]
 
+extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate stemjail;
@@ -180,6 +181,8 @@ macro_rules! exit_error {
 }
 
 fn main() {
+    env_logger::init().unwrap();
+
     // TODO: Add dynamic configuration reload
     let configs = match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
         Ok(c) => Arc::new(c),
