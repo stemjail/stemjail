@@ -16,7 +16,10 @@ name = "stemjail"
 path = "src/stemjail/mod.rs"
 
 [dependencies]
-rustc-serialize = "0.2.0"
+bitflags = "0.1"
+getopts = "0.1.0"
+log = "0.2.1"
+rustc-serialize = "0.2.10"
 
 [dependencies.iohandle]
 path = "../iohandle-rs"
@@ -29,4 +32,4 @@ path = "../pty-rs"
 
 [dependencies.toml]
 git = "https://github.com/alexcrichton/toml-rs.git"
-rev = "aef183823c6de926cf1b598cae537e30dc6ad103"
+rev = "0a6a1cabded126552662ec45ed844e4ca9e5d502"
