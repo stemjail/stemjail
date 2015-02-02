@@ -167,7 +167,7 @@ impl<T> Cmsghdr<T> {
 
 // The cmsg_data will be modified by recvmsg
 #[allow(unused_mut)]
-pub fn recvmsg<T>(sockfd: &AsRawFd, iov_len: uint, mut cmsg_data: T) -> io::IoResult<(ssize_t, Vec<u8>, T)> {
+pub fn recvmsg<T>(sockfd: &AsRawFd, iov_len: usize, mut cmsg_data: T) -> io::IoResult<(ssize_t, Vec<u8>, T)> {
     let mut iov_data = Vec::with_capacity(iov_len);
     let iov_data_ptr = iov_data.as_mut_ptr();
     // The iov will be modified by recvmsg
@@ -181,14 +181,14 @@ pub fn recvmsg<T>(sockfd: &AsRawFd, iov_len: uint, mut cmsg_data: T) -> io::IoRe
         -1 => return Err(io::IoError::last_error()),
         s => s,
     };
-    unsafe { iov_data.set_len(msg.msg_iovlen as uint) };
+    unsafe { iov_data.set_len(msg.msg_iovlen as usize) };
     if msg.msg_controllen != size_of::<Cmsghdr<T>>() as size_t {
         // Type does not match the size + alignement
-        return Err(io::standard_error(io::ShortWrite(msg.msg_controllen as uint)));
+        return Err(io::standard_error(io::ShortWrite(msg.msg_controllen as usize)));
     }
     if ctrl.cmsg_len != size_of::<Cmsghdr<T>>() as size_t {
         // Bad length
-        return Err(io::standard_error(io::ShortWrite(ctrl.cmsg_len as uint)));
+        return Err(io::standard_error(io::ShortWrite(ctrl.cmsg_len as usize)));
     }
     Ok((size, iov_data, ctrl.__cmsg_data))
 }
