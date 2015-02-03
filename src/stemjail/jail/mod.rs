@@ -142,17 +142,17 @@ impl<'a> Jail<'a> {
         }
     }
 
-    /// The current user become root
+    /// Map the current user to himself
     fn init_userns(&self, pid: pid_t) -> io::IoResult<()> {
         // Do not use write/format_args_method-like macros, proc files must be
         // write only at once to avoid invalid argument.
         let uid_path = Path::new(format!("/proc/{}/uid_map", pid));
         let mut uid_file = try!(File::open_mode(&uid_path, Open, Write));
-        let uid_data = format!("0 {} 1", unsafe { getuid() });
+        let uid_data = format!("{0} {0} 1", unsafe { getuid() });
         try!(uid_file.write_str(uid_data.as_slice()));
         let gid_path = Path::new(format!("/proc/{}/gid_map", pid));
         let mut gid_file = try!(File::open_mode(&gid_path, Open, Write));
-        let gid_data = format!("0 {} 1", unsafe { getgid() });
+        let gid_data = format!("{0} {0} 1", unsafe { getgid() });
         try!(gid_file.write_str(gid_data.as_slice()));
         Ok(())
     }
@@ -441,10 +441,6 @@ impl<'a> Jail<'a> {
                 panic!("Fail to fork #2");
             } else if pid == 0 {
                 // Child
-                match unsafe { getuid() } {
-                    0 => {}
-                    _ => panic!("Fail to got root"),
-                }
                 // TODO: Expose the TTY
                 match self.init_fs() {
                     Ok(_) => {}
