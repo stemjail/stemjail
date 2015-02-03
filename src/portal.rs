@@ -22,13 +22,9 @@
 extern crate env_logger;
 #[macro_use]
 extern crate log;
-extern crate stemjail;
 extern crate "rustc-serialize" as rustc_serialize;
+extern crate stemjail;
 
-use stemjail::config::get_configs;
-use stemjail::config::profile::ProfileConfig;
-use stemjail::{fdpass, jail, plugins};
-use stemjail::plugins::{PluginCommand, PortalRequest};
 use rustc_serialize::json;
 use std::old_io::{BufferedStream, Listener, Acceptor};
 use std::old_io::fs;
@@ -36,6 +32,10 @@ use std::old_io::net::pipe::{UnixListener, UnixStream};
 use std::os;
 use std::sync::Arc;
 use std::thread::Thread;
+use stemjail::config::get_configs;
+use stemjail::config::profile::ProfileConfig;
+use stemjail::{fdpass, jail, plugins};
+use stemjail::plugins::{PluginCommand, PortalRequest};
 
 // FIXME: Replace Path::new with Path::new_opt
 macro_rules! absolute_path {
