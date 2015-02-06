@@ -15,6 +15,7 @@
 extern crate "rustc-serialize" as rustc_serialize;
 use rustc_serialize::json;
 
+pub mod mount;
 pub mod run;
 
 macro_rules! impl_json {
@@ -42,6 +43,12 @@ pub enum PortalCall {
 }
 impl_json!(PortalCall);
 
+#[derive(RustcDecodable, RustcEncodable, Debug)]
+pub enum MonitorCall {
+    Mount(mount::MountAction)
+}
+impl_json!(MonitorCall);
+
 #[derive(Copy, RustcDecodable, RustcEncodable, Show)]
 pub struct PortalAck {
     pub request: PortalRequest,
@@ -57,6 +64,7 @@ pub enum PortalRequest {
 fn list_kage_cmds<'a>() -> Vec<Box<KageCommand + 'a>> {
     vec!(
         Box::new(self::run::RunKageCmd::new()) as Box<KageCommand>,
+        Box::new(self::mount::MountKageCmd::new()) as Box<KageCommand>,
     )
 }
 

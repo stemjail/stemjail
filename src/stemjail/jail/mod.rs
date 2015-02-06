@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -27,8 +27,13 @@ use std::old_io::fs::PathExtensions;
 use std::os::{change_dir, env};
 use std::os::unix::AsRawFd;
 use std::sync::{Arc, RwLock};
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::Relaxed;
+use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread::Thread;
+use super::EVENT_TIMEOUT;
+use super::srv;
+use std::fmt::Debug;
 
 pub use self::session::Stdio;
 
@@ -37,6 +42,10 @@ mod fsb;
 #[path = "../../ffi/ns.rs" ]
 mod ns;
 mod session;
+
+pub trait JailFn: Send + Debug {
+    fn call(&self, &Jail);
+}
 
 macro_rules! nested_dir {
     ($root: expr, $subdir: expr) => {
@@ -97,7 +106,7 @@ fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, RustcDecodable, RustcEncodable, Debug)]
 pub struct BindMount {
     pub src: Path,
     pub dst: Path,
@@ -212,7 +221,7 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+    pub fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
@@ -483,8 +492,65 @@ impl<'a> Jail<'a> {
                 }
                 drop(jail_pid_tx);
                 // TODO: Forward the ProcessExit to the jail object
-                let ret = process.wait();
-                debug!("Jail process exit: {:?}", ret);
+
+                let quit = Arc::new(AtomicBool::new(false));
+                let (cmd_tx, cmd_rx) = channel();
+                let (child_tx, child_rx) = channel();
+
+                let events = Select::new();
+                // Handle events from cmd::* using self
+                let mut cmd_handle = events.handle(&cmd_rx);
+                unsafe { cmd_handle.add() };
+                // Handle child wait event
+                let mut child_handle = events.handle(&child_rx);
+                unsafe { child_handle.add() };
+
+                let cmd_quit = quit.clone();
+                let cmd_thread = Thread::scoped(move || {
+                    srv::listen_cmd(cmd_tx, cmd_quit);
+                });
+
+                let child_thread = Thread::scoped(move || {
+                    'main: loop {
+                        process.set_timeout(EVENT_TIMEOUT);
+                        let child_ret = process.wait();
+                        match child_ret {
+                            Ok(ret) => {
+                                debug!("Jail child (PID {}) exited with {}", process.id(), ret);
+                                let _ = child_tx.send(ret);
+                                break 'main;
+                            }
+                            Err(..) => {}
+                        }
+                    }
+                });
+
+                // Wait for client commands and child event
+                'main: loop {
+                    let event = events.wait();
+                    if event == cmd_handle.id() {
+                        match cmd_handle.recv() {
+                            Ok(f) => {
+                                debug!("Got command {:?}", f);
+                                f.call(self);
+                            }
+                            Err(e) => warn!("Fail to receive mount command: {}", e),
+                        }
+                    } else if event == child_handle.id() {
+                        match child_handle.recv() {
+                            Ok(..) => break 'main,
+                            Err(e) => warn!("Fail to receive mount command: {}", e),
+                        }
+                    } else {
+                        panic!("Received unknown event");
+                    }
+                }
+
+                quit.store(true, Relaxed);
+                let _ = child_thread.join();
+                debug!("Jail child monitor exited");
+                let _ = cmd_thread.join();
+                debug!("Jail command monitor exited");
                 unsafe { libc::exit(0); }
             } else {
                 // Parent

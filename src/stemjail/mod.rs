@@ -31,6 +31,12 @@ pub mod cmd;
 pub mod config;
 pub mod fdpass;
 pub mod jail;
+pub mod srv;
 
 pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
 pub static PORTAL_PROFILES_PATH: &'static str = "./config/profiles";
+
+pub static MONITOR_SOCKET_PATH: &'static str = "/tmp/monitor.sock";
+
+// Wait 100 milliseconds
+pub static EVENT_TIMEOUT: Option<u64> = Some(100);
