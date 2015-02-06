@@ -21,9 +21,11 @@ use self::mount::Mount;
 use self::ns::{fs, fs0, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, umount, unshare};
 use std::borrow::Cow::{Borrowed, Owned};
+use std::fmt::Debug;
 use std::old_io as io;
 use std::old_io::{File, FileType, Open, Write};
 use std::old_io::fs::PathExtensions;
+use std::old_io::IoErrorKind;
 use std::os::{change_dir, env};
 use std::os::unix::AsRawFd;
 use std::sync::{Arc, RwLock};
@@ -33,7 +35,6 @@ use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread::Thread;
 use super::EVENT_TIMEOUT;
 use super::srv;
-use std::fmt::Debug;
 
 pub use self::session::Stdio;
 
@@ -517,12 +518,17 @@ impl<'a> Jail<'a> {
                         match child_ret {
                             Ok(ret) => {
                                 debug!("Jail child (PID {}) exited with {}", process.id(), ret);
-                                let _ = child_tx.send(ret);
                                 break 'main;
                             }
-                            Err(..) => {}
+                            Err(ref e) if e.kind == IoErrorKind::TimedOut => {}
+                            Err(e) => {
+                                debug!("Fail to wait for child (PID {}): {}", process.id(), e);
+                                let _ = process.signal_kill();
+                                break 'main;
+                            }
                         }
                     }
+                    let _ = child_tx.send(());
                 });
 
                 // Wait for client commands and child event
