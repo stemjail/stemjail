@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@ pub use self::error::ConfigError;
 
 mod error;
 
+pub mod portal;
 pub mod profile;
 
 // TODO: Check for absolute path only

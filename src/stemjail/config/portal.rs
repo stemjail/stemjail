@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -12,25 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(collections)]
-#![feature(core)]
-#![feature(hash)]
-#![feature(io)]
-#![feature(libc)]
-#![feature(os)]
-#![feature(path)]
-#![feature(std_misc)]
+use super::profile::ProfileConfig;
 
-#[macro_use]
-extern crate bitflags;
-#[macro_use]
-extern crate log;
-extern crate "rustc-serialize" as rustc_serialize;
-
-pub mod cmd;
-pub mod config;
-pub mod fdpass;
-pub mod jail;
-
-pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
-pub static PORTAL_PROFILES_PATH: &'static str = "./config/profiles";
+pub struct Portal {
+    pub configs: Vec<ProfileConfig>,
+}

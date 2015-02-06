@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -17,7 +17,6 @@
 #![feature(io)]
 #![feature(libc)]
 #![feature(os)]
-#![feature(path)]
 
 extern crate env_logger;
 extern crate iohandle;
@@ -25,110 +24,23 @@ extern crate libc;
 #[macro_use]
 extern crate log;
 extern crate pty;
-extern crate "rustc-serialize" as rustc_serialize;
 extern crate stemjail;
 
-use iohandle::FileDesc;
-use pty::TtyClient;
-use rustc_serialize::json;
 use std::old_io as io;
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
 use std::os;
-use stemjail::{fdpass, plugins};
-use stemjail::plugins::{PortalRequest, KageAction};
+use stemjail::cmd;
 
 fn get_usage() -> String {
     let default = "stemjail-cli".to_string();
     let args = os::args();
     let name = args.iter().next().unwrap_or(&default);
-    format!("usage: {} {}", name, plugins::get_plugins_name().connect("|"))
+    format!("usage: {} {}", name, cmd::list_kage_cmd_names().connect("|"))
 }
 
 fn args_fail<T: Str>(msg: T) {
     let msg = format!("{}\n\n{}\n", msg.as_slice(), get_usage().as_slice());
     io::stderr().write_str(msg.as_slice()).unwrap();
     os::set_exit_status(1);
-}
-
-fn plugin_action(plugin: Box<plugins::Plugin>, cmd: KageAction) -> Result<(), String> {
-    match cmd {
-        KageAction::Nop => {}
-        KageAction::PrintHelp => {
-            println!("{}\n{}", plugin.get_usage(), get_usage());
-        }
-        KageAction::SendPortalCommand => {
-            let cmd = match plugin.get_portal_cmd() {
-                Some(c) => c,
-                None => return Err("No command".to_string()),
-            };
-            let json = match json::encode(&cmd) {
-                Ok(s) => s,
-                Err(e) => return Err(format!("Fail to encode command: {}", e)),
-            };
-            let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
-            let stream = match UnixStream::connect(&server) {
-                Ok(s) => s,
-                Err(e) => return Err(format!("Fail to connect to client: {}", e)),
-            };
-            let mut bstream = BufferedStream::new(stream);
-            match bstream.write_line(json.as_slice()) {
-                Ok(_) => {},
-                Err(e) => return Err(format!("Fail to send command: {}", e)),
-            }
-            match bstream.flush() {
-                Ok(_) => {},
-                Err(e) => return Err(format!("Fail to send command (flush): {}", e)),
-            }
-
-            // Recv ack and infos (e.g. FD passing)
-            let encoded_str = match bstream.read_line() {
-                Ok(s) => s,
-                Err(e) => return Err(format!("Error reading client: {}", e)),
-            };
-            let decoded: plugins::PortalAck = match json::decode(encoded_str.as_slice()) {
-                Ok(d) => d,
-                Err(e) => return Err(format!("Fail to decode JSON: {:?}", e)),
-            };
-            if ! cmd.is_valid_request(&decoded.request) {
-                return Err(format!("Invalid request: {:?}", &decoded.request));
-            }
-            debug!("Receive {:?}", &decoded.request);
-
-            // TODO: match decoded.result
-            let stream = bstream.into_inner();
-            match decoded.request {
-                PortalRequest::Nop => {}
-                PortalRequest::CreateTty => {
-                    // Send the template TTY
-                    let peer = FileDesc::new(libc::STDIN_FILENO, false);
-                    // TODO: Replace &[0] with a JSON command
-                    let iov = &[0];
-                    // Block the read stream with a FD barrier
-                    match fdpass::send_fd(&stream, iov, &peer) {
-                        Ok(_) => {},
-                        Err(e) => return Err(format!("Fail to synchronise: {}", e)),
-                    }
-                    match fdpass::send_fd(&stream, iov, &peer) {
-                        Ok(_) => {},
-                        Err(e) => return Err(format!("Fail to send template FD: {}", e)),
-                    }
-
-                    // Receive the master TTY
-                    // TODO: Replace 0u8 with a JSON match
-                    let master = match fdpass::recv_fd(&stream, vec!(0u8)) {
-                        Ok(master) => master,
-                        Err(e) => return Err(format!("Fail to receive master FD: {}", e)),
-                    };
-                    match TtyClient::new(master, peer) {
-                        Ok(p) => p.wait(),
-                        Err(e) => panic!("Fail create TTY client: {}", e),
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 fn main() {
@@ -139,25 +51,19 @@ fn main() {
 
     let _ = args.next();
     match args.next() {
-        Some(cmd) => {
-            let plugin_args: Vec<String> = args.map(|x| x.to_string()).collect();
-            let mut plugin = match plugins::get_plugin(cmd) {
-                Some(p) => p,
+        Some(cmd_name) => {
+            let cmd_args: Vec<String> = args.map(|x| x.to_string()).collect();
+            let mut cmd = match cmd::get_kage_cmd(cmd_name) {
+                Some(c) => c,
                 None => {
                     args_fail("No command with this name");
                     return;
                 }
             };
-            match plugin.init_client(&plugin_args) {
-                Ok(cmd) => match plugin_action(plugin, cmd) {
-                    Ok(_) => {
-                        // TODO: Wait for the portal ack if PortalRequest::CreateTty
-                    }
-                    Err(e) => {
-                        args_fail(format!("Command action error: {}", e));
-                        return;
-                    }
-                },
+            match cmd.call(&cmd_args) {
+                Ok(_) => {
+                    // TODO: Wait for the portal ack if PortalRequest::CreateTty
+                }
                 Err(e) => {
                     args_fail(format!("Command error: {}", e));
                     return;

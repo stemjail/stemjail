@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -12,39 +12,26 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(collections)]
-#![feature(core)]
 #![feature(io)]
-#![feature(os)]
 #![feature(path)]
 #![feature(std_misc)]
 
 extern crate env_logger;
 #[macro_use]
 extern crate log;
-extern crate "rustc-serialize" as rustc_serialize;
 extern crate stemjail;
 
-use rustc_serialize::json;
 use std::old_io::{BufferedStream, Listener, Acceptor};
 use std::old_io::fs;
 use std::old_io::net::pipe::{UnixListener, UnixStream};
-use std::os;
 use std::sync::Arc;
 use std::thread::Thread;
+use stemjail::cmd::PortalCall;
 use stemjail::config::get_configs;
+use stemjail::config::portal::Portal;
 use stemjail::config::profile::ProfileConfig;
-use stemjail::{fdpass, jail, plugins};
-use stemjail::plugins::{PluginCommand, PortalRequest};
 
-// FIXME: Replace Path::new with Path::new_opt
-macro_rules! absolute_path {
-    ($cwd: expr, $dir: expr) => {
-        $cwd.join(&Path::new($dir.clone()))
-    };
-}
-
-fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result<(), String> {
+fn handle_client(stream: UnixStream, portal: Arc<Portal>) -> Result<(), String> {
     let mut bstream = BufferedStream::new(stream);
     let encoded_str = match bstream.read_line() {
         Ok(s) => s,
@@ -55,119 +42,15 @@ fn handle_client(stream: UnixStream, configs: Arc<Vec<ProfileConfig>>) -> Result
         Err(e) => return Err(format!("Fail to read command (flush): {}", e)),
     }
     // FIXME: task '<main>' failed at 'called `Option::unwrap()` on a `None` value', .../rust/src/libcore/option.rs:265
-    let decoded: PluginCommand = match json::decode(encoded_str.as_slice()) {
+    let decoded = match PortalCall::decode(&encoded_str) {
         Ok(d) => d,
         Err(e) => return Err(format!("Fail to decode command: {:?}", e)),
     };
 
     // Use the client command if any or the configuration command otherwise
-    let (args, do_stdio, config) = match decoded {
-        PluginCommand::Run(r) => {
-            let conf = match configs.iter().find(|c| { c.name == r.profile }) {
-                Some(c) => c,
-                None => return Err(format!("No profile named `{}`", r.profile)),
-            };
-            let cmd = match r.command.iter().next() {
-                Some(_) => r.command.clone(),
-                None => conf.run.cmd.clone(),
-            };
-            (cmd, r.stdio, conf)
-        },
-    };
-    let exe = match args.iter().next() {
-        Some(c) => c.clone(),
-        None => return Err("Missing executable in the command (first argument)".to_string()),
-    };
-
-    let cwd = match os::getcwd() {
-        Ok(d) => d,
-        Err(e) => return Err(format!("Fail to get CWD: {}", e)),
-    };
-
-    let mut j = jail::Jail::new(
-        config.name.clone(),
-        absolute_path!(cwd, config.fs.root),
-        match config.fs.bind {
-            Some(ref b) => b.iter().map(
-                |x| jail::BindMount {
-                    src: absolute_path!(cwd, x.src),
-                    dst: match x.dst {
-                        Some(ref d) => absolute_path!(cwd, d),
-                        None => absolute_path!(cwd, x.src),
-                    },
-                    write: match x.write {
-                        Some(w) => w,
-                        None => false,
-                    },
-                }).collect(),
-            None => Vec::new(),
-        },
-        match config.fs.tmp {
-            Some(ref b) => b.iter().map(
-                |x| jail::TmpfsMount {
-                    name: None,
-                    dst: Path::new(&x.dir),
-                }).collect(),
-            None => Vec::new(),
-        });
-
-    let cmd = plugins::PortalAck {
-        //result: Ok(()),
-        request: if do_stdio {
-            PortalRequest::CreateTty
-        } else {
-            PortalRequest::Nop
-        }
-    };
-    let json = match json::encode(&cmd) {
-        Ok(s) => s,
-        Err(e) => return Err(format!("Fail to encode command: {}", e)),
-    };
-    match bstream.write_line(json.as_slice()) {
-        Ok(_) => {},
-        Err(e) => return Err(format!("Fail to send acknowledgement: {}", e)),
+    match decoded {
+        PortalCall::Run(action) => action.call(bstream, &portal),
     }
-    let stream = bstream.into_inner();
-
-    let stdio = if do_stdio {
-        // TODO: Replace 0u8 with a JSON match
-        let fd = match fdpass::recv_fd(&stream, vec!(0u8)) {
-            Ok(fd) => fd,
-            Err(e) => return Err(format!("Fail to receive template FD: {}", e)),
-        };
-        // XXX: Allocate a new TTY inside the jail?
-        match jail::Stdio::new(&fd) {
-            Ok(f) => Some(f),
-            Err(e) => panic!("Fail create stdio: {}", e),
-        }
-    } else {
-        None
-    };
-
-    // Safe tail
-    let args = args.iter().enumerate().filter_map(
-        |(i, x)| if i == 0 { None } else { Some(x.clone()) } ).collect();
-
-    j.run(&Path::new(exe), &args, stdio);
-    match j.get_stdio() {
-        &Some(ref s) => {
-            // TODO: Replace &[0] with a JSON command
-            let iov = &[0];
-            match fdpass::send_fd(&stream, iov, s.get_master()) {
-                Ok(_) => {},
-                Err(e) => return Err(format!("Fail to synchronise: {}", e)),
-            }
-            match fdpass::send_fd(&stream, iov, s.get_master()) {
-                Ok(_) => {},
-                Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
-            }
-        },
-        &None => {},
-    }
-    debug!("Waiting jail to end");
-    let ret = j.wait();
-    debug!("Jail end: {:?}", ret);
-    Ok(())
 }
 
 macro_rules! exit_error {
@@ -184,11 +67,13 @@ fn main() {
     env_logger::init().unwrap();
 
     // TODO: Add dynamic configuration reload
-    let configs = match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
-        Ok(c) => Arc::new(c),
-        Err(e) => exit_error!("{}", e),
-    };
-    let names: Vec<&String> = configs.iter().map(|x| &x.name ).collect();
+    let portal = Arc::new(Portal {
+        configs: match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
+            Ok(c) => c,
+            Err(e) => exit_error!("{}", e),
+        }
+    });
+    let names: Vec<&String> = portal.configs.iter().map(|x| &x.name ).collect();
     info!("Loaded configurations: {:?}", names);
     let server = Path::new(stemjail::PORTAL_SOCKET_PATH);
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
@@ -197,9 +82,9 @@ fn main() {
     for stream in stream.listen().incoming() {
         match stream {
             Ok(s) => {
-                let configs = configs.clone();
+                let portal = portal.clone();
                 Thread::spawn(move || {
-                    match handle_client(s, configs) {
+                    match handle_client(s, portal) {
                         Ok(_) => {},
                         Err(e) => println!("Error handling client: {}", e),
                     }
