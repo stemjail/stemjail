@@ -46,10 +46,11 @@ fn handle_client(stream: UnixStream, portal: Arc<Portal>) -> Result<(), String> 
         Ok(d) => d,
         Err(e) => return Err(format!("Fail to decode command: {:?}", e)),
     };
+    let stream = bstream.into_inner();
 
     // Use the client command if any or the configuration command otherwise
     match decoded {
-        PortalCall::Run(action) => action.call(bstream, &portal),
+        PortalCall::Run(action) => action.call(stream, &portal),
     }
 }
 

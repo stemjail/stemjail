@@ -17,6 +17,7 @@ extern crate iohandle;
 extern crate libc;
 extern crate pty;
 
+use self::fsm_portal::{RequestInit, RequestFsm};
 use self::getopts::{optflag, getopts, OptGroup};
 use self::iohandle::FileDesc;
 use self::pty::TtyClient;
@@ -28,15 +29,17 @@ use super::{PortalCall, PortalRequest, PortalAck};
 use super::super::config::portal::Portal;
 use super::super::{fdpass, jail};
 
+mod fsm_portal;
+
 #[derive(RustcDecodable, RustcEncodable, Debug)]
 pub enum RunAction {
     DoRun(RunRequest),
 }
 
 impl RunAction {
-    pub fn call(&self, bstream: BufferedStream<UnixStream>, portal: &Arc<Portal>) -> Result<(), String> {
+    pub fn call(&self, stream: UnixStream, portal: &Arc<Portal>) -> Result<(), String> {
         match self {
-            &RunAction::DoRun(ref req) => req.call(bstream, portal),
+            &RunAction::DoRun(ref req) => req.call(RequestFsm::new(stream), portal),
         }
     }
 }
@@ -56,7 +59,7 @@ macro_rules! absolute_path {
 }
 
 impl RunRequest {
-    fn call(&self, mut bstream: BufferedStream<UnixStream>, portal: &Arc<Portal>) -> Result<(), String> {
+    fn call(&self, machine: RequestInit, portal: &Arc<Portal>) -> Result<(), String> {
         let config = match portal.configs.iter().find(|c| { c.name == self.profile }) {
             Some(c) => c,
             None => return Err(format!("No profile named `{}`", self.profile)),
@@ -109,29 +112,17 @@ impl RunRequest {
                 PortalRequest::Nop
             }
         };
-        let encoded = match ack.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Fail to encode command: {}", e)),
-        };
-        match bstream.write_line(encoded.as_slice()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send acknowledgement: {}", e)),
-        }
-        let stream = bstream.into_inner();
+        let machine = try!(machine.send_ack(ack));
 
-        let stdio = if self.stdio {
-            // TODO: Replace 0u8 with a JSON match
-            let fd = match fdpass::recv_fd(&stream, vec!(0u8)) {
-                Ok(fd) => fd,
-                Err(e) => return Err(format!("Fail to receive template FD: {}", e)),
-            };
+        let (machine, stdio) = if self.stdio {
+            let (machine, fd) = try!(machine.recv_fd());
             // XXX: Allocate a new TTY inside the jail?
             match jail::Stdio::new(&fd) {
-                Ok(f) => Some(f),
+                Ok(f) => (machine, Some(f)),
                 Err(e) => panic!("Fail create stdio: {}", e),
             }
         } else {
-            None
+            (machine.no_recv_fd(), None)
         };
 
         // Safe tail
@@ -141,19 +132,10 @@ impl RunRequest {
         j.run(&Path::new(exe), &args, stdio);
         match j.get_stdio() {
             &Some(ref s) => {
-                // TODO: Replace &[0] with a JSON command
-                let iov = &[0];
-                match fdpass::send_fd(&stream, iov, s.get_master()) {
-                    Ok(_) => {},
-                    Err(e) => return Err(format!("Fail to synchronise: {}", e)),
-                }
-                match fdpass::send_fd(&stream, iov, s.get_master()) {
-                    Ok(_) => {},
-                    Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
-                }
+                try!(machine.send_fd(s))
             },
-            &None => {},
-        }
+            &None => {}
+        };
         debug!("Waiting jail to end");
         let ret = j.wait();
         debug!("Jail end: {:?}", ret);
