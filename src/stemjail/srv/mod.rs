@@ -22,7 +22,6 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::Sender;
 use std::thread::Thread;
 use super::cmd::MonitorCall;
-use super::cmd::mount::MountAction;
 use super::jail::JailFn;
 use super::{EVENT_TIMEOUT, MONITOR_SOCKET_PATH};
 
@@ -43,15 +42,8 @@ fn handle_cmd(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(), Str
         Err(e) => return Err(format!("Fail to decode command: {:?}", e)),
     };
     match decoded {
-        MonitorCall::Mount(req) => {
-            match req {
-                MountAction::DoMount(req) => {
-                    let _ = cmd_tx.send(Box::new(req));
-                }
-            }
-        }
+        MonitorCall::Mount(action) => action.call(cmd_tx),
     }
-    Ok(())
 }
 
 // TODO: Handle return error

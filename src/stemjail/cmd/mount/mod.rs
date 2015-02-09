@@ -16,6 +16,7 @@ extern crate getopts;
 
 use self::fsm_kage::KageFsm;
 use self::getopts::{optflag, optopt, getopts, OptGroup};
+use std::sync::mpsc::Sender;
 use super::super::jail::{BindMount, Jail, JailFn};
 
 mod fsm_kage;
@@ -24,6 +25,20 @@ mod fsm_kage;
 pub enum MountAction {
     DoMount(MountRequest),
     //DoUnmount(MountRequest),
+}
+
+impl MountAction {
+    pub fn call(self, cmd_tx: Sender<Box<JailFn>>) -> Result<(), String> {
+        let ret = match self {
+            MountAction::DoMount(req) => {
+                cmd_tx.send(Box::new(req))
+            }
+        };
+        match ret {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("Fail to spawn mount action: {}", e)),
+        }
+    }
 }
 
 #[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
