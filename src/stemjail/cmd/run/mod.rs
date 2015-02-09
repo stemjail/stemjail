@@ -15,22 +15,18 @@
 /// `Request::call(&self, RequestInit)` use `RequestFsm`
 
 extern crate getopts;
-extern crate iohandle;
-extern crate libc;
-extern crate pty;
 
+use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
 use self::getopts::{optflag, getopts, OptGroup};
-use self::iohandle::FileDesc;
-use self::pty::TtyClient;
-use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use std::os;
 use std::sync::Arc;
-use super::{PortalCall, PortalRequest, PortalAck};
+use super::{PortalAck, PortalRequest};
 use super::super::config::portal::Portal;
-use super::super::{fdpass, jail};
+use super::super::jail;
 
+mod fsm_kage;
 mod fsm_portal;
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]
@@ -187,78 +183,20 @@ impl super::KageCommand for RunKageCmd {
             None => return Err("Need a profile name".to_string()),
         };
         let stdio = matches.opt_present("tty");
-        let action = PortalCall::Run(RunAction::DoRun(RunRequest {
+        let req = RunRequest {
             profile: profile.clone(),
             command: argi.map(|x| x.to_string()).collect(),
             stdio: stdio
-        }));
-
-        let encoded = match action.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Fail to encode command: {}", e)),
-        };
-        let server = Path::new(super::super::PORTAL_SOCKET_PATH);
-        let stream = match UnixStream::connect(&server) {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Fail to connect to client: {}", e)),
-        };
-        let mut bstream = BufferedStream::new(stream);
-        match bstream.write_line(encoded.as_slice()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command: {}", e)),
-        }
-        match bstream.flush() {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command (flush): {}", e)),
-        }
-
-        // Recv ack and infos (e.g. FD passing)
-        let encoded_str = match bstream.read_line() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Error reading client: {}", e)),
-        };
-        let decoded = match PortalAck::decode(&encoded_str) {
-            Ok(d) => d,
-            Err(e) => return Err(format!("Fail to decode JSON: {:?}", e)),
         };
 
-        // TODO: Remove dup checks
-        let valid_req = match decoded.request {
-            PortalRequest::Nop => true,
-            PortalRequest::CreateTty => stdio,
-            //_ => false,
-        };
-        if !valid_req {
-            return Err(format!("Invalid request: {:?}", &decoded.request));
-        }
-        debug!("Receive {:?}", &decoded.request);
+        let machine = try!(KageFsm::new());
+        let (machine, ret) = try!(machine.send_run(req));
 
         // TODO: match decoded.result
-        let stream = bstream.into_inner();
-        match decoded.request {
+        match ret {
             PortalRequest::Nop => {}
             PortalRequest::CreateTty => {
-                // Send the template TTY
-                let peer = FileDesc::new(libc::STDIN_FILENO, false);
-                // TODO: Replace &[0] with a JSON command
-                let iov = &[0];
-                // Block the read stream with a FD barrier
-                match fdpass::send_fd(&stream, iov, &peer) {
-                    Ok(_) => {},
-                    Err(e) => return Err(format!("Fail to synchronise: {}", e)),
-                }
-                match fdpass::send_fd(&stream, iov, &peer) {
-                    Ok(_) => {},
-                    Err(e) => return Err(format!("Fail to send template FD: {}", e)),
-                }
-
-                // Receive the master TTY
-                // TODO: Replace 0u8 with a JSON match
-                let master = match fdpass::recv_fd(&stream, vec!(0u8)) {
-                    Ok(master) => master,
-                    Err(e) => return Err(format!("Fail to receive master FD: {}", e)),
-                };
-                match TtyClient::new(master, peer) {
+                match try!(machine.create_tty()) {
                     Ok(p) => p.wait(),
                     Err(e) => panic!("Fail create TTY client: {}", e),
                 }
