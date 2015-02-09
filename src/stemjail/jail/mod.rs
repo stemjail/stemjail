@@ -508,7 +508,7 @@ impl<'a> Jail<'a> {
 
                 let cmd_quit = quit.clone();
                 let cmd_thread = Thread::scoped(move || {
-                    srv::listen_cmd(cmd_tx, cmd_quit);
+                    srv::monitor_listen(cmd_tx, cmd_quit);
                 });
 
                 let child_thread = Thread::scoped(move || {
