@@ -12,12 +12,18 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+/// # Serializable types
+/// enum `PortalCall` -> custom cmd { enum Action -> struct Request }
+/// enum `MonitorCall` -> custom cmd { enum Action -> struct Request }
+/// struct `PortalAck` -> `PartalRequest`
+
 extern crate "rustc-serialize" as rustc_serialize;
 use rustc_serialize::json;
 
 pub mod mount;
 pub mod run;
 
+// TODO: Replace with generic trait
 macro_rules! impl_json {
     ($name: ty) => {
         impl $name {
