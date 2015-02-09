@@ -14,11 +14,11 @@
 
 extern crate getopts;
 
+use self::fsm_kage::KageFsm;
 use self::getopts::{optflag, optopt, getopts, OptGroup};
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
-use super::MonitorCall;
 use super::super::jail::{BindMount, Jail, JailFn};
+
+mod fsm_kage;
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum MountAction {
@@ -98,33 +98,16 @@ impl super::KageCommand for MountKageCmd {
             return Err("Unknown trailing argument".to_string());
         }
 
-        let action = MonitorCall::Mount(MountAction::DoMount(MountRequest {
+        let req = MountRequest {
             bind: BindMount {
                 src: src,
                 dst: dst,
                 write: matches.opt_present("write"),
             }
-        }));
+        };
+        let machine = try!(KageFsm::new());
+        machine.send_mount(req)
 
-        let encoded = match action.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Fail to encode command: {}", e)),
-        };
-        let server = Path::new(super::super::MONITOR_SOCKET_PATH);
-        let stream = match UnixStream::connect(&server) {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Fail to connect to client: {}", e)),
-        };
-        let mut bstream = BufferedStream::new(stream);
-        match bstream.write_line(encoded.as_slice()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command: {}", e)),
-        }
-        match bstream.flush() {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command (flush): {}", e)),
-        }
-        Ok(())
         // TODO: Add ack
     }
 }
