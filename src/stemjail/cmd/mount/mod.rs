@@ -20,13 +20,13 @@ use std::old_io::net::pipe::UnixStream;
 use super::MonitorCall;
 use super::super::jail::{BindMount, Jail, JailFn};
 
-#[derive(RustcDecodable, RustcEncodable, Debug)]
+#[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum MountAction {
     DoMount(MountRequest),
     //DoUnmount(MountRequest),
 }
 
-#[derive(Clone, RustcDecodable, RustcEncodable, Debug)]
+#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct MountRequest {
     pub bind: BindMount,
 }

@@ -37,25 +37,25 @@ pub trait KageCommand {
     fn call(&mut self, args: &Vec<String>) -> Result<(), String>;
 }
 
-#[derive(RustcDecodable, RustcEncodable, Debug)]
+#[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum PortalCall {
     Run(run::RunAction)
 }
 impl_json!(PortalCall);
 
-#[derive(RustcDecodable, RustcEncodable, Debug)]
+#[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum MonitorCall {
     Mount(mount::MountAction)
 }
 impl_json!(MonitorCall);
 
-#[derive(Copy, RustcDecodable, RustcEncodable, Show)]
+#[derive(Copy, Debug, RustcDecodable, RustcEncodable)]
 pub struct PortalAck {
     pub request: PortalRequest,
 }
 impl_json!(PortalAck);
 
-#[derive(Copy, RustcDecodable, RustcEncodable, Show)]
+#[derive(Copy, Debug, RustcDecodable, RustcEncodable)]
 pub enum PortalRequest {
     Nop,
     CreateTty,

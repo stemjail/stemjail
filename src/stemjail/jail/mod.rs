@@ -107,7 +107,7 @@ fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
     Ok(())
 }
 
-#[derive(Clone, RustcDecodable, RustcEncodable, Debug)]
+#[derive(Debug, Clone, RustcDecodable, RustcEncodable)]
 pub struct BindMount {
     pub src: Path,
     pub dst: Path,

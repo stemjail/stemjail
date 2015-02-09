@@ -31,7 +31,7 @@ use super::super::{fdpass, jail};
 
 mod fsm_portal;
 
-#[derive(RustcDecodable, RustcEncodable, Debug)]
+#[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum RunAction {
     DoRun(RunRequest),
 }
@@ -44,7 +44,7 @@ impl RunAction {
     }
 }
 
-#[derive(Clone, RustcDecodable, RustcEncodable, Show)]
+#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct RunRequest {
     pub profile: String,
     pub command: Vec<String>,
