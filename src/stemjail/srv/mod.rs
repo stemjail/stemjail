@@ -37,7 +37,7 @@ fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String
     Ok((bstream, encoded))
 }
 
-fn portal_handle(stream: UnixStream, portal: Arc<Portal>) -> Result<(), String> {
+fn portal_handle(stream: UnixStream, portal: &Portal) -> Result<(), String> {
     let (bstream, decoded_str) = try!(read_stream(stream));
     let decoded = match PortalCall::decode(&decoded_str) {
         Ok(d) => d,
@@ -47,7 +47,7 @@ fn portal_handle(stream: UnixStream, portal: Arc<Portal>) -> Result<(), String> 
 
     // Use the client command if any or the configuration command otherwise
     match decoded {
-        PortalCall::Run(action) => action.call(stream, &portal),
+        PortalCall::Run(action) => action.call(stream, portal),
     }
 }
 
@@ -73,7 +73,7 @@ pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
             Ok(s) => {
                 let portal = portal.clone();
                 let _ = Thread::scoped(move || {
-                    match portal_handle(s, portal) {
+                    match portal_handle(s, &*portal) {
                         Ok(_) => {},
                         Err(e) => println!("Error handling client: {}", e),
                     }

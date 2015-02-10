@@ -21,7 +21,6 @@ use self::fsm_portal::{RequestInit, RequestFsm};
 use self::getopts::{optflag, getopts, OptGroup};
 use std::old_io::net::pipe::UnixStream;
 use std::os;
-use std::sync::Arc;
 use super::{PortalAck, PortalRequest};
 use super::super::config::portal::Portal;
 use super::super::jail;
@@ -35,7 +34,7 @@ pub enum RunAction {
 }
 
 impl RunAction {
-    pub fn call(&self, stream: UnixStream, portal: &Arc<Portal>) -> Result<(), String> {
+    pub fn call(&self, stream: UnixStream, portal: &Portal) -> Result<(), String> {
         match self {
             &RunAction::DoRun(ref req) => req.call(RequestFsm::new(stream), portal),
         }
@@ -57,7 +56,7 @@ macro_rules! absolute_path {
 }
 
 impl RunRequest {
-    fn call(&self, machine: RequestInit, portal: &Arc<Portal>) -> Result<(), String> {
+    fn call(&self, machine: RequestInit, portal: &Portal) -> Result<(), String> {
         let config = match portal.configs.iter().find(|c| { c.name == self.profile }) {
             Some(c) => c,
             None => return Err(format!("No profile named `{}`", self.profile)),
