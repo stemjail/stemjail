@@ -117,10 +117,10 @@ impl super::KageCommand for MountKageCmd {
         }
 
         let req = MountRequest {
-            bind: BindMount {
-                src: src,
-                dst: dst,
-                write: matches.opt_present("write"),
+            bind: {
+                let mut bind = BindMount::new(src, dst);
+                bind.write = matches.opt_present("write");
+                bind
             }
         };
         let machine = try!(KageFsm::new());

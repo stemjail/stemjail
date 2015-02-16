@@ -79,16 +79,18 @@ impl RunRequest {
             absolute_path!(cwd, config.fs.root),
             match config.fs.bind {
                 Some(ref b) => b.iter().map(
-                    |x| jail::BindMount {
-                        src: absolute_path!(cwd, x.src),
-                        dst: match x.dst {
-                            Some(ref d) => absolute_path!(cwd, d),
-                            None => absolute_path!(cwd, x.src),
-                        },
-                        write: match x.write {
+                    |x| {
+                        let mut bind = jail::BindMount::new(
+                            absolute_path!(cwd, x.src),
+                            match x.dst {
+                                Some(ref d) => absolute_path!(cwd, d),
+                                None => absolute_path!(cwd, x.src),
+                            });
+                        bind.write = match x.write {
                             Some(w) => w,
                             None => false,
-                        },
+                        };
+                        bind
                     }).collect(),
                 None => Vec::new(),
             },

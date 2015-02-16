@@ -69,6 +69,16 @@ pub struct BindMount {
     pub write: bool,
 }
 
+impl BindMount {
+    pub fn new(source: Path, destination: Path) -> BindMount {
+        BindMount {
+            src: source,
+            dst: destination,
+            write: false,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct TmpfsMount<'a> {
     pub name: Option<&'a str>,
@@ -92,13 +102,13 @@ impl<'a> Jail<'a> {
         // TODO: Check for a real procfs
         let tmp_dir = Path::new(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
         // Hack to cleanly manage the root bind mount
-        let mut root_binds = vec!( BindMount { src: root.clone(), dst: Path::new("/"), write: false } );
+        let mut root_binds = vec!(BindMount::new(root.clone(), Path::new("/")));
         root_binds.push_all(binds.as_slice());
         //let root_binds = binds;
         Jail {
             name: name,
             // TODO: Add a fallback for root.dst
-            root: BindMount { src: root, dst: tmp_dir, write: false },
+            root: BindMount::new(root, tmp_dir),
             binds: root_binds,
             tmps: tmps,
             stdio: None,
@@ -138,7 +148,9 @@ impl<'a> Jail<'a> {
             ];
         let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
             let src = devdir.clone().join(&Path::new(*dev));
-            BindMount { src: src.clone(), dst: src, write: true }
+            let mut bind = BindMount::new(src.clone(), src);
+            bind.write = true;
+            bind
         }).collect();
 
         // Add current TTY
@@ -146,7 +158,11 @@ impl<'a> Jail<'a> {
         match self.stdio {
             Some(ref s) => match s.get_path() {
                     // FIXME: Assume `p` begin with "/dev/"
-                    Some(p) => devs.push(BindMount { src: p.clone(), dst: p.clone(), write: true }),
+                    Some(p) => {
+                        let mut bind = BindMount::new(p.clone(), p.clone());
+                        bind.write = true;
+                        devs.push(bind);
+                    }
                     None => {}
                 },
             None => {}
@@ -156,7 +172,8 @@ impl<'a> Jail<'a> {
             debug!("Creating {}", dev.dst.display());
             let dst = nested_dir!(self.root.dst, dev.dst);
             try!(create_same_type(&dev.src, &dst));
-            let bind = BindMount { src: dev.src.clone(), dst: dst.clone(), write: true };
+            let mut bind = BindMount::new(dev.src.clone(), dst.clone());
+            bind.write = true;
             try!(self.add_bind(&bind, true));
         }
         let links = &[
@@ -248,8 +265,7 @@ impl<'a> Jail<'a> {
                 for mount in host_mounts.iter() {
                     if bind_ref.src.is_ancestor_of(&mount.file) && bind_ref.src != mount.file {
                         let file = mount.file.clone();
-                        let new_bind = BindMount { src: file.clone(), dst: file, write: false };
-                        sub_binds.push(new_bind);
+                        sub_binds.push(BindMount::new(file.clone(), file));
                     }
                 }
                 // Take all new sub mounts and remove overlaps from all_binds while keeping the order
