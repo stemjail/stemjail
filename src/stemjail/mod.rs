@@ -20,6 +20,7 @@
 #![feature(os)]
 #![feature(path)]
 #![feature(std_misc)]
+#![feature(unsafe_destructor)]
 
 #[macro_use]
 extern crate bitflags;

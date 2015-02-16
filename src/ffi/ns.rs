@@ -57,7 +57,6 @@ pub mod raw {
 
     // Syscall numbers from x86_64-linux-gnu/asm/unistd_64.h
     #[cfg(target_arch="x86_64")]
-    #[allow(dead_code)]
     pub fn gettid() -> pid_t {
         unsafe { sc0::syscall(186) as pid_t }
     }
@@ -109,6 +108,7 @@ pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
     let target = CString::from_slice(target.as_vec());
     match unsafe { raw::umount2(target.as_ptr(), flags.bits()) } {

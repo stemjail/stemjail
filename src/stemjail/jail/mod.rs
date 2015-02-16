@@ -18,8 +18,8 @@ extern crate libc;
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::Mount;
-use self::ns::{fs, fs0, raw, sched};
-use self::ns::{mount, pivot_root, setgroups, umount, unshare};
+use self::ns::{fs, raw, sched};
+use self::ns::{mount, pivot_root, setgroups, unshare};
 use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::fmt::Debug;
@@ -307,12 +307,17 @@ impl<'a> Jail<'a> {
         try!(self.init_dev(&Path::new("/dev")));
 
         // Finalize the pivot
-        let old_root = Path::new("tmp");
-        try!(mkdir_if_not(&old_root));
-        try!(pivot_root(&self.root.dst, &old_root));
+        let vdir = EphemeralDir::new();
+        // TODO: Bind mount the parent root to be able to drop mount branches (i.e. domain transitions)
+        try!(pivot_root(&self.root.dst, vdir.get_relative_path()));
 
-        // Cleanup parent mounts
-        try!(umount(&old_root, &fs0::MNT_DETACH));
+        // Keep the parent root open for jail transitions
+        try!(change_dir(vdir.get_relative_path()));
+        // Hide the parent root
+        drop(vdir);
+
+        // Cleanup parent mounts (for the clients)
+        //try!(umount(&old_root, &fs0::MNT_DETACH));
         Ok(())
     }
 
@@ -430,6 +435,8 @@ impl<'a> Jail<'a> {
                 }).collect();
                 // TODO: Try using detached()
                 let mut process = match io::Command::new(run)
+                        // Must switch to / to avoid leaking hidden parent root
+                        .cwd(&Path::new("/"))
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)

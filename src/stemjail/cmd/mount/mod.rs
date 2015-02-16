@@ -48,6 +48,7 @@ pub struct MountRequest {
 
 impl JailFn for MountRequest {
     fn call(&self, jail: &Jail) {
+        // FIXME: Use jail.expand_binds-like
         let ret = jail.add_bind(&self.bind, true);
         // TODO: Send result to client
         debug!("Mount result: {:?}", ret);
@@ -68,6 +69,8 @@ impl MountKageCmd {
                 optopt("s", "source", "Set the source path", "SRC"),
                 optopt("d", "destination", "Set the destination", "DST"),
                 optflag("w", "write", "Set the bind mount writable"),
+                // FIXME: Check relative path
+                // TODO: optflag("p", "parent", "Get the source from the parent domain root"),
             ),
         }
     }
