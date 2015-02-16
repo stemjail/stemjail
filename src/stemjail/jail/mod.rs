@@ -67,6 +67,7 @@ pub struct BindMount {
     pub src: Path,
     pub dst: Path,
     pub write: bool,
+    pub from_parent: bool,
 }
 
 impl BindMount {
@@ -75,6 +76,7 @@ impl BindMount {
             src: source,
             dst: destination,
             write: false,
+            from_parent: false,
         }
     }
 }
@@ -201,16 +203,25 @@ impl<'a> Jail<'a> {
             Owned(nested_dir!(self.root.dst, bind.dst))
         };
         let dst = &*dst;
-        debug!("Bind mounting {}", bind.src.display());
+        let src = if bind.from_parent {
+            Owned(nested_dir!(Path::new("."), bind.src))
+        } else {
+            Borrowed(&bind.src)
+        };
+        let src = &*src;
+
+        // TODO: Add better log (cf. parent)
+        debug!("Bind mounting {}", src.display());
 
         // Create needed directorie(s) and/or file
-        try!(create_same_type(&bind.src, dst));
+        // XXX: This should be allowed for clients too
+        try!(create_same_type(src, dst));
 
         let none_str = "none";
         // The fs/namespace.c:clone_mnt kernel function forbid unprivileged users (i.e.
         // CL_UNPRIVILEGED) to reveal what is under a mount, so we need to recursively bind mount.
         let bind_flags = fs::MS_BIND | fs::MS_REC;
-        try!(mount(&bind.src, dst, none_str, &bind_flags, &None));
+        try!(mount(src, dst, none_str, &bind_flags, &None));
         if ! bind.write {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
             // read/write files during the jail life.

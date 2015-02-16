@@ -58,6 +58,7 @@ impl MountRequest {
         if !self.bind.dst.is_absolute() {
             return Err("The mount destination is not an absolute path".to_string());
         }
+        // FIXME: Add domain transition check (cf. parent mount)
         Ok(())
     }
 }
@@ -83,9 +84,9 @@ impl MountKageCmd {
             opts: vec!(
                 optflag("h", "help", "Print this message"),
                 optopt("s", "source", "Set the source path", "SRC"),
-                optopt("d", "destination", "Set the destination", "DST"),
+                optopt("d", "destination", "Set the destination path", "DST"),
                 optflag("w", "write", "Set the bind mount writable"),
-                // TODO: optflag("p", "parent", "Get the source from the parent domain root"),
+                optflag("p", "parent", "Get the source from the parent domain"),
             ),
         }
     }
@@ -135,6 +136,7 @@ impl super::KageCommand for MountKageCmd {
             bind: {
                 let mut bind = BindMount::new(src, dst);
                 bind.write = matches.opt_present("write");
+                bind.from_parent = matches.opt_present("parent");
                 bind
             }
         };
