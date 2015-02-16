@@ -20,11 +20,11 @@ use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::Mount;
 use self::ns::{fs, fs0, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, umount, unshare};
+use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::fmt::Debug;
 use std::old_io as io;
-use std::old_io::{File, FileType, Open, Write};
-use std::old_io::fs::PathExtensions;
+use std::old_io::{File, Open, Write};
 use std::old_io::IoErrorKind;
 use std::os::{change_dir, env};
 use std::os::unix::AsRawFd;
@@ -43,6 +43,7 @@ mod fsb;
 #[path = "../../ffi/ns.rs" ]
 mod ns;
 mod session;
+mod util;
 
 pub trait JailFn: Send + Debug {
     fn call(&self, &Jail);
@@ -60,52 +61,6 @@ macro_rules! nested_dir {
 }
 
 // TODO: Add tmpfs prelude to not pollute the root
-
-/// Do not return error if the directory already exist
-fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
-    match io::fs::mkdir_recursive(path, io::USER_RWX) {
-        Ok(_) => Ok(()),
-        Err(e) => match e.kind {
-            // TODO: Fix io::PathAlreadyExists
-            io::OtherIoError => Ok(()),
-            _ => Err(e)
-        },
-    }
-}
-
-/// Do not return error if the file already exist
-fn touch_if_not(path: &Path) -> io::IoResult<()> {
-    match path.stat() {
-        Ok(fs) => match fs.kind {
-            FileType::Directory =>
-                Err(io::standard_error(io::MismatchedFileTypeForOperation)),
-            _ => Ok(()),
-        },
-        Err(e) => match e.kind {
-            io::FileNotFound => match io::fs::File::create(path) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(e),
-            },
-            _ => Err(e),
-        },
-    }
-}
-
-/// Create a dst file or directory according to the src
-fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
-    match try!(src.stat()).kind {
-        FileType::Directory => {
-            try!(mkdir_if_not(dst));
-        }
-        _ => {
-            let mut d = dst.clone();
-            d.pop();
-            try!(mkdir_if_not(&d));
-            try!(touch_if_not(dst));
-        }
-    }
-    Ok(())
-}
 
 #[derive(Debug, Clone, RustcDecodable, RustcEncodable)]
 pub struct BindMount {
