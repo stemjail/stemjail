@@ -31,7 +31,10 @@ impl MountAction {
     pub fn call(self, cmd_tx: Sender<Box<JailFn>>) -> Result<(), String> {
         let ret = match self {
             MountAction::DoMount(req) => {
-                cmd_tx.send(Box::new(req))
+                match req.check() {
+                    Ok(_) => cmd_tx.send(Box::new(req)),
+                    Err(e) => return Err(format!("Request error: {}", e)),
+                }
             }
         };
         match ret {
@@ -44,6 +47,19 @@ impl MountAction {
 #[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct MountRequest {
     pub bind: BindMount,
+}
+
+impl MountRequest {
+    // Forbid use of "." (i.e. the parent domain root directory)
+    pub fn check(&self) -> Result<(), String> {
+        if !self.bind.src.is_absolute() {
+            return Err("The mount source is not an absolute path".to_string());
+        }
+        if !self.bind.dst.is_absolute() {
+            return Err("The mount destination is not an absolute path".to_string());
+        }
+        Ok(())
+    }
 }
 
 impl JailFn for MountRequest {
@@ -69,7 +85,6 @@ impl MountKageCmd {
                 optopt("s", "source", "Set the source path", "SRC"),
                 optopt("d", "destination", "Set the destination", "DST"),
                 optflag("w", "write", "Set the bind mount writable"),
-                // FIXME: Check relative path
                 // TODO: optflag("p", "parent", "Get the source from the parent domain root"),
             ),
         }
@@ -123,6 +138,11 @@ impl super::KageCommand for MountKageCmd {
                 bind
             }
         };
+        match req.check() {
+            Ok(_) => {}
+            e => return e,
+        }
+
         let machine = try!(KageFsm::new());
         machine.send_mount(req)
 
