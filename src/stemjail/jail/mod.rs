@@ -228,21 +228,16 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    fn expand_binds(&self) -> io::IoResult<Vec<BindMount>> {
-        let host_mounts = {
-            match Mount::get_mounts(&Path::new("/")) {
+    fn expand_binds(&self, root: &Path, excludes: &Vec<&Path>) -> io::IoResult<Vec<BindMount>> {
+        let host_mounts: Vec<_> = {
+            match Mount::get_mounts(root) {
                 Ok(list) => {
-                    let mut ret = vec!();
-                    let devdir = Path::new("/dev");
-                    let procdir = Path::new("/proc");
-                    for mount in Mount::remove_overlaps(list).into_iter() {
-                        if ! self.root.dst.is_ancestor_of(&mount.file)
-                                && ! devdir.is_ancestor_of(&mount.file)
-                                && ! procdir.is_ancestor_of(&mount.file) {
-                            ret.push(mount);
-                        }
-                    }
-                    ret
+                    Mount::remove_overlaps(list).into_iter().filter(
+                        |mount| {
+                            excludes.iter().skip_while(
+                                |path| !path.is_ancestor_of(&mount.file)
+                            ).next().is_none()
+                        }).collect()
                 },
                 Err(e) => {
                     // TODO: Add FromError impl to IoResult
@@ -303,7 +298,10 @@ impl<'a> Jail<'a> {
         // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
 
         // TODO: Bind mount and seal the root before expanding bind mounts
-        let all_binds = try!(self.expand_binds());
+        let dev_path = Path::new("/dev");
+        let proc_path = Path::new("/proc");
+        let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
+        let all_binds = try!(self.expand_binds(&Path::new("/"), &exclude_binds));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }
