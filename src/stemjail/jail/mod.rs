@@ -229,21 +229,19 @@ impl<'a> Jail<'a> {
     }
 
     fn expand_binds(&self, root: &Path, excludes: &Vec<&Path>) -> io::IoResult<Vec<BindMount>> {
-        let host_mounts: Vec<_> = {
-            match Mount::get_mounts(root) {
-                Ok(list) => {
-                    Mount::remove_overlaps(list).into_iter().filter(
-                        |mount| {
-                            excludes.iter().skip_while(
-                                |path| !path.is_ancestor_of(&mount.file)
-                            ).next().is_none()
-                        }).collect()
-                },
-                Err(e) => {
-                    // TODO: Add FromError impl to IoResult
-                    debug!("Error: get_mounts: {}", e);
-                    return Err(io::standard_error(io::OtherIoError));
-                }
+        let host_mounts: Vec<_> = match Mount::get_mounts(root) {
+            Ok(list) => {
+                Mount::remove_overlaps(list).into_iter().filter(
+                    |mount| {
+                        excludes.iter().skip_while(
+                            |path| !path.is_ancestor_of(&mount.file)
+                        ).next().is_none()
+                    }).collect()
+            },
+            Err(e) => {
+                // TODO: Add FromError impl to IoResult
+                debug!("Error: get_mounts: {}", e);
+                return Err(io::standard_error(io::OtherIoError))
             }
         };
         // Need to keep the mount points order and prioritize the last (i.e. user) mount points
