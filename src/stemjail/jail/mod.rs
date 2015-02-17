@@ -45,6 +45,8 @@ mod ns;
 mod session;
 mod util;
 
+static WORKDIR_PARENT: &'static str = "./parent";
+
 pub trait JailFn: Send + Debug {
     fn call(&self, &Jail);
 }
@@ -193,7 +195,7 @@ impl<'a> Jail<'a> {
         };
         let dst = &*dst;
         let src = if bind.from_parent {
-            Owned(nest_path(&Path::new("."), &bind.src))
+            Owned(nest_path(&Path::new(WORKDIR_PARENT), &bind.src))
         } else {
             Borrowed(&bind.src)
         };
@@ -323,17 +325,20 @@ impl<'a> Jail<'a> {
         try!(self.init_dev(&Path::new("/dev")));
 
         // Finalize the pivot
-        let vdir = EphemeralDir::new();
+        let workdir = EphemeralDir::new();
+        // Create the monitor (hidden) working directory
+        try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: workdir.get_relative_path().clone() }));
+        let parent = workdir.get_relative_path().join(Path::new(WORKDIR_PARENT));
+        try!(io::fs::mkdir(&parent, io::USER_RWX));
         // TODO: Bind mount the parent root to be able to drop mount branches (i.e. domain transitions)
-        try!(pivot_root(&self.root.dst, vdir.get_relative_path()));
-
-        // Keep the parent root open for jail transitions
-        try!(change_dir(vdir.get_relative_path()));
-        // Hide the parent root
-        drop(vdir);
+        try!(pivot_root(&self.root.dst, &parent));
+        // Keep the workdir open (e.g. jail transitions)
+        try!(change_dir(workdir.get_relative_path()));
+        // Hide the workdir
+        drop(workdir);
 
         // Cleanup parent mounts (for the clients)
-        //try!(umount(&old_root, &fs0::MNT_DETACH));
+        //try!(umount(&parent, &fs0::MNT_DETACH));
         Ok(())
     }
 
