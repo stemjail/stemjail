@@ -65,8 +65,7 @@ impl MountRequest {
 
 impl JailFn for MountRequest {
     fn call(&self, jail: &Jail) {
-        // FIXME: Use jail.expand_binds-like
-        let ret = jail.add_bind(&self.bind, true);
+        let ret = jail.import_bind(&self.bind);
         // TODO: Send result to client
         debug!("Mount result: {:?}", ret);
     }

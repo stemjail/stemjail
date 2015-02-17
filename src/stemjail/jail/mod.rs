@@ -18,8 +18,8 @@ extern crate libc;
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::Mount;
-use self::ns::{fs, raw, sched};
-use self::ns::{mount, pivot_root, setgroups, unshare};
+use self::ns::{fs, fs0, raw, sched};
+use self::ns::{mount, pivot_root, setgroups, umount, unshare};
 use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::fmt::Debug;
@@ -87,6 +87,7 @@ pub struct Jail<'a> {
     stdio: Option<Stdio>,
     pid: Arc<RwLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
+    workdir: Option<Path>,
 }
 
 impl<'a> Jail<'a> {
@@ -107,6 +108,7 @@ impl<'a> Jail<'a> {
             stdio: None,
             pid: Arc::new(RwLock::new(None)),
             end_event: None,
+            workdir: None,
         }
     }
 
@@ -187,7 +189,31 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    pub fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+    pub fn import_bind(&self, bind: &BindMount) -> io::IoResult<()> {
+        let workdir = match self.workdir {
+            Some(ref w) => w,
+            // TODO: Create a new error or a FSM for self.workdir
+            None => return Err(io::standard_error(io::OtherIoError)),
+        };
+        let submounts = try!(self.expand_binds(vec!(bind.clone()), &bind.src, &vec!(workdir)));
+        let mut ret = Ok(());
+        for mount in submounts.iter() {
+            ret = self.add_bind(mount, true);
+            if ret.is_err() {
+                break;
+            }
+        }
+        // Unmount all successful mount if on error occur
+        if ret.is_err() {
+            let unmount = umount(&bind.dst, &fs0::MNT_DETACH);
+            debug!("Unmounted {}: {:?}", bind.dst.display(), unmount)
+        }
+        ret
+    }
+
+    // XXX: Impossible to keep a consistent read-only mount tree if a new mount is added after our
+    // bind mount. Will need to watch all the sources.
+    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
@@ -228,7 +254,8 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    fn expand_binds(&self, root: &Path, excludes: &Vec<&Path>) -> io::IoResult<Vec<BindMount>> {
+    fn expand_binds(&self, binds: Vec<BindMount>, root: &Path, excludes: &Vec<&Path>)
+            -> io::IoResult<Vec<BindMount>> {
         let host_mounts: Vec<_> = match Mount::get_mounts(root) {
             Ok(list) => {
                 Mount::remove_overlaps(list).into_iter().filter(
@@ -247,11 +274,10 @@ impl<'a> Jail<'a> {
         // Need to keep the mount points order and prioritize the last (i.e. user) mount points
         let mut all_binds = vec!();
         // TODO: Add a black list with /dev and /proc
-        for bind in self.binds.iter() {
+        for bind in binds.into_iter() {
             // TODO: Check to not replace the root.dst mount points
             // FIXME: Extend the full path (like "readlink -f") to not recursively mount
             // Complete with all child mount points if needed (i.e. read-only mount tree)
-            let bind = bind.clone();
             if bind.write {
                 all_binds.push(bind);
             } else {
@@ -291,7 +317,7 @@ impl<'a> Jail<'a> {
     }
 
     // TODO: impl Drop to unmount and remove mount directories/files
-    fn init_fs(&self) -> io::IoResult<()> {
+    fn init_fs(&mut self) -> io::IoResult<()> {
         // Prepare to remove all parent mounts with a pivot
         // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
 
@@ -299,7 +325,7 @@ impl<'a> Jail<'a> {
         let dev_path = Path::new("/dev");
         let proc_path = Path::new("/proc");
         let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
-        let all_binds = try!(self.expand_binds(&Path::new("/"), &exclude_binds));
+        let all_binds = try!(self.expand_binds(self.binds.clone(), &Path::new("/"), &exclude_binds));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }
@@ -322,6 +348,8 @@ impl<'a> Jail<'a> {
 
         // Finalize the pivot
         let workdir = EphemeralDir::new();
+        // Save the workdir path to be able to exclude it from mount points
+        self.workdir = Some(Path::new("/").join(workdir.get_relative_path().clone()));
         // Create the monitor (hidden) working directory
         try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: workdir.get_relative_path().clone() }));
         let parent = workdir.get_relative_path().join(Path::new(WORKDIR_PARENT));
