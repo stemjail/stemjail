@@ -49,17 +49,6 @@ pub trait JailFn: Send + Debug {
     fn call(&self, &Jail);
 }
 
-macro_rules! nested_dir {
-    ($root: expr, $subdir: expr) => {
-        $root.clone().join(
-            match $subdir.path_relative_from(&Path::new("/")) {
-                Some(p) => p,
-                None => return Err(io::standard_error(io::OtherIoError)),
-            }
-        );
-    };
-}
-
 // TODO: Add tmpfs prelude to not pollute the root
 
 #[derive(Debug, Clone, RustcDecodable, RustcEncodable)]
@@ -136,7 +125,7 @@ impl<'a> Jail<'a> {
 
     fn init_dev(&self, devdir: &Path) -> io::IoResult<()> {
         info!("Populating {}", devdir.display());
-        let devdir_full = nested_dir!(self.root.dst, devdir);
+        let devdir_full = nest_path(&self.root.dst, devdir);
         try!(mkdir_if_not(&devdir_full));
         try!(self.add_tmpfs(&TmpfsMount { name: Some("dev"), dst: devdir.clone() }));
 
@@ -172,7 +161,7 @@ impl<'a> Jail<'a> {
 
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
-            let dst = nested_dir!(self.root.dst, dev.dst);
+            let dst = nest_path(&self.root.dst, &dev.dst);
             try!(create_same_type(&dev.src, &dst));
             let mut bind = BindMount::new(dev.src.clone(), dst.clone());
             bind.write = true;
@@ -200,11 +189,11 @@ impl<'a> Jail<'a> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
-            Owned(nested_dir!(self.root.dst, bind.dst))
+            Owned(nest_path(&self.root.dst, &bind.dst))
         };
         let dst = &*dst;
         let src = if bind.from_parent {
-            Owned(nested_dir!(Path::new("."), bind.src))
+            Owned(nest_path(&Path::new("."), &bind.src))
         } else {
             Borrowed(&bind.src)
         };
@@ -299,7 +288,7 @@ impl<'a> Jail<'a> {
             None => "tmpfs",
         });
         let flags = fs::MsFlags::empty();
-        let dst = nested_dir!(self.root.dst, tmp.dst);
+        let dst = nest_path(&self.root.dst, &tmp.dst);
         let opt = "mode=0700";
         debug!("Creating tmpfs in {}", tmp.dst.display());
         try!(mount(&name, &dst, "tmpfs", &flags, &Some(opt)));

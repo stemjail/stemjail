@@ -21,6 +21,40 @@ use std::sync::mpsc::{channel, Sender};
 use std::thread::{JoinGuard, Thread};
 use super::ns::raw;
 
+/// Concatenate two paths (different from `join()`)
+pub fn nest_path(root: &Path, subdir: &Path) -> Path {
+    root.join(
+        match subdir.path_relative_from(&Path::new("/")) {
+            Some(p) => p,
+            None => subdir.clone(),
+        }
+    )
+}
+
+#[test]
+fn test_nest_path() {
+    let foo = Path::new("/foo");
+    let bar = Path::new("bar");
+    let qux = Path::new("../qux");
+
+    let foobar = Path::new("/foo/bar");
+    assert_eq!(nest_path(&foo, &bar), foobar);
+    let foofoo = Path::new("/foo/foo");
+    assert_eq!(nest_path(&foo, &foo), foofoo);
+    let barfoo = Path::new("bar/foo");
+    assert_eq!(nest_path(&bar, &foo), barfoo);
+    let barbar = Path::new("bar/bar");
+    assert_eq!(nest_path(&bar, &bar), barbar);
+    let fooqux = Path::new("/foo/../qux");
+    assert_eq!(nest_path(&foo, &qux), fooqux);
+    let barqux = Path::new("bar/../qux");
+    assert_eq!(nest_path(&bar, &qux), barqux);
+    let quxfoo = Path::new("../qux/foo");
+    assert_eq!(nest_path(&qux, &foo), quxfoo);
+    let quxbar = Path::new("../qux/bar");
+    assert_eq!(nest_path(&qux, &bar), quxbar);
+}
+
 /// Do not return error if the directory already exist
 pub fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
     match io::fs::mkdir_recursive(path, io::USER_RWX) {
