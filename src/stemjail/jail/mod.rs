@@ -94,6 +94,7 @@ impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
     pub fn new(name: String, root: Path, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
+        // TODO: Use TmpWorkDir
         let tmp_dir = Path::new(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
         // Hack to cleanly manage the root bind mount
         let mut root_binds = vec!(BindMount::new(root.clone(), Path::new("/")));
@@ -195,24 +196,78 @@ impl<'a> Jail<'a> {
             // TODO: Create a new error or a FSM for self.workdir
             None => return Err(io::standard_error(io::OtherIoError)),
         };
-        let submounts = try!(self.expand_binds(vec!(bind.clone()), &bind.src, &vec!(workdir)));
-        let mut ret = Ok(());
+        // Blacklist private content from workdir
+        // FIXME: Protect parent hierarchy as well!
+        if !bind.from_parent && workdir.is_ancestor_of(&bind.src) {
+            info!("Malicious bind mount attempted");
+            return Err(io::standard_error(io::OtherIoError));
+        }
+        let excludes = if bind.from_parent {
+            vec!()
+        } else {
+            vec!(workdir.clone())
+        };
+        // Deny /proc from being masked
+        if Path::new("/proc").is_ancestor_of(&bind.dst) {
+            info!("Can't overlaps /proc");
+            return Err(io::standard_error(io::OtherIoError));
+        }
+        let parent = workdir.join(Path::new(WORKDIR_PARENT));
+        // Create temporary and unique directory for an atomic cmd/mount command
+        let tmp_dir = try!(TmpWorkDir::new("mount"));
+        let tmp_bind = BindMount {
+            // Relative path for src
+            src: if bind.from_parent {
+                // Virtual source path to check sub mounts
+                nest_path(&parent, &bind.src)
+            } else {
+                bind.src.clone()
+            },
+            dst: bind.dst.clone(),
+            write: bind.write,
+            from_parent: bind.from_parent,
+        };
+
+        let mount_failed = |:| {
+            // Unmount all previous mounts if an error occured
+            match umount(tmp_dir.path(), &fs0::MNT_DETACH) {
+                Ok(..) => debug!("Unmounted {}", tmp_dir.path().display()),
+                Err(e) => debug!("Fail to unmount {}: {}", tmp_dir.path().display(), e),
+            }
+        };
+        let submounts = try!(self.expand_binds(vec!(tmp_bind.clone()), &excludes.iter().collect()));
         for mount in submounts.iter() {
-            ret = self.add_bind(mount, true);
-            if ret.is_err() {
-                break;
+            let mut mount = mount.clone();
+            if mount.from_parent {
+                mount.src = nest_path(&Path::new(WORKDIR_PARENT), &mount.src.path_relative_from(&parent).unwrap());
+            }
+            mount.dst = nest_path(tmp_dir.path(), &mount.dst.path_relative_from(&bind.dst).unwrap());
+            match self.add_bind(&mount, true){
+                Ok(..) => {}
+                Err(e) => {
+                    debug!("Fail to bind mount a submount point: {}", e);
+                    mount_failed();
+                    return Err(e);
+                }
             }
         }
-        // Unmount all successful mount if on error occur
-        if ret.is_err() {
-            let unmount = umount(&bind.dst, &fs0::MNT_DETACH);
-            debug!("Unmounted {}: {:?}", bind.dst.display(), unmount)
+        let none_str = "none";
+        let bind_flags = fs::MS_MOVE;
+        debug!("Moving bind mount from {} to {}", tmp_dir.path().display(), bind.dst.display());
+        match mount(tmp_dir.path(), &bind.dst, none_str, &bind_flags, &None) {
+            Ok(..) => {}
+            Err(e) => {
+                debug!("Fail to move the temporary mount point: {}", e);
+                mount_failed();
+                return Err(e);
+            }
         }
-        ret
+        Ok(())
     }
 
     // XXX: Impossible to keep a consistent read-only mount tree if a new mount is added after our
     // bind mount. Will need to watch all the sources.
+    // TODO: Try to not bind remount already read-only mounts
     fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
@@ -220,15 +275,11 @@ impl<'a> Jail<'a> {
             Owned(nest_path(&self.root.dst, &bind.dst))
         };
         let dst = &*dst;
-        let src = if bind.from_parent {
-            Owned(nest_path(&Path::new(WORKDIR_PARENT), &bind.src))
-        } else {
-            Borrowed(&bind.src)
-        };
-        let src = &*src;
+        let src = &bind.src;
 
         // TODO: Add better log (cf. parent)
-        debug!("Bind mounting {}", src.display());
+        debug!("Bind mounting from {}", src.display());
+        debug!("Bind mounting to {}", dst.display());
 
         // Create needed directorie(s) and/or file
         // XXX: This should be allowed for clients too
@@ -238,6 +289,7 @@ impl<'a> Jail<'a> {
         // The fs/namespace.c:clone_mnt kernel function forbid unprivileged users (i.e.
         // CL_UNPRIVILEGED) to reveal what is under a mount, so we need to recursively bind mount.
         let bind_flags = fs::MS_BIND | fs::MS_REC;
+        // TODO: Check if there is an existing mount point before creating a new one
         try!(mount(src, dst, none_str, &bind_flags, &None));
         if ! bind.write {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
@@ -254,11 +306,18 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    fn expand_binds(&self, binds: Vec<BindMount>, root: &Path, excludes: &Vec<&Path>)
+    fn expand_binds(&self, binds: Vec<BindMount>, excludes: &Vec<&Path>)
             -> io::IoResult<Vec<BindMount>> {
-        let host_mounts: Vec<_> = match Mount::get_mounts(root) {
+        let host_mounts: Vec<_> = match Mount::get_mounts(&Path::new("/")) {
             Ok(list) => {
-                Mount::remove_overlaps(list).into_iter().filter(
+                let proc_path = Path::new("/proc");
+                // Exclude workdir from overlaps detection because workdir/parent contains moved
+                // mount points and is so at the top of the mount list.
+                let excludes_overlaps = match self.workdir {
+                    None => vec!(),
+                    Some(ref w) => vec!(&proc_path, w),
+                };
+                Mount::remove_overlaps(list, &excludes_overlaps).into_iter().filter(
                     |mount| {
                         excludes.iter().skip_while(
                             |path| !path.is_ancestor_of(&mount.file)
@@ -271,34 +330,43 @@ impl<'a> Jail<'a> {
                 return Err(io::standard_error(io::OtherIoError))
             }
         };
+
         // Need to keep the mount points order and prioritize the last (i.e. user) mount points
-        let mut all_binds = vec!();
-        // TODO: Add a black list with /dev and /proc
+        let mut all_binds: Vec<BindMount> = vec!();
         for bind in binds.into_iter() {
             // TODO: Check to not replace the root.dst mount points
             // FIXME: Extend the full path (like "readlink -f") to not recursively mount
-            // Complete with all child mount points if needed (i.e. read-only mount tree)
-            if bind.write {
-                all_binds.push(bind);
+            let sub_binds = if bind.write {
+                vec!(bind.clone())
             } else {
-                let bind_ref = bind.clone();
-                let mut sub_binds = vec!(bind);
+                // Complete with all child mount points if needed (i.e. read-only mount tree)
+                let mut sub_binds = vec!(bind.clone());
+                // Take bind sub mounts
                 for mount in host_mounts.iter() {
-                    if bind_ref.src.is_ancestor_of(&mount.file) && bind_ref.src != mount.file {
-                        let file = mount.file.clone();
-                        sub_binds.push(BindMount::new(file.clone(), file));
+                    let sub_src = mount.file.clone();
+                    if bind.src.is_ancestor_of(&sub_src) && bind.src != sub_src {
+                        // Extend bind with same attributes
+                        let new_bind = BindMount {
+                            src: sub_src,
+                            dst: nest_path(&bind.dst, &mount.file.path_relative_from(&bind.src).unwrap()),
+                            write: bind.write,
+                            from_parent: bind.from_parent,
+                        };
+                        sub_binds.push(new_bind);
                     }
                 }
-                // Take all new sub mounts and remove overlaps from all_binds while keeping the order
-                let mut new_all_binds = vec!();
-                for cur_bind in all_binds.into_iter() {
-                    if ! bind_ref.dst.is_ancestor_of(&cur_bind.dst) {
-                        new_all_binds.push(cur_bind);
-                    }
+                sub_binds
+            };
+            // While keeping the previous mounts order, drop those who would be overlapped by the
+            // current bind
+            let mut new_all_binds = vec!();
+            for cur_bind in all_binds.into_iter() {
+                if ! bind.dst.is_ancestor_of(&cur_bind.dst) {
+                    new_all_binds.push(cur_bind);
                 }
-                new_all_binds.push_all(sub_binds.as_slice());
-                all_binds = new_all_binds;
             }
+            new_all_binds.push_all(sub_binds.as_slice());
+            all_binds = new_all_binds;
         }
         Ok(all_binds)
     }
@@ -325,7 +393,7 @@ impl<'a> Jail<'a> {
         let dev_path = Path::new("/dev");
         let proc_path = Path::new("/proc");
         let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
-        let all_binds = try!(self.expand_binds(self.binds.clone(), &Path::new("/"), &exclude_binds));
+        let all_binds = try!(self.expand_binds(self.binds.clone(), &exclude_binds));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }

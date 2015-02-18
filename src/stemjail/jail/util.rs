@@ -17,6 +17,7 @@ extern crate libc;
 use std::old_io as io;
 use std::old_io::FileType;
 use std::old_io::fs::PathExtensions;
+use std::rand::{thread_rng, Rng};
 use std::sync::mpsc::{channel, Sender};
 use std::thread::{JoinGuard, Thread};
 use super::ns::raw;
@@ -145,6 +146,37 @@ impl<'a> Drop for EphemeralDir<'a> {
         let _ = self.delete_tx.send(());
         if let Some(guard) = self.guard.take() {
             let _ = guard.join();
+        }
+    }
+}
+
+pub struct TmpWorkDir {
+    path: Path,
+}
+
+/// Create a temporary directory in the current directory and remove it when dropped
+impl TmpWorkDir {
+    // Can't use TempDir because it create an absolute path (through the removed workdir)
+    pub fn new(prefix: &str) -> io::IoResult<Self> {
+        let tmp_suffix: String = thread_rng().gen_ascii_chars().take(12).collect();
+        let tmp_dir = Path::new(format!("./tmp_{}_{}", prefix, tmp_suffix));
+        // With very bad luck, the command will failed :(
+        try!(io::fs::mkdir(&tmp_dir, io::USER_RWX));
+        Ok(TmpWorkDir {
+            path: tmp_dir,
+        })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TmpWorkDir {
+    fn drop(&mut self) {
+        match io::fs::rmdir(&self.path) {
+            Ok(..) => {}
+            Err(e) => debug!("Fail to remove temporary directory: {}", e),
         }
     }
 }

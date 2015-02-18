@@ -19,6 +19,7 @@
 #![feature(libc)]
 #![feature(os)]
 #![feature(path)]
+#![feature(rand)]
 #![feature(std_misc)]
 #![feature(unsafe_destructor)]
 
