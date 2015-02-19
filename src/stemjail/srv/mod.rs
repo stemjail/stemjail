@@ -92,7 +92,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     let _ = fs::unlink(&server);
     let mut acceptor = match UnixListener::bind(&server).listen() {
         Err(e) => {
-            debug!("Fail to listen to {:?}: {}", server, e);
+            warn!("Fail to listen to {:?}: {}", server, e);
             return;
         }
         Ok(v) => v,

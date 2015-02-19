@@ -205,16 +205,16 @@ impl<'a> Jail<'a> {
             }
             vec!()
         } else {
-            // Blacklist private content from workdir
+            // Blacklist private content from workdir (not a security need)
             if workdir.is_ancestor_of(&bind.src) {
-                info!("Malicious bind mount attempted");
+                warn!("Malicious bind mount attempted");
                 return Err(io::standard_error(io::OtherIoError));
             }
             vec!(workdir.clone())
         };
         // Deny /proc from being masked
         if Path::new("/proc").is_ancestor_of(&bind.dst) {
-            info!("Can't overlaps /proc");
+            warn!("Can't overlaps /proc");
             return Err(io::standard_error(io::OtherIoError));
         }
         let parent = workdir.join(Path::new(WORKDIR_PARENT));
@@ -240,7 +240,7 @@ impl<'a> Jail<'a> {
                 let rel_src = match mount.src.path_relative_from(&parent) {
                     Some(p) => p,
                     None => {
-                        debug!("Fail to get relative path from {}", parent.display());
+                        warn!("Fail to get relative path from {}", parent.display());
                         return Err(io::standard_error(io::OtherIoError));
                     }
                 };
@@ -249,7 +249,7 @@ impl<'a> Jail<'a> {
             let rel_dst = match mount.dst.path_relative_from(&bind.dst) {
                 Some(p) => p,
                 None => {
-                    debug!("Fail to get relative path from {}", bind.dst.display());
+                    warn!("Fail to get relative path from {}", bind.dst.display());
                     return Err(io::standard_error(io::OtherIoError));
                 }
             };
@@ -260,7 +260,7 @@ impl<'a> Jail<'a> {
                     tmp_dir.unmount(true);
                 }
                 Err(e) => {
-                    debug!("Fail to bind mount a submount point: {}", e);
+                    warn!("Fail to bind mount a submount point: {}", e);
                     return Err(e);
                 }
             }
@@ -269,7 +269,7 @@ impl<'a> Jail<'a> {
         match mount(tmp_dir.path(), &bind.dst, "none", &fs::MS_MOVE, &None) {
             Ok(..) => tmp_dir.unmount(false),
             Err(e) => {
-                debug!("Fail to move the temporary mount point: {}", e);
+                warn!("Fail to move the temporary mount point: {}", e);
                 return Err(e);
             }
         }
@@ -337,7 +337,7 @@ impl<'a> Jail<'a> {
             },
             Err(e) => {
                 // TODO: Add FromError impl to IoResult
-                debug!("Error: get_mounts: {}", e);
+                warn!("Fail to get mount points: {}", e);
                 return Err(io::standard_error(io::OtherIoError))
             }
         };
@@ -359,7 +359,7 @@ impl<'a> Jail<'a> {
                         let rel_dst = match mount.file.path_relative_from(&bind.src) {
                             Some(p) => p,
                             None => {
-                                debug!("Fail to get relative path from {}", bind.src.display());
+                                warn!("Fail to get relative path from {}", bind.src.display());
                                 return Err(io::standard_error(io::OtherIoError));
                             }
                         };
@@ -615,7 +615,7 @@ impl<'a> Jail<'a> {
                             }
                             Err(ref e) if e.kind == IoErrorKind::TimedOut => {}
                             Err(e) => {
-                                debug!("Fail to wait for child (PID {}): {}", process.id(), e);
+                                warn!("Fail to wait for child (PID {}): {}", process.id(), e);
                                 let _ = process.signal_kill();
                                 break 'main;
                             }

@@ -183,12 +183,12 @@ impl Drop for TmpWorkDir {
         if self.do_unmount {
             match umount(&self.path, &fs0::MNT_DETACH) {
                 Ok(..) => {}
-                Err(e) => debug!("Fail to unmount {}: {}", self.path.display(), e),
+                Err(e) => warn!("Fail to unmount {}: {}", self.path.display(), e),
             }
         }
         match io::fs::rmdir(&self.path) {
             Ok(..) => {}
-            Err(e) => debug!("Fail to remove {}: {}", self.path.display(), e),
+            Err(e) => warn!("Fail to remove {}: {}", self.path.display(), e),
         }
         debug!("Removed {}", self.path.display());
     }
