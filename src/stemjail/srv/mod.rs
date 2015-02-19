@@ -72,7 +72,8 @@ pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
         match stream {
             Ok(s) => {
                 let portal = portal.clone();
-                let _ = Thread::scoped(move || {
+                // TODO: Join all threads
+                Thread::spawn(move || {
                     match portal_handle(s, &*portal) {
                         Ok(_) => {},
                         Err(e) => println!("Error handling client: {}", e),
@@ -103,7 +104,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
             Ok(s) => {
                 let client_cmd_fn = cmd_tx.clone();
                 // TODO: Join all threads
-                let _ = Thread::scoped(move || {
+                Thread::spawn(move || {
                     // TODO: Forward the quit event to monitor_handle
                     match monitor_handle(s, client_cmd_fn) {
                         Ok(_) => {},
