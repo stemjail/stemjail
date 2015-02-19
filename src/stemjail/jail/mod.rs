@@ -196,7 +196,7 @@ impl<'a> Jail<'a> {
             // TODO: Create a new error or a FSM for self.workdir
             None => return Err(io::standard_error(io::OtherIoError)),
         };
-        // FIXME: Sanitize path (e.g. no "..")
+        // FIXME: Verify path traversal sanitization (e.g. no "..")
         let excludes = if bind.from_parent {
             // Protect parent process listing
             if Path::new("/proc").is_ancestor_of(&bind.src) {
@@ -205,11 +205,6 @@ impl<'a> Jail<'a> {
             }
             vec!()
         } else {
-            // Blacklist private content from workdir (not a security need)
-            if workdir.is_ancestor_of(&bind.src) {
-                warn!("Malicious bind mount attempted");
-                return Err(io::standard_error(io::OtherIoError));
-            }
             vec!(workdir.clone())
         };
         // Deny /proc from being masked
@@ -265,6 +260,7 @@ impl<'a> Jail<'a> {
                 }
             }
         }
+
         debug!("Moving bind mount from {} to {}", tmp_dir.path().display(), bind.dst.display());
         match mount(tmp_dir.path(), &bind.dst, "none", &fs::MS_MOVE, &None) {
             Ok(..) => tmp_dir.unmount(false),
@@ -328,6 +324,7 @@ impl<'a> Jail<'a> {
                     None => vec!(),
                     Some(ref w) => vec!(&proc_path, w),
                 };
+                // FIXME: Verify Mount::remove_overlaps() implementation for missed mount points
                 Mount::remove_overlaps(list, &excludes_overlaps).into_iter().filter(
                     |mount| {
                         excludes.iter().skip_while(
