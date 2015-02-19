@@ -196,16 +196,20 @@ impl<'a> Jail<'a> {
             // TODO: Create a new error or a FSM for self.workdir
             None => return Err(io::standard_error(io::OtherIoError)),
         };
-        // Blacklist private content from workdir
         // FIXME: Sanitize path (e.g. no "..")
-        // FIXME: Protect parent hierarchy as well!
-        if !bind.from_parent && workdir.is_ancestor_of(&bind.src) {
-            info!("Malicious bind mount attempted");
-            return Err(io::standard_error(io::OtherIoError));
-        }
         let excludes = if bind.from_parent {
+            // Protect parent process listing
+            if Path::new("/proc").is_ancestor_of(&bind.src) {
+                warn!("Access to parent/proc denied");
+                return Err(io::standard_error(io::OtherIoError));
+            }
             vec!()
         } else {
+            // Blacklist private content from workdir
+            if workdir.is_ancestor_of(&bind.src) {
+                info!("Malicious bind mount attempted");
+                return Err(io::standard_error(io::OtherIoError));
+            }
             vec!(workdir.clone())
         };
         // Deny /proc from being masked
