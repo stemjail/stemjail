@@ -18,8 +18,8 @@ extern crate libc;
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::Mount;
-use self::ns::{fs, fs0, raw, sched};
-use self::ns::{mount, pivot_root, setgroups, umount, unshare};
+use self::ns::{fs, raw, sched};
+use self::ns::{mount, pivot_root, setgroups, unshare};
 use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::fmt::Debug;
@@ -197,6 +197,7 @@ impl<'a> Jail<'a> {
             None => return Err(io::standard_error(io::OtherIoError)),
         };
         // Blacklist private content from workdir
+        // FIXME: Sanitize path (e.g. no "..")
         // FIXME: Protect parent hierarchy as well!
         if !bind.from_parent && workdir.is_ancestor_of(&bind.src) {
             info!("Malicious bind mount attempted");
@@ -214,7 +215,7 @@ impl<'a> Jail<'a> {
         }
         let parent = workdir.join(Path::new(WORKDIR_PARENT));
         // Create temporary and unique directory for an atomic cmd/mount command
-        let tmp_dir = try!(TmpWorkDir::new("mount"));
+        let mut tmp_dir = try!(TmpWorkDir::new("mount"));
         let tmp_bind = BindMount {
             // Relative path for src
             src: if bind.from_parent {
@@ -228,37 +229,43 @@ impl<'a> Jail<'a> {
             from_parent: bind.from_parent,
         };
 
-        let mount_failed = |:| {
-            // Unmount all previous mounts if an error occured
-            match umount(tmp_dir.path(), &fs0::MNT_DETACH) {
-                Ok(..) => debug!("Unmounted {}", tmp_dir.path().display()),
-                Err(e) => debug!("Fail to unmount {}: {}", tmp_dir.path().display(), e),
-            }
-        };
         let submounts = try!(self.expand_binds(vec!(tmp_bind.clone()), &excludes.iter().collect()));
         for mount in submounts.iter() {
             let mut mount = mount.clone();
             if mount.from_parent {
-                mount.src = nest_path(&Path::new(WORKDIR_PARENT), &mount.src.path_relative_from(&parent).unwrap());
+                let rel_src = match mount.src.path_relative_from(&parent) {
+                    Some(p) => p,
+                    None => {
+                        debug!("Fail to get relative path from {}", parent.display());
+                        return Err(io::standard_error(io::OtherIoError));
+                    }
+                };
+                mount.src = nest_path(&Path::new(WORKDIR_PARENT), &rel_src);
             }
-            mount.dst = nest_path(tmp_dir.path(), &mount.dst.path_relative_from(&bind.dst).unwrap());
+            let rel_dst = match mount.dst.path_relative_from(&bind.dst) {
+                Some(p) => p,
+                None => {
+                    debug!("Fail to get relative path from {}", bind.dst.display());
+                    return Err(io::standard_error(io::OtherIoError));
+                }
+            };
+            mount.dst = nest_path(tmp_dir.path(), &rel_dst);
             match self.add_bind(&mount, true){
-                Ok(..) => {}
+                Ok(..) => {
+                    // Unmount all previous mounts if an error occured
+                    tmp_dir.unmount(true);
+                }
                 Err(e) => {
                     debug!("Fail to bind mount a submount point: {}", e);
-                    mount_failed();
                     return Err(e);
                 }
             }
         }
-        let none_str = "none";
-        let bind_flags = fs::MS_MOVE;
         debug!("Moving bind mount from {} to {}", tmp_dir.path().display(), bind.dst.display());
-        match mount(tmp_dir.path(), &bind.dst, none_str, &bind_flags, &None) {
-            Ok(..) => {}
+        match mount(tmp_dir.path(), &bind.dst, "none", &fs::MS_MOVE, &None) {
+            Ok(..) => tmp_dir.unmount(false),
             Err(e) => {
                 debug!("Fail to move the temporary mount point: {}", e);
-                mount_failed();
                 return Err(e);
             }
         }
@@ -345,10 +352,17 @@ impl<'a> Jail<'a> {
                 for mount in host_mounts.iter() {
                     let sub_src = mount.file.clone();
                     if bind.src.is_ancestor_of(&sub_src) && bind.src != sub_src {
+                        let rel_dst = match mount.file.path_relative_from(&bind.src) {
+                            Some(p) => p,
+                            None => {
+                                debug!("Fail to get relative path from {}", bind.src.display());
+                                return Err(io::standard_error(io::OtherIoError));
+                            }
+                        };
                         // Extend bind with same attributes
                         let new_bind = BindMount {
                             src: sub_src,
-                            dst: nest_path(&bind.dst, &mount.file.path_relative_from(&bind.src).unwrap()),
+                            dst: nest_path(&bind.dst, &rel_dst),
                             write: bind.write,
                             from_parent: bind.from_parent,
                         };

@@ -20,7 +20,7 @@ use std::old_io::fs::PathExtensions;
 use std::rand::{thread_rng, Rng};
 use std::sync::mpsc::{channel, Sender};
 use std::thread::{JoinGuard, Thread};
-use super::ns::raw;
+use super::ns::{fs0, raw, umount};
 
 /// Concatenate two paths (different from `join()`)
 pub fn nest_path(root: &Path, subdir: &Path) -> Path {
@@ -152,6 +152,7 @@ impl<'a> Drop for EphemeralDir<'a> {
 
 pub struct TmpWorkDir {
     path: Path,
+    do_unmount: bool,
 }
 
 /// Create a temporary directory in the current directory and remove it when dropped
@@ -164,19 +165,31 @@ impl TmpWorkDir {
         try!(io::fs::mkdir(&tmp_dir, io::USER_RWX));
         Ok(TmpWorkDir {
             path: tmp_dir,
+            do_unmount: false,
         })
     }
 
     pub fn path(&self) -> &Path {
         &self.path
     }
+
+    pub fn unmount(&mut self, on: bool) {
+        self.do_unmount = on;
+    }
 }
 
 impl Drop for TmpWorkDir {
     fn drop(&mut self) {
+        if self.do_unmount {
+            match umount(&self.path, &fs0::MNT_DETACH) {
+                Ok(..) => {}
+                Err(e) => debug!("Fail to unmount {}: {}", self.path.display(), e),
+            }
+        }
         match io::fs::rmdir(&self.path) {
             Ok(..) => {}
-            Err(e) => debug!("Fail to remove temporary directory: {}", e),
+            Err(e) => debug!("Fail to remove {}: {}", self.path.display(), e),
         }
+        debug!("Removed {}", self.path.display());
     }
 }
