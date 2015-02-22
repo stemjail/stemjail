@@ -15,7 +15,7 @@
 extern crate getopts;
 
 use self::fsm_kage::KageFsm;
-use self::getopts::{optflag, optopt, getopts, OptGroup};
+use self::getopts::Options;
 use std::sync::mpsc::Sender;
 use super::super::jail::{BindMount, Jail, JailFn};
 
@@ -73,20 +73,20 @@ impl JailFn for MountRequest {
 
 pub struct MountKageCmd {
     name: String,
-    opts: Vec<OptGroup>,
+    opts: Options,
 }
 
 impl MountKageCmd {
     pub fn new() -> MountKageCmd {
+        let mut opts = Options::new();
+        opts.optflag("h", "help", "Print this message");
+        opts.optopt("s", "source", "Set the source path", "SRC");
+        opts.optopt("d", "destination", "Set the destination path", "DST");
+        opts.optflag("w", "write", "Set the bind mount writable");
+        opts.optflag("p", "parent", "Get the source from the parent domain");
         MountKageCmd {
             name: "mount".to_string(),
-            opts: vec!(
-                optflag("h", "help", "Print this message"),
-                optopt("s", "source", "Set the source path", "SRC"),
-                optopt("d", "destination", "Set the destination path", "DST"),
-                optflag("w", "write", "Set the bind mount writable"),
-                optflag("p", "parent", "Get the source from the parent domain"),
-            ),
+            opts: opts,
         }
     }
 }
@@ -110,11 +110,11 @@ impl super::KageCommand for MountKageCmd {
 
     fn get_usage(&self) -> String {
         let msg = format!("Usage for the {} command", self.name);
-        format!("{}", getopts::usage(msg.as_slice(), self.opts.as_slice()))
+        format!("{}", self.opts.usage(msg.as_slice()))
     }
 
     fn call(&mut self, args: &Vec<String>) -> Result<(), String> {
-        let matches = match getopts(args.as_slice(), self.opts.as_slice()) {
+        let matches = match self.opts.parse(args.as_slice()) {
             Ok(m) => m,
             Err(e) => return Err(format!("{}", e)),
         };

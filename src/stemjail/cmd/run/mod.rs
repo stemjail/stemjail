@@ -18,7 +18,7 @@ extern crate getopts;
 
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
-use self::getopts::{optflag, getopts, OptGroup};
+use self::getopts::Options;
 use std::old_io::net::pipe::UnixStream;
 use std::os;
 use super::{PortalAck, PortalRequest};
@@ -144,17 +144,17 @@ impl RunRequest {
 
 pub struct RunKageCmd {
     name: String,
-    opts: Vec<OptGroup>,
+    opts: Options,
 }
 
 impl RunKageCmd {
     pub fn new() -> RunKageCmd {
+        let mut opts = Options::new();
+        opts.optflag("h", "help", "Print this message");
+        opts.optflag("t", "tty", "Create and connect to the remote TTY");
         RunKageCmd {
             name: "run".to_string(),
-            opts: vec!(
-                optflag("h", "help", "Print this message"),
-                optflag("t", "tty", "Create and connect to the remote TTY"),
-            ),
+            opts: opts,
         }
     }
 }
@@ -166,11 +166,11 @@ impl super::KageCommand for RunKageCmd {
 
     fn get_usage(&self) -> String {
         let msg = format!("Usage for the {} command", self.name);
-        format!("{}", getopts::usage(msg.as_slice(), self.opts.as_slice()))
+        format!("{}", self.opts.usage(msg.as_slice()))
     }
 
     fn call(&mut self, args: &Vec<String>) -> Result<(), String> {
-        let matches = match getopts(args.as_slice(), self.opts.as_slice()) {
+        let matches = match self.opts.parse(args.as_slice()) {
             Ok(m) => m,
             Err(e) => return Err(format!("{}", e)),
         };
