@@ -20,6 +20,7 @@ extern crate pty;
 
 use self::iohandle::FileDesc;
 use self::pty::TtyClient;
+use std::marker::PhantomData;
 use std::old_io::{BufferedStream, IoResult};
 use std::old_io::net::pipe::UnixStream;
 use super::{RunAction, RunRequest};
@@ -36,20 +37,14 @@ mod state {
 
 pub struct KageFsm<T> {
     stream: UnixStream,
+    _state: PhantomData<T>,
 }
 
 macro_rules! fsm_new {
     ($stream: expr) => {
         KageFsm {
             stream: $stream,
-        }
-    }
-}
-
-macro_rules! fsm_next {
-    ($myself: expr) => {
-        KageFsm {
-            stream: $myself.stream,
+            _state: PhantomData,
         }
     }
 }

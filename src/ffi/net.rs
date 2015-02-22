@@ -15,9 +15,10 @@
 extern crate libc;
 
 use self::libc::{c_int, size_t, ssize_t, c_uint, c_void};
-use std::old_io as io;
+use std::marker::PhantomData;
 use std::mem::{size_of, size_of_val};
 use std::mem::transmute;
+use std::old_io as io;
 use std::os::unix::AsRawFd;
 use std::ptr;
 
@@ -65,6 +66,7 @@ pub struct Msghdr<T> {
 
     /** Ancillary data (eg BSD filedesc passing). */
     msg_control: *const c_void,
+    _msg_control_type: PhantomData<T>,
 
     /** Ancillary data buffer length.
      *
@@ -99,6 +101,7 @@ impl<T> Msghdr<T> {
                 msg_iov: iov.as_ptr(),
                 msg_iovlen: iov.len() as size_t,
                 msg_control: unsafe { transmute(ctrl) },
+                _msg_control_type: PhantomData,
                 // The msg_controllen represent the whole space (with padding) of Cmsghdr<T>
                 msg_controllen: size_of_val(ctrl) as size_t,
                 msg_flags: match flags {

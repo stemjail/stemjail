@@ -14,6 +14,7 @@
 
 /// Finite-state machine for a `KageCommand` call
 
+use std::marker::PhantomData;
 use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use super::{MountAction, MountRequest};
@@ -28,6 +29,7 @@ mod state {
 
 pub struct KageFsm<T> {
     stream: UnixStream,
+    _state: PhantomData<T>,
 }
 
 // Dummy FSM for now, but help to keep it consistent and enforce number of actions
@@ -40,6 +42,7 @@ impl KageFsm<state::Init> {
         };
         Ok(KageFsm {
             stream: stream,
+            _state: PhantomData,
         })
     }
 

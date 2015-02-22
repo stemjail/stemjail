@@ -17,6 +17,7 @@
 extern crate iohandle;
 
 use self::iohandle::FileDesc;
+use std::marker::PhantomData;
 use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use super::super::PortalAck;
@@ -34,6 +35,7 @@ mod state {
 
 pub struct RequestFsm<T> {
     stream: UnixStream,
+    _state: PhantomData<T>,
 }
 
 pub type RequestInit = RequestFsm<state::Init>;
@@ -42,6 +44,7 @@ macro_rules! fsm_new {
     ($stream: expr) => {
         RequestFsm {
             stream: $stream,
+            _state: PhantomData,
         }
     }
 }
@@ -50,6 +53,7 @@ macro_rules! fsm_next {
     ($myself: expr) => {
         RequestFsm {
             stream: $myself.stream,
+            _state: PhantomData,
         }
     }
 }
