@@ -17,7 +17,7 @@ extern crate libc;
 
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
-use self::mount::Mount;
+use self::mount::MountEntry;
 use self::ns::{fs, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, unshare};
 use self::util::*;
@@ -315,7 +315,7 @@ impl<'a> Jail<'a> {
 
     fn expand_binds(&self, binds: Vec<BindMount>, excludes: &Vec<&Path>)
             -> io::IoResult<Vec<BindMount>> {
-        let host_mounts: Vec<_> = match Mount::get_mounts(&Path::new("/")) {
+        let host_mounts: Vec<_> = match MountEntry::get_mounts(&Path::new("/")) {
             Ok(list) => {
                 let proc_path = Path::new("/proc");
                 // Exclude workdir from overlaps detection because workdir/parent contains moved
@@ -324,8 +324,8 @@ impl<'a> Jail<'a> {
                     None => vec!(),
                     Some(ref w) => vec!(&proc_path, w),
                 };
-                // FIXME: Verify Mount::remove_overlaps() implementation for missed mount points
-                Mount::remove_overlaps(list, &excludes_overlaps).into_iter().filter(
+                // FIXME: Verify MountEntry::remove_overlaps() implementation for missed mount points
+                MountEntry::remove_overlaps(list, &excludes_overlaps).into_iter().filter(
                     |mount| {
                         excludes.iter().skip_while(
                             |path| !path.is_ancestor_of(&mount.file)
