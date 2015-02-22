@@ -21,6 +21,7 @@ env_logger = "0.2.1"
 getopts = "0.1.0"
 log = "0.2.1"
 rustc-serialize = "0.2.10"
+toml = "0.1.17"
 
 [dependencies.iohandle]
 path = "../iohandle-rs"
@@ -30,7 +31,3 @@ path = "../mnt-rs"
 
 [dependencies.pty]
 path = "../pty-rs"
-
-[dependencies.toml]
-git = "https://github.com/alexcrichton/toml-rs.git"
-rev = "0a6a1cabded126552662ec45ed844e4ca9e5d502"
