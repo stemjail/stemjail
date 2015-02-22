@@ -78,9 +78,9 @@ impl RequestFsm<state::Init> {
 }
 
 impl RequestFsm<state::RecvFd> {
-    pub fn recv_fd(self) -> Result<(RequestFsm<state::SendFd>, FileDesc), String> {
+    pub fn recv_fd(mut self) -> Result<(RequestFsm<state::SendFd>, FileDesc), String> {
         // TODO: Replace 0u8 with a JSON match
-        let fd = match fdpass::recv_fd(&self.stream, vec!(0u8)) {
+        let fd = match fdpass::recv_fd(&mut self.stream, vec!(0u8)) {
             Ok(fd) => fd,
             Err(e) => return Err(format!("Fail to receive template FD: {}", e)),
         };
@@ -93,14 +93,14 @@ impl RequestFsm<state::RecvFd> {
 }
 
 impl RequestFsm<state::SendFd> {
-    pub fn send_fd(self, stdio: &jail::Stdio) -> Result<(), String> {
+    pub fn send_fd(mut self, stdio: &jail::Stdio) -> Result<(), String> {
         // TODO: Replace &[0] with a JSON command
         let iov = &[0];
-        match fdpass::send_fd(&self.stream, iov, stdio.get_master()) {
+        match fdpass::send_fd(&mut self.stream, iov, stdio.get_master()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Fail to synchronise: {}", e)),
         }
-        match fdpass::send_fd(&self.stream, iov, stdio.get_master()) {
+        match fdpass::send_fd(&mut self.stream, iov, stdio.get_master()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
         }

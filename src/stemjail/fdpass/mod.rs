@@ -39,7 +39,7 @@ impl FdPadding {
     }
 }
 
-pub fn recv_fd(stream: &UnixStream, iov_expect: Vec<u8>) -> io::IoResult<FileDesc> {
+pub fn recv_fd(stream: &mut UnixStream, iov_expect: Vec<u8>) -> io::IoResult<FileDesc> {
     let fd = FdPadding::new(-1 as Fd);
     match net::recvmsg(stream, iov_expect.len(), fd) {
         // TODO: Check size?
@@ -53,7 +53,7 @@ pub fn recv_fd(stream: &UnixStream, iov_expect: Vec<u8>) -> io::IoResult<FileDes
     }
 }
 
-pub fn send_fd(stream: &UnixStream, id: &[u8], fd: &AsRawFd) -> io::IoResult<()> {
+pub fn send_fd(stream: &mut UnixStream, id: &[u8], fd: &AsRawFd) -> io::IoResult<()> {
     let iov = net::Iovec {
         iov_base: id.as_ptr() as *const c_void,
         iov_len: id.len() as size_t,

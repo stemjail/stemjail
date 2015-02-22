@@ -103,23 +103,23 @@ impl KageFsm<state::Init> {
 
 impl KageFsm<state::SendFd> {
     // Send the template TTY
-    pub fn create_tty(self) -> Result<IoResult<TtyClient>, String> {
+    pub fn create_tty(mut self) -> Result<IoResult<TtyClient>, String> {
         let peer = FileDesc::new(libc::STDIN_FILENO, false);
         // TODO: Replace &[0] with a JSON command
         let iov = &[0];
         // Block the read stream with a FD barrier
-        match fdpass::send_fd(&self.stream, iov, &peer) {
+        match fdpass::send_fd(&mut self.stream, iov, &peer) {
             Ok(_) => {},
             Err(e) => return Err(format!("Fail to synchronise: {}", e)),
         }
-        match fdpass::send_fd(&self.stream, iov, &peer) {
+        match fdpass::send_fd(&mut self.stream, iov, &peer) {
             Ok(_) => {},
             Err(e) => return Err(format!("Fail to send template FD: {}", e)),
         }
 
         // Receive the master TTY
         // TODO: Replace 0u8 with a JSON match
-        let master = match fdpass::recv_fd(&self.stream, vec!(0u8)) {
+        let master = match fdpass::recv_fd(&mut self.stream, vec!(0u8)) {
             Ok(master) => master,
             Err(e) => return Err(format!("Fail to receive master FD: {}", e)),
         };
