@@ -1,15 +1,7 @@
 [project]
 name = "stemjail"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Mickaël Salaün <mickael.salaun@ssi.gouv.fr>"]
-
-[[bin]]
-name = "kage"
-path = "src/kage.rs"
-
-[[bin]]
-name = "portal"
-path = "src/portal.rs"
 
 [lib]
 name = "stemjail"
