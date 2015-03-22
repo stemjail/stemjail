@@ -19,8 +19,8 @@ extern crate getopts;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
 use self::getopts::Options;
+use std::env;
 use std::old_io::net::pipe::UnixStream;
-use std::os;
 use super::{PortalAck, PortalRequest};
 use super::super::config::portal::Portal;
 use super::super::jail;
@@ -69,7 +69,7 @@ impl RunRequest {
             Some(c) => c.clone(),
             None => return Err("Missing executable in the command (first argument)".to_string()),
         };
-        let cwd = match os::getcwd() {
+        let cwd = match env::current_dir() {
             Ok(d) => d,
             Err(e) => return Err(format!("Fail to get CWD: {}", e)),
         };

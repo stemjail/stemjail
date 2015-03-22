@@ -22,17 +22,17 @@ use self::ns::{fs, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, unshare};
 use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
+use std::env;
 use std::fmt::Debug;
 use std::old_io as io;
 use std::old_io::{File, Open, Write};
 use std::old_io::IoErrorKind;
-use std::os::{change_dir, env};
 use std::os::unix::AsRawFd;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{channel, Receiver, Select};
-use std::thread::Thread;
+use std::thread;
 use super::EVENT_TIMEOUT;
 use super::srv;
 
@@ -412,7 +412,7 @@ impl<'a> Jail<'a> {
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }
-        try!(change_dir(&self.root.dst));
+        try!(env::set_current_dir(&self.root.dst));
 
         // TODO: Check all bind and tmpfs mount points consistency
         for tmp in self.tmps.iter() {
@@ -440,7 +440,7 @@ impl<'a> Jail<'a> {
         // TODO: Bind mount the parent root to be able to drop mount branches (i.e. domain transitions)
         try!(pivot_root(&self.root.dst, &parent));
         // Keep the workdir open (e.g. jail transitions)
-        try!(change_dir(workdir.get_relative_path()));
+        try!(env::set_current_dir(workdir.get_relative_path()));
         // Hide the workdir
         drop(workdir);
 
@@ -554,7 +554,7 @@ impl<'a> Jail<'a> {
                 //let env: Vec<(String, String)> = Vec::with_capacity(0);
                 // XXX: Inherit HOME and TERM for now
                 // TODO: Pass env from the client
-                let env: Vec<(String, String)> = env().iter().filter_map(|&(ref n, ref v)| {
+                let env: Vec<(String, String)> = env::vars().filter_map(|(ref n, ref v)| {
                     if n.as_slice() == "HOME" || n.as_slice() == "TERM" {
                         Some((n.clone(), v.clone()))
                     } else {
@@ -597,11 +597,11 @@ impl<'a> Jail<'a> {
                 unsafe { child_handle.add() };
 
                 let cmd_quit = quit.clone();
-                let cmd_thread = Thread::scoped(move || {
+                let cmd_thread = thread::scoped(move || {
                     srv::monitor_listen(cmd_tx, cmd_quit);
                 });
 
-                let child_thread = Thread::scoped(move || {
+                let child_thread = thread::scoped(move || {
                     'main: loop {
                         process.set_timeout(EVENT_TIMEOUT);
                         let child_ret = process.wait();
@@ -688,7 +688,7 @@ impl<'a> Jail<'a> {
                     Err(e)=> panic!("Fail to read the jail PID: {:?}", e),
             }});
             debug!("Waiting for child {} to terminate", pid);
-            Thread::spawn(move || {
+            thread::spawn(move || {
                 let mut status: libc::c_int = 0;
                 // TODO: Replace waitpid(2) with wait(2)
                 match unsafe { raw::waitpid(pid, &mut status, 0) } {

@@ -88,7 +88,7 @@ pub fn dup(fd: &AsRawFd, close_on_drop: bool) -> io::IoResult<FileDesc> {
 // TODO: Set and restore umask, or return an error if permissions are masked
 #[allow(dead_code)]
 pub fn mknod(path: &Path, nodetype: &Node, permission: &io::FilePermission) -> io::IoResult<()> {
-    let path = CString::from_slice(path.as_vec());
+    let path = try!(CString::new(path.as_vec()));
     let mode = nodetype.get_stat() | permission.bits();
     match unsafe { raw::mknod(path.as_ptr(), mode, nodetype.get_dev()) } {
         0 => Ok(()),

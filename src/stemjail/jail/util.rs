@@ -19,7 +19,7 @@ use std::old_io::FileType;
 use std::old_io::fs::PathExtensions;
 use std::rand::{thread_rng, Rng};
 use std::sync::mpsc::{channel, Sender};
-use std::thread::{JoinGuard, Thread};
+use std::thread;
 use super::ns::{fs0, raw, umount};
 
 /// Concatenate two paths (different from `join()`)
@@ -107,7 +107,7 @@ pub fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
 pub struct EphemeralDir<'a> {
     delete_tx: Sender<()>,
     rel_path: Path,
-    guard: Option<JoinGuard<'a, ()>>,
+    guard: Option<thread::JoinGuard<'a, ()>>,
 }
 
 #[cfg(target_os = "linux")]
@@ -115,7 +115,7 @@ impl<'a> EphemeralDir<'a> {
     pub fn new() -> EphemeralDir<'a> {
         let (tid_tx, tid_rx) = channel();
         let (delete_tx, delete_rx) = channel();
-        let guard = Thread::scoped(move || {
+        let guard = thread::scoped(move || {
             // get[pt]id(2) are always successful
             let tid_path = format!("proc/{}/task/{}/fdinfo",
                                    unsafe { libc::getpid() },

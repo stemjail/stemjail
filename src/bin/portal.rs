@@ -12,7 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(path)]
+#![feature(env)]
+#![feature(old_path)]
 
 extern crate env_logger;
 #[macro_use]
@@ -29,7 +30,7 @@ macro_rules! exit_error {
     ($($arg:tt)*) => {
         {
             format!($($arg)*);
-            std::os::set_exit_status(1);
+            std::env::set_exit_status(1);
             return;
         }
     };

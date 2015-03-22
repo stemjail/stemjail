@@ -16,9 +16,9 @@ extern crate libc;
 
 use self::libc::size_t;
 use self::libc::types::os::arch::posix88::gid_t;
+use std::env;
 use std::ffi::CString;
 use std::old_io as io;
-use std::os;
 use std::ptr;
 
 #[path = "gen/sched.rs"]
@@ -64,8 +64,8 @@ pub mod raw {
 
 #[allow(dead_code)]
 pub fn chroot(path: &Path) -> io::IoResult<()> {
-    try!(os::change_dir(path));
-    let path = CString::from_slice(path.as_vec());
+    try!(env::set_current_dir(path));
+    let path = try!(CString::new(path.as_vec()));
     match unsafe { raw::chroot(path.as_ptr()) } {
         0 => Ok(()),
         _ => Err(io::IoError::last_error()),
@@ -74,12 +74,12 @@ pub fn chroot(path: &Path) -> io::IoResult<()> {
 
 pub fn mount(source: &Path, target: &Path, filesystemtype: &str,
              mountflags: &fs::MsFlags, data: &Option<&str>) -> io::IoResult<()> {
-    let src = CString::from_slice(source.as_vec());
-    let tgt = CString::from_slice(target.as_vec());
-    let fst = CString::from_slice(filesystemtype.as_bytes());
+    let src = try!(CString::new(source.as_vec()));
+    let tgt = try!(CString::new(target.as_vec()));
+    let fst = try!(CString::new(filesystemtype.as_bytes()));
     let ret = match data {
         &Some(ref data) => {
-            let opt = CString::from_slice(data.as_bytes());
+            let opt = try!(CString::new(data.as_bytes()));
             unsafe { raw::mount(src.as_ptr(), tgt.as_ptr(), fst.as_ptr(), mountflags.bits(), opt.as_ptr()) }
         },
         &None => unsafe {
@@ -93,8 +93,8 @@ pub fn mount(source: &Path, target: &Path, filesystemtype: &str,
 }
 
 pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
-    let new_root = CString::from_slice(new_root.as_vec());
-    let put_old = CString::from_slice(put_old.as_vec());
+    let new_root = try!(CString::new(new_root.as_vec()));
+    let put_old = try!(CString::new(put_old.as_vec()));
     match unsafe { raw::pivot_root(new_root.as_ptr(), put_old.as_ptr()) } {
         0 => Ok(()),
         _ => Err(io::IoError::last_error()),
@@ -110,7 +110,7 @@ pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
 
 #[allow(dead_code)]
 pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
-    let target = CString::from_slice(target.as_vec());
+    let target = try!(CString::new(target.as_vec()));
     match unsafe { raw::umount2(target.as_ptr(), flags.bits()) } {
         0 => Ok(()),
         _ => Err(io::IoError::last_error()),

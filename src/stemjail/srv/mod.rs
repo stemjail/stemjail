@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::Sender;
-use std::thread::Thread;
+use std::thread;
 use super::cmd::{MonitorCall, PortalCall};
 use super::config::portal::Portal;
 use super::{EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
@@ -73,7 +73,7 @@ pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
             Ok(s) => {
                 let portal = portal.clone();
                 // TODO: Join all threads
-                Thread::spawn(move || {
+                thread::spawn(move || {
                     match portal_handle(s, &*portal) {
                         Ok(_) => {},
                         Err(e) => println!("Error handling client: {}", e),
@@ -104,7 +104,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
             Ok(s) => {
                 let client_cmd_fn = cmd_tx.clone();
                 // TODO: Join all threads
-                Thread::spawn(move || {
+                thread::spawn(move || {
                     // TODO: Forward the quit event to monitor_handle
                     match monitor_handle(s, client_cmd_fn) {
                         Ok(_) => {},
