@@ -13,11 +13,12 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 extern crate libc;
+extern crate rand;
 
+use self::rand::Rng;
 use std::old_io as io;
 use std::old_io::FileType;
 use std::old_io::fs::PathExtensions;
-use std::rand::{thread_rng, Rng};
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 use super::ns::{fs0, raw, umount};
@@ -159,9 +160,9 @@ pub struct TmpWorkDir {
 impl TmpWorkDir {
     // Can't use TempDir because it create an absolute path (through the removed workdir)
     pub fn new(prefix: &str) -> io::IoResult<Self> {
-        let tmp_suffix: String = thread_rng().gen_ascii_chars().take(12).collect();
+        let tmp_suffix: String = rand::thread_rng().gen_ascii_chars().take(12).collect();
         let tmp_dir = Path::new(format!("./tmp_{}_{}", prefix, tmp_suffix));
-        // With very bad luck, the command will failed :(
+        // With very bad luck, the command will fail :(
         try!(io::fs::mkdir(&tmp_dir, io::USER_RWX));
         Ok(TmpWorkDir {
             path: tmp_dir,
