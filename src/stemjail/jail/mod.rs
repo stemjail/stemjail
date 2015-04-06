@@ -121,6 +121,13 @@ impl<'a> Jail<'a> {
         let mut uid_file = try!(File::open_mode(&uid_path, Open, Write));
         let uid_data = format!("{0} {0} 1", unsafe { getuid() });
         try!(uid_file.write_str(uid_data.as_slice()));
+        let setgroups_path = Path::new(format!("/proc/{}/setgroups", pid));
+        match File::open_mode(&setgroups_path, Open, Write) {
+            Ok(mut setgroups_file) => try!(setgroups_file.write_str("deny".as_slice())),
+            Err(e) => if e.kind != IoErrorKind::FileNotFound {
+                return Err(e);
+            }
+        }
         let gid_path = Path::new(format!("/proc/{}/gid_map", pid));
         let mut gid_file = try!(File::open_mode(&gid_path, Open, Write));
         let gid_data = format!("{0} {0} 1", unsafe { getgid() });
