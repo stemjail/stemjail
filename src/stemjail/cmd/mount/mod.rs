@@ -39,7 +39,7 @@ impl MountAction {
         };
         match ret {
             Ok(_) => Ok(()),
-            Err(e) => Err(format!("Fail to spawn mount action: {}", e)),
+            Err(e) => Err(format!("Failed to spawn mount action: {}", e)),
         }
     }
 }

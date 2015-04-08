@@ -242,7 +242,7 @@ impl<'a> Jail<'a> {
                 let rel_src = match mount.src.path_relative_from(&parent) {
                     Some(p) => p,
                     None => {
-                        warn!("Fail to get relative path from {}", parent.display());
+                        warn!("Failed to get relative path from {}", parent.display());
                         return Err(io::standard_error(io::OtherIoError));
                     }
                 };
@@ -251,7 +251,7 @@ impl<'a> Jail<'a> {
             let rel_dst = match mount.dst.path_relative_from(&bind.dst) {
                 Some(p) => p,
                 None => {
-                    warn!("Fail to get relative path from {}", bind.dst.display());
+                    warn!("Failed to get relative path from {}", bind.dst.display());
                     return Err(io::standard_error(io::OtherIoError));
                 }
             };
@@ -262,7 +262,7 @@ impl<'a> Jail<'a> {
                     tmp_dir.unmount(true);
                 }
                 Err(e) => {
-                    warn!("Fail to bind mount a submount point: {}", e);
+                    warn!("Failed to bind mount a submount point: {}", e);
                     return Err(e);
                 }
             }
@@ -272,7 +272,7 @@ impl<'a> Jail<'a> {
         match mount(tmp_dir.path(), &bind.dst, "none", &fs::MS_MOVE, &None) {
             Ok(..) => tmp_dir.unmount(false),
             Err(e) => {
-                warn!("Fail to move the temporary mount point: {}", e);
+                warn!("Failed to move the temporary mount point: {}", e);
                 return Err(e);
             }
         }
@@ -341,7 +341,7 @@ impl<'a> Jail<'a> {
             },
             Err(e) => {
                 // TODO: Add FromError impl to IoResult
-                warn!("Fail to get mount points: {}", e);
+                warn!("Failed to get mount points: {}", e);
                 return Err(io::standard_error(io::OtherIoError))
             }
         };
@@ -363,7 +363,7 @@ impl<'a> Jail<'a> {
                         let rel_dst = match mount.file.path_relative_from(&bind.src) {
                             Some(p) => p,
                             None => {
-                                warn!("Fail to get relative path from {}", bind.src.display());
+                                warn!("Failed to get relative path from {}", bind.src.display());
                                 return Err(io::standard_error(io::OtherIoError));
                             }
                         };
@@ -464,15 +464,15 @@ impl<'a> Jail<'a> {
         // Fork a new process
         let mut sync_parent = match io::pipe::PipeStream::pair() {
             Ok(p) => p,
-            Err(e) => panic!("Fail to create pipe #1: {}", e),
+            Err(e) => panic!("Failed to create pipe #1: {}", e),
         };
         let mut sync_child = match io::pipe::PipeStream::pair() {
             Ok(p) => p,
-            Err(e) => panic!("Fail to create pipe #2: {}", e),
+            Err(e) => panic!("Failed to create pipe #2: {}", e),
         };
         let (mut jail_pid_rx, mut jail_pid_tx) = match io::pipe::PipeStream::pair() {
             Ok(p) => (p.reader, p.writer),
-            Err(e) => panic!("Fail to create pipe #3: {}", e),
+            Err(e) => panic!("Failed to create pipe #3: {}", e),
         };
 
         let (mut slave_fd, stdin, stdout, stderr) = match stdio {
@@ -507,7 +507,7 @@ impl<'a> Jail<'a> {
         // TODO: Use Rust (synchronised) task wrapping fork to get free Rust extra checks
         let pid = unsafe { fork() };
         if pid < 0 {
-            panic!("Fail to fork #1");
+            panic!("Failed to fork #1");
         } else if pid == 0 {
             // Child
             drop(jail_pid_rx);
@@ -515,7 +515,7 @@ impl<'a> Jail<'a> {
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
             match unsafe { setsid() } {
-                -1 => panic!("Fail setsid: {}", io::IoError::last_error()),
+                -1 => panic!("Failed to create a new session: {}", io::IoError::last_error()),
                 _ => {}
             }
             match unshare(
@@ -527,34 +527,34 @@ impl<'a> Jail<'a> {
                     sched::CLONE_NEWUTS
             ) {
                 Ok(_) => {},
-                Err(e) => panic!("Fail to unshare: {}", e),
+                Err(e) => panic!("Failed to unshare: {}", e),
             }
 
             // Sync with parent
             match sync_parent.writer.write_i8(0) {
                 Ok(_) => {}
-                Err(e) => panic!("Fail to synchronise with parent #1: {}", e),
+                Err(e) => panic!("Failed to synchronise with parent #1: {}", e),
             }
             match sync_child.reader.read_i8() {
                 Ok(_) => {}
-                Err(e) => panic!("Fail to synchronise with parent #2: {}", e),
+                Err(e) => panic!("Failed to synchronise with parent #2: {}", e),
             }
 
             // Need to fork because of the PID namespace and the group ID
             let pid = unsafe { fork() };
             if pid < 0 {
-                panic!("Fail to fork #2");
+                panic!("Failed to fork #2");
             } else if pid == 0 {
                 // Child
                 // TODO: Expose the TTY
                 match self.init_fs() {
                     Ok(_) => {}
-                    Err(e) => panic!("Fail to initialize the file system: {}", e),
+                    Err(e) => panic!("Failed to initialize the file system: {}", e),
                 }
                 let groups = Vec::new();
                 match setgroups(groups) {
                     Ok(_) => {}
-                    Err(e) => panic!("Fail to set groups: {}", e),
+                    Err(e) => panic!("Failed to set groups: {}", e),
                 }
 
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
@@ -579,14 +579,14 @@ impl<'a> Jail<'a> {
                         .args(args.as_slice())
                         .spawn() {
                     Ok(p) => p,
-                    Err(e) => panic!("Fail to execute process: {}", e),
+                    Err(e) => panic!("Failed to execute process: {}", e),
                 };
                 // Need to keep the slave TTY open until passing to the child
                 drop(slave_fd.take());
                 // TODO: Check 32-bits compatibility with other arch
                 match jail_pid_tx.write_le_i32(process.id()) {
                     Ok(_) => {}
-                    Err(e) => panic!("Fail to send child PID: {}", e),
+                    Err(e) => panic!("Failed to send child PID: {}", e),
                 }
                 drop(jail_pid_tx);
                 // TODO: Forward the ProcessExit to the jail object
@@ -619,7 +619,7 @@ impl<'a> Jail<'a> {
                             }
                             Err(ref e) if e.kind == IoErrorKind::TimedOut => {}
                             Err(e) => {
-                                warn!("Fail to wait for child (PID {}): {}", process.id(), e);
+                                warn!("Failed to wait for child (PID {}): {}", process.id(), e);
                                 let _ = process.signal_kill();
                                 break 'main;
                             }
@@ -637,12 +637,12 @@ impl<'a> Jail<'a> {
                                 debug!("Got command {:?}", f);
                                 f.call(self);
                             }
-                            Err(e) => warn!("Fail to receive mount command: {}", e),
+                            Err(e) => warn!("Failed to receive mount command: {}", e),
                         }
                     } else if event == child_handle.id() {
                         match child_handle.recv() {
                             Ok(..) => break 'main,
-                            Err(e) => warn!("Fail to receive mount command: {}", e),
+                            Err(e) => warn!("Failed to receive mount command: {}", e),
                         }
                     } else {
                         panic!("Received unknown event");
@@ -672,39 +672,39 @@ impl<'a> Jail<'a> {
             let _ = sync_parent.reader.read_i8();
             match self.init_userns(pid) {
                 Ok(_) => {}
-                Err(e) => panic!("Fail to initialize user namespace: {}", e),
+                Err(e) => panic!("Failed to initialize user namespace: {}", e),
             }
             match sync_child.writer.write_i8(0) {
                 Ok(_) => {}
-                Err(e) => panic!("Fail to synchronise with child: {}", e),
+                Err(e) => panic!("Failed to synchronise with child: {}", e),
             }
             // Get the child PID
             match jail_pid_rx.read_le_i32() {
                 Ok(p) => {
                     let mut lock = match jail_pid.write() {
                         Ok(g) => g,
-                        Err(e) => panic!("Fail to save the jail PID: {:?}", e),
+                        Err(e) => panic!("Failed to save the jail PID: {:?}", e),
                     };
                     *lock = Some(p);
                 }
-                Err(e) => panic!("Fail to get jail PID: {}", e),
+                Err(e) => panic!("Failed to get jail PID: {}", e),
             }
             debug!("Got jail PID: {}", {
                 match jail_pid.read() {
                     Ok(v) => v.unwrap_or(-1),
-                    Err(e)=> panic!("Fail to read the jail PID: {:?}", e),
+                    Err(e)=> panic!("Failed to read the jail PID: {:?}", e),
             }});
             debug!("Waiting for child {} to terminate", pid);
             thread::spawn(move || {
                 let mut status: libc::c_int = 0;
                 // TODO: Replace waitpid(2) with wait(2)
                 match unsafe { raw::waitpid(pid, &mut status, 0) } {
-                    //-1 => panic!("Fail to wait for child {}", pid),
+                    //-1 => panic!("Failed to wait for child {}", pid),
                     -1 => drop(end_tx.send(Err(()))),
                     _ => { {
                             let mut lock = match jail_pid.write() {
                                 Ok(g) => g,
-                                Err(e) => panic!("Fail to reset the jail PID: {:?}", e),
+                                Err(e) => panic!("Failed to reset the jail PID: {:?}", e),
                             };
                             *lock = None;
                         }

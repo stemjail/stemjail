@@ -127,7 +127,7 @@ impl<'a> EphemeralDir<'a> {
         });
         let rel_path = match tid_rx.recv() {
             Ok(v) => Path::new(v),
-            Err(e) => panic!("Fail to create an ephemeral directory: {}", e),
+            Err(e) => panic!("Failed to create an ephemeral directory: {}", e),
         };
         EphemeralDir {
             delete_tx: delete_tx,
@@ -184,12 +184,12 @@ impl Drop for TmpWorkDir {
         if self.do_unmount {
             match umount(&self.path, &fs0::MNT_DETACH) {
                 Ok(..) => {}
-                Err(e) => warn!("Fail to unmount {}: {}", self.path.display(), e),
+                Err(e) => warn!("Failed to unmount {}: {}", self.path.display(), e),
             }
         }
         match io::fs::rmdir(&self.path) {
             Ok(..) => {}
-            Err(e) => warn!("Fail to remove {}: {}", self.path.display(), e),
+            Err(e) => warn!("Failed to remove {}: {}", self.path.display(), e),
         }
         debug!("Removed {}", self.path.display());
     }

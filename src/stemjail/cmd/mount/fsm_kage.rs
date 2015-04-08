@@ -38,7 +38,7 @@ impl KageFsm<state::Init> {
         let server = Path::new(MONITOR_SOCKET_PATH);
         let stream = match UnixStream::connect(&server) {
             Ok(s) => s,
-            Err(e) => return Err(format!("Fail to connect to client: {}", e)),
+            Err(e) => return Err(format!("Failed to connect to client: {}", e)),
         };
         Ok(KageFsm {
             stream: stream,
@@ -50,16 +50,16 @@ impl KageFsm<state::Init> {
         let action = MonitorCall::Mount(MountAction::DoMount(req));
         let encoded = match action.encode() {
             Ok(s) => s,
-            Err(e) => return Err(format!("Fail to encode command: {}", e)),
+            Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
         let mut bstream = BufferedStream::new(self.stream);
         match bstream.write_line(encoded.as_slice()) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command: {}", e)),
+            Err(e) => return Err(format!("Failed to send command: {}", e)),
         }
         match bstream.flush() {
             Ok(_) => Ok(()),
-            Err(e) => Err(format!("Fail to send command (flush): {}", e)),
+            Err(e) => Err(format!("Failed to send command (flush): {}", e)),
         }
     }
 }

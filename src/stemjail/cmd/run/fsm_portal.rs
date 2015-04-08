@@ -66,12 +66,12 @@ impl RequestFsm<state::Init> {
     pub fn send_ack(self, ack: PortalAck) -> Result<RequestFsm<state::RecvFd>, String>{
         let encoded = match ack.encode() {
             Ok(s) => s,
-            Err(e) => return Err(format!("Fail to encode command: {}", e)),
+            Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
         let mut bstream = BufferedStream::new(self.stream);
         match bstream.write_line(encoded.as_slice()) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send acknowledgement: {}", e)),
+            Err(e) => return Err(format!("Failed to send acknowledgement: {}", e)),
         }
         Ok(fsm_new!(bstream.into_inner()))
     }
@@ -82,7 +82,7 @@ impl RequestFsm<state::RecvFd> {
         // TODO: Replace 0u8 with a JSON match
         let fd = match fdpass::recv_fd(&mut self.stream, vec!(0u8)) {
             Ok(fd) => fd,
-            Err(e) => return Err(format!("Fail to receive template FD: {}", e)),
+            Err(e) => return Err(format!("Failed to receive template FD: {}", e)),
         };
         Ok((fsm_next!(self), fd))
     }
@@ -98,11 +98,11 @@ impl RequestFsm<state::SendFd> {
         let iov = &[0];
         match fdpass::send_fd(&mut self.stream, iov, stdio.get_master()) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to synchronise: {}", e)),
+            Err(e) => return Err(format!("Failed to synchronise: {}", e)),
         }
         match fdpass::send_fd(&mut self.stream, iov, stdio.get_master()) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send stdio FD: {}", e)),
+            Err(e) => return Err(format!("Failed to send stdio FD: {}", e)),
         }
         Ok(())
     }

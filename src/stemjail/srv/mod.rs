@@ -28,11 +28,11 @@ fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String
     let mut bstream = BufferedStream::new(stream);
     let encoded = match bstream.read_line() {
         Ok(s) => s,
-        Err(e) => return Err(format!("Fail to read command: {}", e)),
+        Err(e) => return Err(format!("Failed to read command: {}", e)),
     };
     match bstream.flush() {
         Ok(_) => {},
-        Err(e) => return Err(format!("Fail to read command (flush): {}", e)),
+        Err(e) => return Err(format!("Failed to read command (flush): {}", e)),
     };
     Ok((bstream, encoded))
 }
@@ -41,7 +41,7 @@ fn portal_handle(stream: UnixStream, portal: &Portal) -> Result<(), String> {
     let (bstream, decoded_str) = try!(read_stream(stream));
     let decoded = match PortalCall::decode(&decoded_str) {
         Ok(d) => d,
-        Err(e) => return Err(format!("Fail to decode command: {:?}", e)),
+        Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
     };
     let stream = bstream.into_inner();
 
@@ -56,7 +56,7 @@ fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(),
     let (_, decoded_str) = try!(read_stream(stream));
     let decoded = match MonitorCall::decode(&decoded_str) {
         Ok(d) => d,
-        Err(e) => return Err(format!("Fail to decode command: {:?}", e)),
+        Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
     };
     match decoded {
         MonitorCall::Mount(action) => action.call(cmd_tx),
@@ -93,7 +93,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     let _ = fs::unlink(&server);
     let mut acceptor = match UnixListener::bind(&server).listen() {
         Err(e) => {
-            warn!("Fail to listen to {:?}: {}", server, e);
+            warn!("Failed to listen to {:?}: {}", server, e);
             return;
         }
         Ok(v) => v,

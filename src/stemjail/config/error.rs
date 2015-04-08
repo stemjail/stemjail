@@ -37,7 +37,7 @@ impl Error for ConfigError {
 
 impl FromError<DecodeError> for ConfigError {
     fn from_error(err: DecodeError) -> ConfigError {
-        ConfigError::new(format!("Fail to decode: {}", err))
+        ConfigError::new(format!("Failed to decode: {}", err))
     }
 }
 

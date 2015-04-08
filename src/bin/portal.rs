@@ -43,13 +43,13 @@ fn main() {
     let portal = Arc::new(Portal {
         configs: match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
             Ok(c) => c,
-            Err(e) => exit_error!("Fail to get configuration: {}", e),
+            Err(e) => exit_error!("Failed to get configuration: {}", e),
         }
     });
     let names: Vec<&String> = portal.configs.iter().map(|x| &x.name ).collect();
     info!("Loaded configurations: {:?}", names);
     match portal_listen(portal.clone()) {
         Ok(_) => {},
-        Err(e) => exit_error!("Fail to listen for clients: {}", e),
+        Err(e) => exit_error!("Failed to listen for clients: {}", e),
     }
 }

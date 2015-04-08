@@ -54,7 +54,7 @@ impl KageFsm<state::Init> {
         let server = Path::new(PORTAL_SOCKET_PATH);
         let stream = match UnixStream::connect(&server) {
             Ok(s) => s,
-            Err(e) => return Err(format!("Fail to connect to client: {}", e)),
+            Err(e) => return Err(format!("Failed to connect to client: {}", e)),
         };
         Ok(fsm_new!(stream))
     }
@@ -64,16 +64,16 @@ impl KageFsm<state::Init> {
         let action = PortalCall::Run(RunAction::DoRun(req));
         let encoded = match action.encode() {
             Ok(s) => s,
-            Err(e) => return Err(format!("Fail to encode command: {}", e)),
+            Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
         let mut bstream = BufferedStream::new(self.stream);
         match bstream.write_line(encoded.as_slice()) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command: {}", e)),
+            Err(e) => return Err(format!("Failed to send command: {}", e)),
         }
         match bstream.flush() {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send command (flush): {}", e)),
+            Err(e) => return Err(format!("Failed to send command (flush): {}", e)),
         }
 
         // Recv ack and infos (e.g. FD passing)
@@ -83,7 +83,7 @@ impl KageFsm<state::Init> {
         };
         let decoded = match PortalAck::decode(&encoded_str) {
             Ok(d) => d,
-            Err(e) => return Err(format!("Fail to decode JSON: {:?}", e)),
+            Err(e) => return Err(format!("Failed to decode JSON: {:?}", e)),
         };
 
         // TODO: Remove dup checks
@@ -110,18 +110,18 @@ impl KageFsm<state::SendFd> {
         // Block the read stream with a FD barrier
         match fdpass::send_fd(&mut self.stream, iov, &peer) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to synchronise: {}", e)),
+            Err(e) => return Err(format!("Failed to synchronise: {}", e)),
         }
         match fdpass::send_fd(&mut self.stream, iov, &peer) {
             Ok(_) => {},
-            Err(e) => return Err(format!("Fail to send template FD: {}", e)),
+            Err(e) => return Err(format!("Failed to send template FD: {}", e)),
         }
 
         // Receive the master TTY
         // TODO: Replace 0u8 with a JSON match
         let master = match fdpass::recv_fd(&mut self.stream, vec!(0u8)) {
             Ok(master) => master,
-            Err(e) => return Err(format!("Fail to receive master FD: {}", e)),
+            Err(e) => return Err(format!("Failed to receive master FD: {}", e)),
         };
         Ok(TtyClient::new(master, peer))
     }

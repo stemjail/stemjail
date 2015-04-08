@@ -71,7 +71,7 @@ impl RunRequest {
         };
         let cwd = match env::current_dir() {
             Ok(d) => d,
-            Err(e) => return Err(format!("Fail to get CWD: {}", e)),
+            Err(e) => return Err(format!("Failed to get CWD: {}", e)),
         };
 
         let mut j = jail::Jail::new(
@@ -118,7 +118,7 @@ impl RunRequest {
             // XXX: Allocate a new TTY inside the jail?
             match jail::Stdio::new(&fd) {
                 Ok(f) => (machine, Some(f)),
-                Err(e) => panic!("Fail create stdio: {}", e),
+                Err(e) => panic!("Failed to create stdio: {}", e),
             }
         } else {
             (machine.no_recv_fd(), None)
@@ -199,7 +199,7 @@ impl super::KageCommand for RunKageCmd {
             PortalRequest::CreateTty => {
                 match try!(machine.create_tty()) {
                     Ok(p) => p.wait(),
-                    Err(e) => panic!("Fail create TTY client: {}", e),
+                    Err(e) => panic!("Failed to create TTY client: {}", e),
                 }
             }
         }
