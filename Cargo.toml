@@ -21,6 +21,7 @@ path = "../iohandle-rs"
 
 [dependencies.mnt]
 path = "../mnt-rs"
+version = "0.1.0"
 
 [dependencies.pty]
 path = "../pty-rs"

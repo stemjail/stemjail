@@ -17,7 +17,7 @@ extern crate libc;
 
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
-use self::mount::{get_submounts, VecMountEntry};
+use self::mount::{get_mount, get_submounts, MntOps, VecMountEntry};
 use self::ns::{fs, raw, sched};
 use self::ns::{mount, pivot_root, setgroups, unshare};
 use self::util::*;
@@ -303,8 +303,8 @@ impl<'a> Jail<'a> {
         // The fs/namespace.c:clone_mnt kernel function forbid unprivileged users (i.e.
         // CL_UNPRIVILEGED) to reveal what is under a mount, so we need to recursively bind mount.
         let bind_flags = fs::MS_BIND | fs::MS_REC;
-        // TODO: Check if there is an existing mount point before creating a new one
         try!(mount(src, dst, none_str, &bind_flags, &None));
+
         if ! bind.write {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
             // read/write files during the jail life.
@@ -313,8 +313,28 @@ impl<'a> Jail<'a> {
             // TODO: Add a "unshare <path>" command to remove a to-be-unmounted path
             let bind_flags = fs::MS_PRIVATE | fs::MS_REC;
             try!(mount(&none_path, dst, none_str, &bind_flags, &None));
-            // Remount read-only
-            let bind_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
+
+            // Take the same mount flags as the source
+            let flags = match get_mount(&src) {
+                Ok(Some(mount)) => mount.mntops.iter().filter_map(|x| {
+                    // Cf. linux/fs/namespace.c:do_remount
+                    match *x {
+                        MntOps::Atime(false) => Some(fs::MS_NOATIME),
+                        MntOps::DirAtime(false) => Some(fs::MS_NODIRATIME),
+                        MntOps::RelAtime(true) => Some(fs::MS_RELATIME),
+                        MntOps::Dev(false) => Some(fs::MS_NODEV),
+                        MntOps::Exec(false) => Some(fs::MS_NOEXEC),
+                        MntOps::Suid(false) => Some(fs::MS_NOSUID),
+                        MntOps::Write(false) => Some(fs::MS_RDONLY),
+                        _ => None,
+                    }
+                }).fold(fs::MsFlags::empty(), |x, y| x | y),
+                _ => fs::MsFlags::empty(),
+            };
+            // Remount read-only, even if the source is already read-only, to be sure to control
+            // the destination mount point properties during all its life (e.g. the parent
+            // namespace can remount the source read-write).
+            let bind_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY | flags;
             try!(mount(&none_path, dst, none_str, &bind_flags, &None));
         }
         Ok(())
