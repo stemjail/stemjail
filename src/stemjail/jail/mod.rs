@@ -19,7 +19,7 @@ use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::{get_mount, get_submounts, MntOps, VecMountEntry};
 use self::ns::{fs, raw, sched};
-use self::ns::{mount, pivot_root, setgroups, unshare};
+use self::ns::{mount, pivot_root, unshare};
 use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::env;
@@ -131,6 +131,7 @@ impl<'a> Jail<'a> {
         let gid_path = Path::new(format!("/proc/{}/gid_map", pid));
         let mut gid_file = try!(File::open_mode(&gid_path, Open, Write));
         let gid_data = format!("{0} {0} 1", unsafe { getgid() });
+        // TODO: Keep the current group mapping
         try!(gid_file.write_str(gid_data.as_slice()));
         Ok(())
     }
@@ -571,11 +572,8 @@ impl<'a> Jail<'a> {
                     Ok(_) => {}
                     Err(e) => panic!("Failed to initialize the file system: {}", e),
                 }
-                let groups = Vec::new();
-                match setgroups(groups) {
-                    Ok(_) => {}
-                    Err(e) => panic!("Failed to set groups: {}", e),
-                }
+                // A normal user must not be able to drop groups to avoid permission bypass (cf.
+                // user_namespaces(7): the setgroups file)
 
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
                 //let env: Vec<(String, String)> = Vec::with_capacity(0);

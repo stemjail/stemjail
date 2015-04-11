@@ -14,8 +14,6 @@
 
 extern crate libc;
 
-use self::libc::size_t;
-use self::libc::types::os::arch::posix88::gid_t;
 use std::env;
 use std::ffi::CString;
 use std::old_io as io;
@@ -31,8 +29,7 @@ pub mod fs0;
 pub mod raw {
     extern crate libc;
 
-    use self::libc::{c_char, c_int, size_t, c_uint, c_ulong};
-    use self::libc::types::os::arch::posix88::{gid_t, pid_t};
+    use self::libc::{c_char, c_int, c_uint, c_ulong, pid_t};
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
@@ -40,7 +37,6 @@ pub mod raw {
                      filesystemtype: *const c_char, mountflags: c_ulong,
                      data: *const c_char) -> c_int;
         pub fn pivot_root(new_root: *const c_char, put_old: *const c_char) -> c_int;
-        pub fn setgroups(size: size_t, list: *const gid_t) -> c_int;
         pub fn umount2(target: *const c_char, flags: c_uint) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
         pub fn waitpid(pid: pid_t, status: *mut c_int, options: c_int) -> pid_t;
@@ -98,13 +94,6 @@ pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
     match unsafe { raw::pivot_root(new_root.as_ptr(), put_old.as_ptr()) } {
         0 => Ok(()),
         _ => Err(io::IoError::last_error()),
-    }
-}
-
-pub fn setgroups(groups: Vec<gid_t>) -> io::IoResult<()> {
-    match unsafe { raw::setgroups(groups.len() as size_t, groups.as_ptr()) } {
-        -1 => Err(io::IoError::last_error()),
-        _ => Ok(()),
     }
 }
 
