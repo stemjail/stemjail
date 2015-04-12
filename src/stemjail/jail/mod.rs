@@ -576,14 +576,11 @@ impl<'a> Jail<'a> {
                 // user_namespaces(7): the setgroups file)
 
                 // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
-                //let env: Vec<(String, String)> = Vec::with_capacity(0);
                 // XXX: Inherit HOME and TERM for now
-                // TODO: Pass env from the client
                 let env: Vec<(String, String)> = env::vars().filter_map(|(ref n, ref v)| {
-                    if n.as_slice() == "HOME" || n.as_slice() == "TERM" {
-                        Some((n.clone(), v.clone()))
-                    } else {
-                        None
+                    match n.as_slice() {
+                        "HOME" | "TERM" => Some((n.clone(), v.clone())),
+                        _ => None,
                     }
                 }).collect();
                 // TODO: Try using detached()
