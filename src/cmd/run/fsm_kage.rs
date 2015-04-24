@@ -62,7 +62,7 @@ impl KageFsm<state::Init> {
     }
 
     pub fn send_run(self, req: RunRequest) -> Result<(KageFsm<state::SendFd>, PortalRequest), String> {
-        let RunRequest { stdio, .. } = req;
+        let stdio = req.stdio;
         let action = PortalCall::Run(RunAction::DoRun(req));
         let encoded = match action.encode() {
             Ok(s) => s,
@@ -75,7 +75,7 @@ impl KageFsm<state::Init> {
         }
         match bstream.flush() {
             Ok(_) => {},
-            Err(e) => return Err(format!("Failed to send command (flush): {}", e)),
+            Err(e) => return Err(format!("Failed to flush command: {}", e)),
         }
 
         // Recv ack and infos (e.g. FD passing)

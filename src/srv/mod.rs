@@ -35,7 +35,7 @@ fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String
     };
     match bstream.flush() {
         Ok(_) => {},
-        Err(e) => return Err(format!("Failed to read command (flush): {}", e)),
+        Err(e) => return Err(format!("Failed to flush command: {}", e)),
     };
     Ok((bstream, encoded))
 }

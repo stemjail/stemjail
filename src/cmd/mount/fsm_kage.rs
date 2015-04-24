@@ -62,7 +62,7 @@ impl KageFsm<state::Init> {
         }
         match bstream.flush() {
             Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to send command (flush): {}", e)),
+            Err(e) => Err(format!("Failed to flush command: {}", e)),
         }
     }
 }
