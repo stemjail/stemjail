@@ -17,7 +17,8 @@
 /// enum `MonitorCall` -> custom cmd { enum Action -> struct Request }
 /// struct `PortalAck` -> `PartalRequest`
 
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate rustc_serialize;
+
 use rustc_serialize::json;
 
 pub mod mount;

@@ -8,20 +8,22 @@ name = "stemjail"
 path = "src/stemjail/mod.rs"
 
 [dependencies]
-bitflags = "0.1.1"
-env_logger = "0.2.1"
-getopts = "0.2.4"
-log = "0.2.1"
-rand = "0.1.3"
-rustc-serialize = "0.2.10"
-toml = "0.1.17"
+bitflags = "*"
+env_logger = "*"
+getopts = "*"
+log = "*"
+rand = "*"
+rustc-serialize = "*"
+toml = "*"
 
 [dependencies.iohandle]
 path = "../iohandle-rs"
+version = ">= 0.1.0"
 
 [dependencies.mnt]
 path = "../mnt-rs"
-version = "0.1.0"
+version = ">= 0.2.0"
 
 [dependencies.pty]
 path = "../pty-rs"
+version = ">= 0.1.0"
