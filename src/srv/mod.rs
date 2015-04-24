@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use std::old_io::{fs, Acceptor, BufferedStream, IoErrorKind, Listener};
+#![allow(deprecated)]
+
+use std::fs;
+use std::old_io::{Acceptor, Buffer, BufferedStream, IoErrorKind, Listener, Writer};
 use std::old_io::net::pipe::{UnixListener, UnixStream};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -64,9 +67,9 @@ fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(),
 }
 
 pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
-    let server = Path::new(PORTAL_SOCKET_PATH);
+    let server = PORTAL_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
-    let _ = fs::unlink(&server);
+    let _ = fs::remove_file(&server);
     let stream = UnixListener::bind(&server);
     for stream in stream.listen().incoming() {
         match stream {
@@ -88,9 +91,9 @@ pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
 
 // TODO: Handle return error
 pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
-    let server = Path::new(MONITOR_SOCKET_PATH);
+    let server = MONITOR_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
-    let _ = fs::unlink(&server);
+    let _ = fs::remove_file(&server);
     let mut acceptor = match UnixListener::bind(&server).listen() {
         Err(e) => {
             warn!("Failed to listen to {:?}: {}", server, e);

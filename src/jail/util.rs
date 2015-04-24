@@ -17,68 +17,73 @@ extern crate rand;
 
 use ffi::ns::{fs0, raw, umount};
 use self::rand::Rng;
-use std::old_io as io;
-use std::old_io::FileType;
-use std::old_io::fs::PathExtensions;
+use std::fs::{PathExt, File, create_dir, create_dir_all, remove_dir};
+use std::io;
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
 /// Concatenate two paths (different from `join()`)
-pub fn nest_path(root: &Path, subdir: &Path) -> Path {
+pub fn nest_path<T, U>(root: T, subdir: U) -> PathBuf where T: AsRef<Path>, U: AsRef<Path> {
+    let root = root.as_ref();
+    let subdir = subdir.as_ref();
     root.join(
-        match subdir.path_relative_from(&Path::new("/")) {
-            Some(p) => p,
-            None => subdir.clone(),
+        match subdir.relative_from("/") {
+            Some(p) => p.to_path_buf(),
+            None => subdir.to_path_buf(),
         }
     )
 }
 
 #[test]
 fn test_nest_path() {
-    let foo = Path::new("/foo");
-    let bar = Path::new("bar");
-    let qux = Path::new("../qux");
+    let foo = "/foo";
+    let bar = "bar";
+    let qux = "../qux";
 
-    let foobar = Path::new("/foo/bar");
+    let foobar = PathBuf::from("/foo/bar");
     assert_eq!(nest_path(&foo, &bar), foobar);
-    let foofoo = Path::new("/foo/foo");
+    let foofoo = PathBuf::from("/foo/foo");
     assert_eq!(nest_path(&foo, &foo), foofoo);
-    let barfoo = Path::new("bar/foo");
+    let barfoo = PathBuf::from("bar/foo");
     assert_eq!(nest_path(&bar, &foo), barfoo);
-    let barbar = Path::new("bar/bar");
+    let barbar = PathBuf::from("bar/bar");
     assert_eq!(nest_path(&bar, &bar), barbar);
-    let fooqux = Path::new("/foo/../qux");
+    let fooqux = PathBuf::from("/foo/../qux");
     assert_eq!(nest_path(&foo, &qux), fooqux);
-    let barqux = Path::new("bar/../qux");
+    let barqux = PathBuf::from("bar/../qux");
     assert_eq!(nest_path(&bar, &qux), barqux);
-    let quxfoo = Path::new("../qux/foo");
+    let quxfoo = PathBuf::from("../qux/foo");
     assert_eq!(nest_path(&qux, &foo), quxfoo);
-    let quxbar = Path::new("../qux/bar");
+    let quxbar = PathBuf::from("../qux/bar");
     assert_eq!(nest_path(&qux, &bar), quxbar);
 }
 
 /// Do not return error if the directory already exist
-pub fn mkdir_if_not(path: &Path) -> io::IoResult<()> {
-    match io::fs::mkdir_recursive(path, io::USER_RWX) {
+pub fn mkdir_if_not<T>(path: T) -> io::Result<()> where T: AsRef<Path> {
+    // FIXME: Set umask to !io::USER_RWX
+    match create_dir_all(path) {
         Ok(_) => Ok(()),
-        Err(e) => match e.kind {
-            // TODO: Fix io::PathAlreadyExists
-            io::OtherIoError => Ok(()),
+        Err(e) => match e.kind() {
+            io::ErrorKind::AlreadyExists => Ok(()),
             _ => Err(e)
         },
     }
 }
 
 /// Do not return error if the file already exist
-pub fn touch_if_not(path: &Path) -> io::IoResult<()> {
-    match path.stat() {
-        Ok(fs) => match fs.kind {
-            FileType::Directory =>
-                Err(io::standard_error(io::MismatchedFileTypeForOperation)),
-            _ => Ok(()),
-        },
-        Err(e) => match e.kind {
-            io::FileNotFound => match io::fs::File::create(path) {
+pub fn touch_if_not<T>(path: T) -> io::Result<()> where T: AsRef<Path> {
+    match path.as_ref().metadata() {
+        Ok(md) => {
+            if md.is_dir() {
+                Err(io::Error::new(ErrorKind::InvalidInput, "Directory"))
+            } else {
+                Ok(())
+            }
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => match File::create(path) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(e),
             },
@@ -88,17 +93,17 @@ pub fn touch_if_not(path: &Path) -> io::IoResult<()> {
 }
 
 /// Create a `dst` file or directory according to the `src`
-pub fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
-    match try!(src.stat()).kind {
-        FileType::Directory => {
-            try!(mkdir_if_not(dst));
-        }
-        _ => {
-            let mut d = dst.clone();
-            d.pop();
-            try!(mkdir_if_not(&d));
-            try!(touch_if_not(dst));
-        }
+pub fn create_same_type<T, U>(src: T, dst: U) -> io::Result<()>
+        where T: AsRef<Path>, U: AsRef<Path> {
+    let src = src.as_ref();
+    let dst = dst.as_ref();
+    if try!(src.metadata()).is_dir() {
+        try!(mkdir_if_not(dst));
+    } else {
+        let mut d = dst.to_path_buf();
+        d.pop();
+        try!(mkdir_if_not(&d));
+        try!(touch_if_not(dst));
     }
     Ok(())
 }
@@ -107,7 +112,7 @@ pub fn create_same_type(src: &Path, dst: &Path) -> io::IoResult<()> {
 /// This work even when the directory is in use.
 pub struct EphemeralDir<'a> {
     delete_tx: Sender<()>,
-    rel_path: Path,
+    rel_path: PathBuf,
     guard: Option<thread::JoinGuard<'a, ()>>,
 }
 
@@ -126,7 +131,7 @@ impl<'a> EphemeralDir<'a> {
             let _ = delete_rx.recv();
         });
         let rel_path = match tid_rx.recv() {
-            Ok(v) => Path::new(v),
+            Ok(v) => PathBuf::from(v),
             Err(e) => panic!("Failed to create an ephemeral directory: {}", e),
         };
         EphemeralDir {
@@ -137,7 +142,7 @@ impl<'a> EphemeralDir<'a> {
     }
 
     pub fn get_relative_path(&self) -> &Path {
-        &self.rel_path
+        self.rel_path.as_ref()
     }
 }
 
@@ -152,30 +157,33 @@ impl<'a> Drop for EphemeralDir<'a> {
 }
 
 pub struct TmpWorkDir {
-    path: Path,
+    path: PathBuf,
     do_unmount: bool,
 }
 
 /// Create a temporary directory in the current directory and remove it when dropped
 impl TmpWorkDir {
     // Can't use TempDir because it create an absolute path (through the removed workdir)
-    pub fn new(prefix: &str) -> io::IoResult<Self> {
+    pub fn new(prefix: &str) -> io::Result<Self> {
         let tmp_suffix: String = rand::thread_rng().gen_ascii_chars().take(12).collect();
-        let tmp_dir = Path::new(format!("./tmp_{}_{}", prefix, tmp_suffix));
+        let tmp_dir = PathBuf::from(format!("./tmp_{}_{}", prefix, tmp_suffix));
         // With very bad luck, the command will fail :(
-        try!(io::fs::mkdir(&tmp_dir, io::USER_RWX));
+        // FIXME: Set umask to !io::USER_RWX
+        try!(create_dir(&tmp_dir));
         Ok(TmpWorkDir {
             path: tmp_dir,
             do_unmount: false,
         })
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
     pub fn unmount(&mut self, on: bool) {
         self.do_unmount = on;
+    }
+}
+
+impl AsRef<Path> for TmpWorkDir {
+    fn as_ref(&self) -> &Path {
+        self.path.as_ref()
     }
 }
 
@@ -187,10 +195,9 @@ impl Drop for TmpWorkDir {
                 Err(e) => warn!("Failed to unmount {}: {}", self.path.display(), e),
             }
         }
-        match io::fs::rmdir(&self.path) {
-            Ok(..) => {}
+        match remove_dir(&self.path) {
+            Ok(..) => debug!("Removed {}", self.path.display()),
             Err(e) => warn!("Failed to remove {}: {}", self.path.display(), e),
         }
-        debug!("Removed {}", self.path.display());
     }
 }

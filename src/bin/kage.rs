@@ -12,10 +12,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(core)]
-#![feature(env)]
+#![feature(convert)]
+#![feature(exit_status)]
 #![feature(libc)]
-#![feature(old_io)]
 
 extern crate env_logger;
 extern crate iohandle;
@@ -26,7 +25,7 @@ extern crate pty;
 extern crate stemjail;
 
 use std::env;
-use std::old_io as io;
+use std::io::{Write, stderr};
 use stemjail::cmd;
 
 fn get_usage() -> String {
@@ -35,9 +34,9 @@ fn get_usage() -> String {
     format!("usage: {} {}", name, cmd::list_kage_cmd_names().connect("|"))
 }
 
-fn args_fail<T: Str>(msg: T) {
-    let msg = format!("{}\n\n{}\n", msg.as_slice(), get_usage().as_slice());
-    io::stderr().write_str(msg.as_slice()).unwrap();
+fn args_fail<T>(msg: T) where T: AsRef<str> {
+    let msg = format!("{}\n\n{}\n", msg.as_ref(), get_usage().as_str());
+    stderr().write_all(msg.as_bytes()).unwrap();
     env::set_exit_status(1);
 }
 

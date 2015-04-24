@@ -12,8 +12,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(env)]
-#![feature(old_path)]
+#![feature(exit_status)]
 
 extern crate env_logger;
 #[macro_use]
@@ -23,7 +22,6 @@ extern crate stemjail;
 use std::sync::Arc;
 use stemjail::config::get_configs;
 use stemjail::config::portal::Portal;
-use stemjail::config::profile::ProfileConfig;
 use stemjail::srv::portal_listen;
 
 macro_rules! exit_error {
@@ -41,7 +39,7 @@ fn main() {
 
     // TODO: Add dynamic configuration reload
     let portal = Arc::new(Portal {
-        configs: match get_configs::<ProfileConfig>(&Path::new(stemjail::PORTAL_PROFILES_PATH)) {
+        configs: match get_configs(stemjail::PORTAL_PROFILES_PATH) {
             Ok(c) => c,
             Err(e) => exit_error!("Failed to get configuration: {}", e),
         }

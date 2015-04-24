@@ -16,6 +16,7 @@ extern crate getopts;
 
 use self::fsm_kage::KageFsm;
 use self::getopts::Options;
+use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use super::super::jail::{BindMount, Jail, JailFn};
 
@@ -94,10 +95,7 @@ impl MountKageCmd {
 macro_rules! get_path {
     ($matches: expr, $name: expr) => {
         match $matches.opt_str($name) {
-            Some(s) => match Path::new_opt(s) {
-                Some(s) => s,
-                None => return Err(format!("Bad {} path", $name)),
-            },
+            Some(s) => PathBuf::from(s),
             None => return Err(format!("Missing {} path", $name)),
         }
     }
@@ -110,7 +108,7 @@ impl super::KageCommand for MountKageCmd {
 
     fn get_usage(&self) -> String {
         let msg = format!("Usage for the {} command", self.name);
-        format!("{}", self.opts.usage(msg.as_slice()))
+        format!("{}", self.opts.usage(msg.as_ref()))
     }
 
     fn call(&mut self, args: &Vec<String>) -> Result<(), String> {

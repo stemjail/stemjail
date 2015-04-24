@@ -46,7 +46,7 @@ pub struct RunConfig {
 #[test]
 fn test_get_config_example1() {
     // TODO: Use absolute configuration path
-    let c1 = match super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example1.toml")) {
+    let c1: ProfileConfig = match super::get_config("./config/profiles/example1.toml") {
         Ok(c) => c,
         Err(e) => panic!("{}", e),
     };
@@ -72,13 +72,13 @@ fn test_get_config_example1() {
             cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
         },
     };
-    assert!(c1 == c2);
+    assert_eq!(c1, c2);
 }
 
 #[test]
 fn test_get_config_example2() {
     // TODO: Use absolute configuration path
-    let c1 = match super::get_config::<ProfileConfig>(&Path::new("./config/profiles/example2.toml")) {
+    let c1: ProfileConfig = match super::get_config("./config/profiles/example2.toml") {
         Ok(c) => c,
         Err(e) => panic!("{}", e),
     };
@@ -103,5 +103,5 @@ fn test_get_config_example2() {
             cmd: vec!("/usr/bin/setsid".to_string(), "-c".to_string(), "/bin/sh".to_string()),
         },
     };
-    assert!(c1 == c2);
+    assert_eq!(c1, c2);
 }

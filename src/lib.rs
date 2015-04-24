@@ -13,12 +13,15 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #![feature(collections)]
+#![feature(convert)]
 #![feature(core)]
-#![feature(env)]
+#![feature(fs_walk)]
 #![feature(io)]
 #![feature(libc)]
 #![feature(old_io)]
 #![feature(old_path)]
+#![feature(path_ext)]
+#![feature(path_relative_from)]
 #![feature(std_misc)]
 #![feature(unsafe_destructor)]
 

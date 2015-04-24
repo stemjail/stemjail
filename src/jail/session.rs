@@ -17,14 +17,15 @@ extern crate pty;
 
 use self::iohandle::FileDesc;
 use self::pty::TtyServer;
-use std::old_io as io;
+use std::io;
+use std::path::Path;
 
 pub struct Stdio {
     tty: TtyServer,
 }
 
 impl Stdio {
-    pub fn new(fd: &FileDesc) -> io::IoResult<Stdio> {
+    pub fn new(fd: &FileDesc) -> io::Result<Stdio> {
         let tty = try!(TtyServer::new(Some(fd)));
         Ok(Stdio {
             tty: tty,
@@ -39,8 +40,10 @@ impl Stdio {
     pub fn get_master(&self) -> &FileDesc {
         self.tty.get_master()
     }
+}
 
-    pub fn get_path(&self) -> Option<&Path> {
-        Some(self.tty.get_path())
+impl AsRef<Path> for Stdio {
+    fn as_ref(&self) -> &Path {
+        self.tty.as_ref()
     }
 }

@@ -12,11 +12,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use std::error::{Error, FromError};
+use std::error::Error;
 use std::fmt;
-use std::old_io::IoError;
+use std::io;
 use super::toml::DecodeError;
 
+#[derive(Debug)]
 pub struct ConfigError {
     desc: String,
 }
@@ -31,18 +32,18 @@ impl ConfigError {
 
 impl Error for ConfigError {
     fn description(&self) -> &str {
-        self.desc.as_slice()
+        self.desc.as_ref()
     }
 }
 
-impl FromError<DecodeError> for ConfigError {
-    fn from_error(err: DecodeError) -> ConfigError {
+impl From<DecodeError> for ConfigError {
+    fn from(err: DecodeError) -> ConfigError {
         ConfigError::new(format!("Failed to decode: {}", err))
     }
 }
 
-impl FromError<IoError> for ConfigError {
-    fn from_error(err: IoError) -> ConfigError {
+impl From<io::Error> for ConfigError {
+    fn from(err: io::Error) -> ConfigError {
         ConfigError::new(format!("I/O error: {}", err))
     }
 }

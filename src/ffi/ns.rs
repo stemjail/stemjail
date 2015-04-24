@@ -16,7 +16,8 @@ extern crate libc;
 
 use std::env;
 use std::ffi::CString;
-use std::old_io as io;
+use std::io;
+use std::path::Path;
 use std::ptr;
 
 #[path = "gen/sched.rs"]
@@ -58,20 +59,23 @@ pub mod raw {
     }
 }
 
+// TODO: use the sys::cvt familly
+
 #[allow(dead_code)]
-pub fn chroot(path: &Path) -> io::IoResult<()> {
+pub fn chroot<T>(path: T) -> io::Result<()> where T: AsRef<Path> {
+    let path = path.as_ref();
     try!(env::set_current_dir(path));
-    let path = try!(CString::new(path.as_vec()));
+    let path = try!(CString::new(path2bytes!(&path)));
     match unsafe { raw::chroot(path.as_ptr()) } {
         0 => Ok(()),
-        _ => Err(io::IoError::last_error()),
+        _ => Err(io::Error::last_os_error()),
     }
 }
 
-pub fn mount(source: &Path, target: &Path, filesystemtype: &str,
-             mountflags: &fs::MsFlags, data: &Option<&str>) -> io::IoResult<()> {
-    let src = try!(CString::new(source.as_vec()));
-    let tgt = try!(CString::new(target.as_vec()));
+pub fn mount<T,U>(source: T, target: U, filesystemtype: &str, mountflags: &fs::MsFlags,
+                data: &Option<&str>) -> io::Result<()> where T: AsRef<Path>, U: AsRef<Path> {
+    let src = try!(CString::new(path2bytes!(&source)));
+    let tgt = try!(CString::new(path2bytes!(&target)));
     let fst = try!(CString::new(filesystemtype.as_bytes()));
     let ret = match data {
         &Some(ref data) => {
@@ -84,31 +88,32 @@ pub fn mount(source: &Path, target: &Path, filesystemtype: &str,
     };
     match ret {
         0 => Ok(()),
-        _ => Err(io::IoError::last_error()),
+        _ => Err(io::Error::last_os_error()),
     }
 }
 
-pub fn pivot_root(new_root: &Path, put_old: &Path) -> io::IoResult<()> {
-    let new_root = try!(CString::new(new_root.as_vec()));
-    let put_old = try!(CString::new(put_old.as_vec()));
+pub fn pivot_root<T,U>(new_root: T, put_old: U) -> io::Result<()>
+        where T: AsRef<Path>, U: AsRef<Path> {
+    let new_root = try!(CString::new(path2bytes!(&new_root)));
+    let put_old = try!(CString::new(path2bytes!(&put_old)));
     match unsafe { raw::pivot_root(new_root.as_ptr(), put_old.as_ptr()) } {
         0 => Ok(()),
-        _ => Err(io::IoError::last_error()),
+        _ => Err(io::Error::last_os_error()),
     }
 }
 
 #[allow(dead_code)]
-pub fn umount(target: &Path, flags: &fs0::MntFlags) -> io::IoResult<()> {
-    let target = try!(CString::new(target.as_vec()));
+pub fn umount<T>(target: T, flags: &fs0::MntFlags) -> io::Result<()> where T: AsRef<Path> {
+    let target = try!(CString::new(path2bytes!(&target)));
     match unsafe { raw::umount2(target.as_ptr(), flags.bits()) } {
         0 => Ok(()),
-        _ => Err(io::IoError::last_error()),
+        _ => Err(io::Error::last_os_error()),
     }
 }
 
-pub fn unshare(flags: sched::CloneFlags) -> io::IoResult<()> {
+pub fn unshare(flags: sched::CloneFlags) -> io::Result<()> {
     match unsafe { raw::unshare(flags.bits()) } {
         0 => Ok(()),
-        _ => Err(io::IoError::last_error()),
+        _ => Err(io::Error::last_os_error()),
     }
 }

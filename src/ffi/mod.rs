@@ -12,5 +12,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+macro_rules! path2bytes {
+    ($path: expr) => {
+        AsRef::<Path>::as_ref($path).to_string_lossy().as_bytes()
+    }
+}
+
 pub mod net;
 pub mod ns;

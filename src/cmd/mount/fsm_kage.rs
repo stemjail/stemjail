@@ -12,11 +12,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(deprecated)]
+
 /// Finite-state machine for a `KageCommand` call
 
 use std::marker::PhantomData;
-use std::old_io::BufferedStream;
+use std::old_io::{BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
+use std::old_path::posix::Path as OldPath;
 use super::{MountAction, MountRequest};
 use super::super::MonitorCall;
 use super::super::super::MONITOR_SOCKET_PATH;
@@ -35,7 +38,7 @@ pub struct KageFsm<T> {
 // Dummy FSM for now, but help to keep it consistent and enforce number of actions
 impl KageFsm<state::Init> {
     pub fn new() -> Result<KageFsm<state::Init>, String> {
-        let server = Path::new(MONITOR_SOCKET_PATH);
+        let server = OldPath::new(MONITOR_SOCKET_PATH);
         let stream = match UnixStream::connect(&server) {
             Ok(s) => s,
             Err(e) => return Err(format!("Failed to connect to client: {}", e)),
@@ -53,7 +56,7 @@ impl KageFsm<state::Init> {
             Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
         let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_slice()) {
+        match bstream.write_line(encoded.as_ref()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Failed to send command: {}", e)),
         }

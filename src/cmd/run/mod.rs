@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(deprecated)]
+
 /// `Request::call(&self, RequestInit)` use `RequestFsm`
 
 extern crate getopts;
@@ -21,6 +23,7 @@ use self::fsm_portal::{RequestInit, RequestFsm};
 use self::getopts::Options;
 use std::env;
 use std::old_io::net::pipe::UnixStream;
+use std::path::PathBuf;
 use super::{PortalAck, PortalRequest};
 use super::super::config::portal::Portal;
 use super::super::jail;
@@ -48,13 +51,6 @@ pub struct RunRequest {
     pub stdio: bool,
 }
 
-// FIXME: Replace Path::new with Path::new_opt
-macro_rules! absolute_path {
-    ($cwd: expr, $dir: expr) => {
-        $cwd.join(&Path::new($dir.clone()))
-    };
-}
-
 impl RunRequest {
     fn call(&self, machine: RequestInit, portal: &Portal) -> Result<(), String> {
         let config = match portal.configs.iter().find(|c| { c.name == self.profile }) {
@@ -76,15 +72,15 @@ impl RunRequest {
 
         let mut j = jail::Jail::new(
             config.name.clone(),
-            absolute_path!(cwd, config.fs.root),
+            cwd.join(&config.fs.root),
             match config.fs.bind {
                 Some(ref b) => b.iter().map(
                     |x| {
                         let mut bind = jail::BindMount::new(
-                            absolute_path!(cwd, x.src),
+                            cwd.join(&x.src),
                             match x.dst {
-                                Some(ref d) => absolute_path!(cwd, d),
-                                None => absolute_path!(cwd, x.src),
+                                Some(ref d) => cwd.join(d),
+                                None => cwd.join(&x.src),
                             });
                         bind.write = match x.write {
                             Some(w) => w,
@@ -98,7 +94,7 @@ impl RunRequest {
                 Some(ref b) => b.iter().map(
                     |x| jail::TmpfsMount {
                         name: None,
-                        dst: Path::new(&x.dir),
+                        dst: PathBuf::from(&x.dir),
                     }).collect(),
                 None => Vec::new(),
             }
@@ -128,7 +124,7 @@ impl RunRequest {
         let args = args.iter().enumerate().filter_map(
             |(i, x)| if i == 0 { None } else { Some(x.clone()) } ).collect();
 
-        j.run(&Path::new(exe), &args, stdio);
+        j.run(&exe, &args, stdio);
         match j.get_stdio() {
             &Some(ref s) => {
                 try!(machine.send_fd(s))
@@ -166,7 +162,7 @@ impl super::KageCommand for RunKageCmd {
 
     fn get_usage(&self) -> String {
         let msg = format!("Usage for the {} command", self.name);
-        format!("{}", self.opts.usage(msg.as_slice()))
+        format!("{}", self.opts.usage(msg.as_ref()))
     }
 
     fn call(&mut self, args: &Vec<String>) -> Result<(), String> {

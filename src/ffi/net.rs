@@ -15,11 +15,11 @@
 extern crate libc;
 
 use self::libc::{c_int, size_t, ssize_t, c_uint, c_void};
+use std::io;
 use std::marker::PhantomData;
 use std::mem::{size_of, size_of_val};
 use std::mem::transmute;
-use std::old_io as io;
-use std::os::unix::AsRawFd;
+use std::os::unix::io::AsRawFd;
 use std::ptr;
 
 pub mod raw {
@@ -170,7 +170,7 @@ impl<T> Cmsghdr<T> {
 
 // The cmsg_data will be modified by recvmsg
 #[allow(unused_mut)]
-pub fn recvmsg<T>(sockfd: &mut AsRawFd, iov_len: usize, mut cmsg_data: T) -> io::IoResult<(ssize_t, Vec<u8>, T)> {
+pub fn recvmsg<T>(sockfd: &mut AsRawFd, iov_len: usize, mut cmsg_data: T) -> io::Result<(ssize_t, Vec<u8>, T)> {
     let mut iov_data = Vec::with_capacity(iov_len);
     let iov_data_ptr = iov_data.as_mut_ptr();
     // The iov will be modified by recvmsg
@@ -181,24 +181,24 @@ pub fn recvmsg<T>(sockfd: &mut AsRawFd, iov_len: usize, mut cmsg_data: T) -> io:
     let mut ctrl = Cmsghdr::new(SOL_SOCKET, Scm::Rights, cmsg_data);
     let mut msg = Msghdr::new(None, iovv, &mut ctrl, None);
     let size = match unsafe { raw::recvmsg(sockfd.as_raw_fd(), transmute(&mut msg), 0) } {
-        -1 => return Err(io::IoError::last_error()),
+        -1 => return Err(io::Error::last_os_error()),
         s => s,
     };
     unsafe { iov_data.set_len(msg.msg_iovlen as usize) };
     if msg.msg_controllen != size_of::<Cmsghdr<T>>() as size_t {
         // Type does not match the size + alignement
-        return Err(io::standard_error(io::ShortWrite(msg.msg_controllen as usize)));
+        return Err(io::Error::new(io::ErrorKind::Other, format!("Short write: {}", msg.msg_controllen).as_str()));
     }
     if ctrl.cmsg_len != size_of::<Cmsghdr<T>>() as size_t {
         // Bad length
-        return Err(io::standard_error(io::ShortWrite(ctrl.cmsg_len as usize)));
+        return Err(io::Error::new(io::ErrorKind::Other, format!("Short write: {}", ctrl.cmsg_len).as_str()));
     }
     Ok((size, iov_data, ctrl.__cmsg_data))
 }
 
-pub fn sendmsg<T>(sockfd: &mut AsRawFd, msg: Msghdr<T>) -> io::IoResult<ssize_t> {
+pub fn sendmsg<T>(sockfd: &mut AsRawFd, msg: Msghdr<T>) -> io::Result<ssize_t> {
     match unsafe { raw::sendmsg(sockfd.as_raw_fd(), transmute(&msg), 0) } {
-        -1 => Err(io::IoError::last_error()),
+        -1 => Err(io::Error::last_os_error()),
         s => Ok(s),
     }
 }

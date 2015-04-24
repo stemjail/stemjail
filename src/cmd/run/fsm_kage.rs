@@ -20,8 +20,9 @@ extern crate pty;
 
 use self::iohandle::FileDesc;
 use self::pty::TtyClient;
+use std::io;
 use std::marker::PhantomData;
-use std::old_io::{BufferedStream, IoResult};
+use std::old_io::{Buffer, BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
 use super::{RunAction, RunRequest};
 use super::super::{PortalAck, PortalCall, PortalRequest};
@@ -51,7 +52,7 @@ macro_rules! fsm_new {
 
 impl KageFsm<state::Init> {
     pub fn new() -> Result<KageFsm<state::Init>, String> {
-        let server = Path::new(PORTAL_SOCKET_PATH);
+        let server = PORTAL_SOCKET_PATH;
         let stream = match UnixStream::connect(&server) {
             Ok(s) => s,
             Err(e) => return Err(format!("Failed to connect to client: {}", e)),
@@ -67,7 +68,7 @@ impl KageFsm<state::Init> {
             Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
         let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_slice()) {
+        match bstream.write_line(encoded.as_ref()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Failed to send command: {}", e)),
         }
@@ -103,7 +104,7 @@ impl KageFsm<state::Init> {
 
 impl KageFsm<state::SendFd> {
     // Send the template TTY
-    pub fn create_tty(mut self) -> Result<IoResult<TtyClient>, String> {
+    pub fn create_tty(mut self) -> Result<io::Result<TtyClient>, String> {
         let peer = FileDesc::new(libc::STDIN_FILENO, false);
         // TODO: Replace &[0] with a JSON command
         let iov = &[0];

@@ -18,7 +18,7 @@ extern crate iohandle;
 
 use self::iohandle::FileDesc;
 use std::marker::PhantomData;
-use std::old_io::BufferedStream;
+use std::old_io::{BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
 use super::super::PortalAck;
 use super::super::super::{fdpass, jail};
@@ -69,7 +69,7 @@ impl RequestFsm<state::Init> {
             Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
         let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_slice()) {
+        match bstream.write_line(encoded.as_ref()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Failed to send acknowledgement: {}", e)),
         }

@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(deprecated)]
+
 extern crate mnt;
 extern crate libc;
 
@@ -24,10 +26,14 @@ use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::env;
 use std::fmt::Debug;
-use std::old_io as io;
-use std::old_io::{File, Open, Write};
-use std::old_io::IoErrorKind;
-use std::os::unix::AsRawFd;
+use std::fs::{OpenOptions, create_dir, soft_link};
+use std::io;
+use std::io::{ErrorKind, Error, Write};
+use std::old_io::{Command, pipe, process};
+use std::old_io::{IoErrorKind, Reader, Writer};
+use std::old_path::Path as OldPath;
+use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
@@ -51,14 +57,14 @@ pub trait JailFn: Send + Debug {
 
 #[derive(Debug, Clone, RustcDecodable, RustcEncodable)]
 pub struct BindMount {
-    pub src: Path,
-    pub dst: Path,
+    pub src: PathBuf,
+    pub dst: PathBuf,
     pub write: bool,
     pub from_parent: bool,
 }
 
 impl BindMount {
-    pub fn new(source: Path, destination: Path) -> BindMount {
+    pub fn new(source: PathBuf, destination: PathBuf) -> BindMount {
         BindMount {
             src: source,
             dst: destination,
@@ -71,7 +77,7 @@ impl BindMount {
 #[derive(Clone)]
 pub struct TmpfsMount<'a> {
     pub name: Option<&'a str>,
-    pub dst: Path,
+    pub dst: PathBuf,
 }
 
 // TODO: Add UUID
@@ -83,17 +89,17 @@ pub struct Jail<'a> {
     stdio: Option<Stdio>,
     pid: Arc<RwLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
-    workdir: Option<Path>,
+    workdir: Option<PathBuf>,
 }
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, root: Path, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
+    pub fn new(name: String, root: PathBuf, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
         // TODO: Use TmpWorkDir
-        let tmp_dir = Path::new(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
+        let tmp_dir = PathBuf::from(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
         // Hack to cleanly manage the root bind mount
-        let mut root_binds = vec!(BindMount::new(root.clone(), Path::new("/")));
+        let mut root_binds = vec!(BindMount::new(root.clone(), PathBuf::from("/")));
         root_binds.push_all(binds.as_slice());
         //let root_binds = binds;
         Jail {
@@ -110,33 +116,31 @@ impl<'a> Jail<'a> {
     }
 
     /// Map the current user to himself
-    fn init_userns(&self, pid: pid_t) -> io::IoResult<()> {
+    fn init_userns(&self, pid: pid_t) -> io::Result<()> {
         // Do not use write/format_args_method-like macros, proc files must be
         // write only at once to avoid invalid argument.
-        let uid_path = Path::new(format!("/proc/{}/uid_map", pid));
-        let mut uid_file = try!(File::open_mode(&uid_path, Open, Write));
-        let uid_data = format!("{0} {0} 1", unsafe { getuid() });
-        try!(uid_file.write_str(uid_data.as_slice()));
-        let setgroups_path = Path::new(format!("/proc/{}/setgroups", pid));
-        match File::open_mode(&setgroups_path, Open, Write) {
-            Ok(mut setgroups_file) => try!(setgroups_file.write_str("deny".as_slice())),
-            Err(e) => if e.kind != IoErrorKind::FileNotFound {
+        let mut file = OpenOptions::new();
+        file.write(true);
+        let mut uid_file = try!(file.open(format!("/proc/{}/uid_map", pid)));
+        try!(uid_file.write_all(format!("{0} {0} 1", unsafe { getuid() }).as_bytes()));
+        match file.open(format!("/proc/{}/setgroups", pid)) {
+            Ok(mut setgroups_file) => try!(setgroups_file.write_all("deny".as_bytes())),
+            Err(e) => if e.kind() != ErrorKind::NotFound {
                 return Err(e);
             }
         }
-        let gid_path = Path::new(format!("/proc/{}/gid_map", pid));
-        let mut gid_file = try!(File::open_mode(&gid_path, Open, Write));
-        let gid_data = format!("{0} {0} 1", unsafe { getgid() });
+        let mut gid_file = try!(file.open(format!("/proc/{}/gid_map", pid)));
         // TODO: Keep the current group mapping
-        try!(gid_file.write_str(gid_data.as_slice()));
+        try!(gid_file.write_all(format!("{0} {0} 1", unsafe { getgid() }).as_bytes()));
         Ok(())
     }
 
-    fn init_dev(&self, devdir: &Path) -> io::IoResult<()> {
+    fn init_dev<T>(&self, devdir: T) -> io::Result<()> where T: AsRef<Path> {
+        let devdir = devdir.as_ref();
         info!("Populating {}", devdir.display());
-        let devdir_full = nest_path(&self.root.dst, devdir);
+        let devdir_full = nest_path(&self.root.dst, &devdir);
         try!(mkdir_if_not(&devdir_full));
-        try!(self.add_tmpfs(&TmpfsMount { name: Some("dev"), dst: devdir.clone() }));
+        try!(self.add_tmpfs(&TmpfsMount { name: Some("dev"), dst: devdir.to_path_buf() }));
 
         // TODO: Use macro
         // Create mount points
@@ -147,7 +151,7 @@ impl<'a> Jail<'a> {
             "urandom",
             ];
         let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
-            let src = devdir.clone().join(&Path::new(*dev));
+            let src = devdir.join(dev);
             let mut bind = BindMount::new(src.clone(), src);
             bind.write = true;
             bind
@@ -156,15 +160,13 @@ impl<'a> Jail<'a> {
         // Add current TTY
         // TODO: Add dynamic TTY list reload
         match self.stdio {
-            Some(ref s) => match s.get_path() {
-                    // FIXME: Assume `p` begin with "/dev/"
-                    Some(p) => {
-                        let mut bind = BindMount::new(p.clone(), p.clone());
-                        bind.write = true;
-                        devs.push(bind);
-                    }
-                    None => {}
-                },
+            // FIXME: Assume `s` begin with "/dev/"
+            Some(ref s) => {
+                let p = s.as_ref();
+                let mut bind = BindMount::new(p.to_path_buf(), p.to_path_buf());
+                bind.write = true;
+                devs.push(bind);
+            }
             None => {}
         }
 
@@ -181,42 +183,43 @@ impl<'a> Jail<'a> {
             ("random", "urandom")
             ];
         for &(dst, src) in links.iter() {
-            let src = Path::new(src);
-            let dst = devdir_full.clone().join(&dst);
-            try!(io::fs::symlink(&src, &dst));
+            let dst = devdir_full.join(dst);
+            try!(soft_link(src, dst));
         }
 
         // Seal /dev
         // TODO: Drop the root user to realy seal something…
         let dev_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
-        try!(mount(&Path::new("none"), &devdir_full, "", &dev_flags, &None));
+        try!(mount("none", devdir_full, "", &dev_flags, &None));
 
         Ok(())
     }
 
-    pub fn import_bind(&self, bind: &BindMount) -> io::IoResult<()> {
+    pub fn import_bind(&self, bind: &BindMount) -> io::Result<()> {
         let workdir = match self.workdir {
             Some(ref w) => w,
             // TODO: Create a new error or a FSM for self.workdir
-            None => return Err(io::standard_error(io::OtherIoError)),
+            None => return Err(io::Error::new(ErrorKind::Other, "No workdir")),
         };
         // FIXME: Verify path traversal sanitization (e.g. no "..")
         let excludes = if bind.from_parent {
             // Protect parent process listing
-            if Path::new("/proc").is_ancestor_of(&bind.src) {
+            // FIXME: Force bind.src to be an absolute path
+            if bind.src.starts_with("/proc") {
                 warn!("Access to parent/proc denied");
-                return Err(io::standard_error(io::OtherIoError));
+                return Err(io::Error::new(ErrorKind::PermissionDenied, "Access denied to parent /proc"));
             }
             vec!()
         } else {
             vec!(workdir.clone())
         };
         // Deny /proc from being masked
-        if Path::new("/proc").is_ancestor_of(&bind.dst) {
+        // FIXME: Force bind.dst to be an absolute path
+        if bind.dst.starts_with("/proc") {
             warn!("Can't overlaps /proc");
-            return Err(io::standard_error(io::OtherIoError));
+            return Err(io::Error::new(ErrorKind::PermissionDenied, "Access denied to /proc"));
         }
-        let parent = workdir.join(Path::new(WORKDIR_PARENT));
+        let parent = workdir.join(WORKDIR_PARENT);
         // Create temporary and unique directory for an atomic cmd/mount command
         let mut tmp_dir = try!(TmpWorkDir::new("mount"));
         let tmp_bind = BindMount {
@@ -236,23 +239,25 @@ impl<'a> Jail<'a> {
         for mount in submounts.iter() {
             let mut mount = mount.clone();
             if mount.from_parent {
-                let rel_src = match mount.src.path_relative_from(&parent) {
+                let rel_src = mount.src.clone();
+                let rel_src = match rel_src.relative_from(&parent) {
                     Some(p) => p,
                     None => {
                         warn!("Failed to get relative path from {}", parent.display());
-                        return Err(io::standard_error(io::OtherIoError));
+                        return Err(io::Error::new(ErrorKind::Other, "Relative path conversion"));
                     }
                 };
-                mount.src = nest_path(&Path::new(WORKDIR_PARENT), &rel_src);
+                mount.src = nest_path(&WORKDIR_PARENT, rel_src);
             }
-            let rel_dst = match mount.dst.path_relative_from(&bind.dst) {
+            let rel_dst = mount.dst.clone();
+            let rel_dst = match rel_dst.relative_from(&bind.dst) {
                 Some(p) => p,
                 None => {
                     warn!("Failed to get relative path from {}", bind.dst.display());
-                    return Err(io::standard_error(io::OtherIoError));
+                    return Err(io::Error::new(ErrorKind::Other, "Relative path conversion"));
                 }
             };
-            mount.dst = nest_path(tmp_dir.path(), &rel_dst);
+            mount.dst = nest_path(&tmp_dir, rel_dst);
             match self.add_bind(&mount, true){
                 Ok(..) => {
                     // Unmount all previous mounts if an error occured
@@ -265,8 +270,8 @@ impl<'a> Jail<'a> {
             }
         }
 
-        debug!("Moving bind mount from {} to {}", tmp_dir.path().display(), bind.dst.display());
-        match mount(tmp_dir.path(), &bind.dst, "none", &fs::MS_MOVE, &None) {
+        debug!("Moving bind mount from {} to {}", tmp_dir.as_ref().display(), bind.dst.display());
+        match mount(&tmp_dir, &bind.dst, "none", &fs::MS_MOVE, &None) {
             Ok(..) => tmp_dir.unmount(false),
             Err(e) => {
                 warn!("Failed to move the temporary mount point: {}", e);
@@ -279,7 +284,7 @@ impl<'a> Jail<'a> {
     // XXX: Impossible to keep a consistent read-only mount tree if a new mount is added after our
     // bind mount. Will need to watch all the sources.
     // TODO: Try to not bind remount already read-only mounts
-    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::IoResult<()> {
+    fn add_bind(&self, bind: &BindMount, is_absolute: bool) -> io::Result<()> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
@@ -305,7 +310,7 @@ impl<'a> Jail<'a> {
         if ! bind.write {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
             // read/write files during the jail life.
-            let none_path = Path::new("none");
+            let none_path = "none";
             // Seal the vfsmount: good to not receive new mounts but block unmount as well
             // TODO: Add a "unshare <path>" command to remove a to-be-unmounted path
             let bind_flags = fs::MS_PRIVATE | fs::MS_REC;
@@ -337,14 +342,14 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    fn expand_binds(&self, binds: Vec<BindMount>, excludes: &Vec<&Path>)
-            -> io::IoResult<Vec<BindMount>> {
-        let host_mounts: Vec<_> = match get_submounts(&Path::new("/")) {
+    fn expand_binds<T>(&self, binds: Vec<BindMount>, excludes: &Vec<T>)
+            -> io::Result<Vec<BindMount>> where T: AsRef<Path> {
+        let host_mounts: Vec<_> = match get_submounts("/") {
             Ok(list) => {
-                let proc_path = Path::new("/proc");
+                let proc_path = "/proc";
                 // Exclude workdir from overlaps detection because workdir/parent contains moved
                 // mount points and is so at the top of the mount list.
-                let excludes_overlaps = match self.workdir {
+                let excludes_overlaps: Vec<&AsRef<Path>> = match self.workdir {
                     None => vec!(),
                     Some(ref w) => vec!(&proc_path, w),
                 };
@@ -352,14 +357,14 @@ impl<'a> Jail<'a> {
                 list.remove_overlaps(&excludes_overlaps).into_iter().filter(
                     |mount| {
                         excludes.iter().skip_while(
-                            |path| !path.is_ancestor_of(&mount.file)
+                            |path| !mount.file.starts_with(path)
                         ).next().is_none()
                     }).collect()
             },
             Err(e) => {
-                // TODO: Add FromError impl to IoResult
+                // TODO: Add FromError impl to io::Result
                 warn!("Failed to get mount points: {}", e);
-                return Err(io::standard_error(io::OtherIoError))
+                return Err(io::Error::new(ErrorKind::NotFound, "No mount point found"))
             }
         };
 
@@ -376,12 +381,12 @@ impl<'a> Jail<'a> {
                 // Take bind sub mounts
                 for mount in host_mounts.iter() {
                     let sub_src = mount.file.clone();
-                    if bind.src.is_ancestor_of(&sub_src) && bind.src != sub_src {
-                        let rel_dst = match mount.file.path_relative_from(&bind.src) {
+                    if sub_src.starts_with(&bind.src) && bind.src != sub_src {
+                        let rel_dst = match mount.file.relative_from(&bind.src) {
                             Some(p) => p,
                             None => {
                                 warn!("Failed to get relative path from {}", bind.src.display());
-                                return Err(io::standard_error(io::OtherIoError));
+                                return Err(io::Error::new(ErrorKind::Other, "Relative path conversion"));
                             }
                         };
                         // Extend bind with same attributes
@@ -400,7 +405,7 @@ impl<'a> Jail<'a> {
             // current bind
             let mut new_all_binds = vec!();
             for cur_bind in all_binds.into_iter() {
-                if ! bind.dst.is_ancestor_of(&cur_bind.dst) {
+                if ! cur_bind.dst.starts_with(&bind.dst) {
                     new_all_binds.push(cur_bind);
                 }
             }
@@ -410,8 +415,8 @@ impl<'a> Jail<'a> {
         Ok(all_binds)
     }
 
-    fn add_tmpfs(&self, tmp: &TmpfsMount) -> io::IoResult<()> {
-        let name = Path::new(match tmp.name {
+    fn add_tmpfs(&self, tmp: &TmpfsMount) -> io::Result<()> {
+        let name = PathBuf::from(match tmp.name {
             Some(n) => n,
             None => "tmpfs",
         });
@@ -424,13 +429,13 @@ impl<'a> Jail<'a> {
     }
 
     // TODO: impl Drop to unmount and remove mount directories/files
-    fn init_fs(&mut self) -> io::IoResult<()> {
+    fn init_fs(&mut self) -> io::Result<()> {
         // Prepare to remove all parent mounts with a pivot
         // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
 
         // TODO: Bind mount and seal the root before expanding bind mounts
-        let dev_path = Path::new("/dev");
-        let proc_path = Path::new("/proc");
+        let dev_path = PathBuf::from("/dev");
+        let proc_path = PathBuf::from("/proc");
         let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
         let all_binds = try!(self.expand_binds(self.binds.clone(), &exclude_binds));
         for bind in all_binds.iter() {
@@ -444,23 +449,24 @@ impl<'a> Jail<'a> {
         }
 
         // procfs
-        let proc_src = Path::new("proc");
-        let proc_dst = self.root.dst.clone().join(proc_src.clone());
+        let proc_src = "proc";
+        let proc_dst = self.root.dst.join(&proc_src);
         try!(mkdir_if_not(&proc_dst));
         let proc_flags = fs::MsFlags::empty();
         try!(mount(&proc_src, &proc_dst, "proc", &proc_flags, &None));
 
         // Devices
-        try!(self.init_dev(&Path::new("/dev")));
+        try!(self.init_dev("/dev"));
 
         // Finalize the pivot
         let workdir = EphemeralDir::new();
         // Save the workdir path to be able to exclude it from mount points
         self.workdir = Some(Path::new("/").join(workdir.get_relative_path().clone()));
         // Create the monitor (hidden) working directory
-        try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: workdir.get_relative_path().clone() }));
-        let parent = workdir.get_relative_path().join(Path::new(WORKDIR_PARENT));
-        try!(io::fs::mkdir(&parent, io::USER_RWX));
+        try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: workdir.get_relative_path().to_path_buf() }));
+        let parent = workdir.get_relative_path().join(WORKDIR_PARENT);
+        // FIXME: Set umask to !io::USER_RWX
+        try!(create_dir(&parent));
         // TODO: Bind mount the parent root to be able to drop mount branches (i.e. domain transitions)
         try!(pivot_root(&self.root.dst, &parent));
         // Keep the workdir open (e.g. jail transitions)
@@ -473,21 +479,21 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
-    // TODO: Return IoResult<()>
-    pub fn run(&mut self, run: &Path, args: &Vec<String>, stdio: Option<Stdio>) {
+    // TODO: Return io::Result<()>
+    pub fn run<T>(&mut self, run: T, args: &Vec<String>, stdio: Option<Stdio>) where T: AsRef<Path> {
         info!("Running jail {}", self.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
         // Fork a new process
-        let mut sync_parent = match io::pipe::PipeStream::pair() {
+        let mut sync_parent = match pipe::PipeStream::pair() {
             Ok(p) => p,
             Err(e) => panic!("Failed to create pipe #1: {}", e),
         };
-        let mut sync_child = match io::pipe::PipeStream::pair() {
+        let mut sync_child = match pipe::PipeStream::pair() {
             Ok(p) => p,
             Err(e) => panic!("Failed to create pipe #2: {}", e),
         };
-        let (mut jail_pid_rx, mut jail_pid_tx) = match io::pipe::PipeStream::pair() {
+        let (mut jail_pid_rx, mut jail_pid_tx) = match pipe::PipeStream::pair() {
             Ok(p) => (p.reader, p.writer),
             Err(e) => panic!("Failed to create pipe #3: {}", e),
         };
@@ -503,16 +509,16 @@ impl<'a> Jail<'a> {
                 // Keep the slave FD open until the spawn
                 (
                     Some(slave_fd),
-                    io::process::InheritFd(fd),
-                    io::process::InheritFd(fd),
-                    io::process::InheritFd(fd),
+                    process::InheritFd(fd),
+                    process::InheritFd(fd),
+                    process::InheritFd(fd),
                 )
             },
             None => {(
                 None,
-                io::process::InheritFd(libc::STDIN_FILENO),
-                io::process::InheritFd(libc::STDOUT_FILENO),
-                io::process::InheritFd(libc::STDERR_FILENO),
+                process::InheritFd(libc::STDIN_FILENO),
+                process::InheritFd(libc::STDOUT_FILENO),
+                process::InheritFd(libc::STDERR_FILENO),
             )}
         };
         let (end_tx, end_rx) = channel();
@@ -532,7 +538,7 @@ impl<'a> Jail<'a> {
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
             match unsafe { setsid() } {
-                -1 => panic!("Failed to create a new session: {}", io::IoError::last_error()),
+                -1 => panic!("Failed to create a new session: {}", Error::last_os_error()),
                 _ => {}
             }
             match unshare(
@@ -580,9 +586,9 @@ impl<'a> Jail<'a> {
                     }
                 }).collect();
                 // TODO: Try using detached()
-                let mut process = match io::Command::new(run)
+                let mut process = match Command::new(run.as_ref().to_string_lossy().as_slice())
                         // Must switch to / to avoid leaking hidden parent root
-                        .cwd(&Path::new("/"))
+                        .cwd(&OldPath::new("/"))
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)

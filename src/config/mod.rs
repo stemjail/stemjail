@@ -17,7 +17,9 @@ extern crate toml;
 
 use self::rustc_serialize::Decodable;
 use self::toml::Decoder;
-use std::old_io::{File, fs};
+use std::fs;
+use std::path::Path;
+use std::io::Read;
 
 pub use self::error::ConfigError;
 
@@ -27,10 +29,11 @@ pub mod portal;
 pub mod profile;
 
 // TODO: Check for absolute path only
-pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
-        where T: Decodable {
-    let contents = try!(File::open(config_file).read_to_string());
-    let mut parser = toml::Parser::new(contents.as_slice());
+pub fn get_config<T, U>(config_file: T) -> Result<U, ConfigError>
+        where T: AsRef<Path>, U: Decodable {
+    let mut contents = String::new();
+    let _ = try!(fs::File::open(config_file)).read_to_string(&mut contents);
+    let mut parser = toml::Parser::new(contents.as_ref());
     let toml = match parser.parse() {
         Some(r) => toml::Value::Table(r),
         None => return Err(ConfigError::new(format!("Parse error: {:?}", parser.errors))),
@@ -40,14 +43,15 @@ pub fn get_config<T>(config_file: &Path) -> Result<T, ConfigError>
     Ok(config)
 }
 
-pub fn get_configs<T>(profile_dir: &Path) -> Result<Vec<T>, ConfigError>
-        where T: Decodable {
+pub fn get_configs<T, U>(profile_dir: T) -> Result<Vec<U>, ConfigError>
+        where T: AsRef<Path>, U: Decodable {
     let mut ret = vec!();
     for file in try!(fs::walk_dir(profile_dir)) {
-        match file.extension_str() {
+        let file = try!(file).path();
+        match file.extension() {
             Some(ext) => {
                 if ext == "toml" {
-                    match get_config::<T>(&file) {
+                    match get_config(&file) {
                         Ok(c) => ret.push(c),
                         Err(e) => return Err(ConfigError::new(format!("(file `{}`) {}",
                                              file.display(), e))),

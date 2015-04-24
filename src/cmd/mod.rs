@@ -29,7 +29,7 @@ macro_rules! impl_json {
     ($name: ty) => {
         impl $name {
             pub fn decode(encoded: &String) -> json::DecodeResult<$name> {
-                json::decode(encoded.as_slice())
+                json::decode(encoded.as_ref())
             }
             pub fn encode(&self) -> Result<String, json::EncoderError> {
                 json::encode(&self)
@@ -56,13 +56,13 @@ pub enum MonitorCall {
 }
 impl_json!(MonitorCall);
 
-#[derive(Copy, Debug, RustcDecodable, RustcEncodable)]
+#[derive(Clone, Copy, Debug, RustcDecodable, RustcEncodable)]
 pub struct PortalAck {
     pub request: PortalRequest,
 }
 impl_json!(PortalAck);
 
-#[derive(Copy, Debug, RustcDecodable, RustcEncodable)]
+#[derive(Clone, Copy, Debug, RustcDecodable, RustcEncodable)]
 pub enum PortalRequest {
     Nop,
     CreateTty,
