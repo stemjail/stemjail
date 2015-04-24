@@ -38,8 +38,6 @@ use super::srv;
 
 pub use self::session::Stdio;
 
-#[path = "../../ffi/fs.rs" ]
-mod fsb;
 #[path = "../../ffi/ns.rs" ]
 mod ns;
 mod session;

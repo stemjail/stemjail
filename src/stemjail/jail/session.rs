@@ -19,9 +19,6 @@ use self::iohandle::FileDesc;
 use self::pty::TtyServer;
 use std::old_io as io;
 
-#[path = "../../ffi/fs.rs" ]
-mod fs;
-
 pub struct Stdio {
     tty: TtyServer,
 }
