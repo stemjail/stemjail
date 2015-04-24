@@ -18,6 +18,8 @@
 
 extern crate getopts;
 
+use config::portal::Portal;
+use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
 use self::getopts::Options;
@@ -25,8 +27,6 @@ use std::env;
 use std::old_io::net::pipe::UnixStream;
 use std::path::PathBuf;
 use super::{PortalAck, PortalRequest};
-use super::super::config::portal::Portal;
-use super::super::jail;
 
 mod fsm_kage;
 mod fsm_portal;

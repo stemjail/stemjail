@@ -14,11 +14,11 @@
 
 extern crate getopts;
 
+use jail::{BindMount, Jail, JailFn};
 use self::fsm_kage::KageFsm;
 use self::getopts::Options;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
-use super::super::jail::{BindMount, Jail, JailFn};
 
 mod fsm_kage;
 

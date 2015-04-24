@@ -18,6 +18,9 @@ extern crate iohandle;
 extern crate libc;
 extern crate pty;
 
+use cmd::{PortalAck, PortalCall, PortalRequest};
+use fdpass;
+use PORTAL_SOCKET_PATH;
 use self::iohandle::FileDesc;
 use self::pty::TtyClient;
 use std::io;
@@ -25,8 +28,6 @@ use std::marker::PhantomData;
 use std::old_io::{Buffer, BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
 use super::{RunAction, RunRequest};
-use super::super::{PortalAck, PortalCall, PortalRequest};
-use super::super::super::{fdpass, PORTAL_SOCKET_PATH};
 
 // Private states
 mod state {

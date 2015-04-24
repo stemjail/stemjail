@@ -16,12 +16,13 @@
 
 extern crate iohandle;
 
+use cmd::PortalAck;
+use fdpass;
+use jail;
 use self::iohandle::FileDesc;
 use std::marker::PhantomData;
 use std::old_io::{BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
-use super::super::PortalAck;
-use super::super::super::{fdpass, jail};
 
 // Private states
 mod state {

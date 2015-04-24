@@ -17,12 +17,14 @@
 extern crate mnt;
 extern crate libc;
 
+use EVENT_TIMEOUT;
 use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare};
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::{get_mount, get_submounts, MntOps, VecMountEntry};
 use self::util::*;
+use srv;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::env;
 use std::fmt::Debug;
@@ -39,8 +41,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread;
-use super::EVENT_TIMEOUT;
-use super::srv;
 
 pub use self::session::Stdio;
 

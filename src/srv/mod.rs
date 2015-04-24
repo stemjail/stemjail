@@ -14,6 +14,10 @@
 
 #![allow(deprecated)]
 
+use cmd::{MonitorCall, PortalCall};
+use config::portal::Portal;
+use {EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
+use jail::JailFn;
 use std::fs;
 use std::old_io::{Acceptor, Buffer, BufferedStream, IoErrorKind, Listener, Writer};
 use std::old_io::net::pipe::{UnixListener, UnixStream};
@@ -22,10 +26,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::Sender;
 use std::thread;
-use super::cmd::{MonitorCall, PortalCall};
-use super::config::portal::Portal;
-use super::{EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
-use super::jail::JailFn;
 
 fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String), String> {
     let mut bstream = BufferedStream::new(stream);

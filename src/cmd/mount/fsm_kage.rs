@@ -16,13 +16,13 @@
 
 /// Finite-state machine for a `KageCommand` call
 
+use cmd::MonitorCall;
+use MONITOR_SOCKET_PATH;
 use std::marker::PhantomData;
 use std::old_io::{BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
 use std::old_path::posix::Path as OldPath;
 use super::{MountAction, MountRequest};
-use super::super::MonitorCall;
-use super::super::super::MONITOR_SOCKET_PATH;
 
 // Private states
 mod state {
