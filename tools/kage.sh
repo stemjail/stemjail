@@ -7,4 +7,4 @@ if [ $# -ne 0 ]; then
 	ARGS="$*"
 fi
 
-LD_LIBRARY_PATH="${DIR_BASE}/target/deps" RUST_LOG=stemjail=debug,kage=debug "${DIR_BASE}/target/kage" ${ARGS}
+LD_LIBRARY_PATH="${DIR_BASE}/target/debug/deps" RUST_LOG=stemjail=debug,kage=debug "${DIR_BASE}/target/debug/kage" ${ARGS}
