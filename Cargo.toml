@@ -3,10 +3,6 @@ name = "stemjail"
 version = "0.0.1"
 authors = ["Mickaël Salaün <mickael.salaun@ssi.gouv.fr>"]
 
-[lib]
-name = "stemjail"
-path = "src/stemjail/mod.rs"
-
 [dependencies]
 bitflags = "*"
 env_logger = "*"
