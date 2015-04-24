@@ -34,6 +34,9 @@ pub mod fdpass;
 pub mod jail;
 pub mod srv;
 
+#[macro_use]
+mod ffi;
+
 pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
 pub static PORTAL_PROFILES_PATH: &'static str = "./config/profiles";
 

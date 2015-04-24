@@ -15,11 +15,11 @@
 extern crate mnt;
 extern crate libc;
 
+use ffi::ns::{fs, raw, sched};
+use ffi::ns::{mount, pivot_root, unshare};
 use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
 use self::libc::types::os::arch::posix88::pid_t;
 use self::mount::{get_mount, get_submounts, MntOps, VecMountEntry};
-use self::ns::{fs, raw, sched};
-use self::ns::{mount, pivot_root, unshare};
 use self::util::*;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::env;
@@ -38,8 +38,6 @@ use super::srv;
 
 pub use self::session::Stdio;
 
-#[path = "../../ffi/ns.rs" ]
-mod ns;
 mod session;
 mod util;
 

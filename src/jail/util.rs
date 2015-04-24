@@ -15,13 +15,13 @@
 extern crate libc;
 extern crate rand;
 
+use ffi::ns::{fs0, raw, umount};
 use self::rand::Rng;
 use std::old_io as io;
 use std::old_io::FileType;
 use std::old_io::fs::PathExtensions;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
-use super::ns::{fs0, raw, umount};
 
 /// Concatenate two paths (different from `join()`)
 pub fn nest_path(root: &Path, subdir: &Path) -> Path {

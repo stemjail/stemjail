@@ -15,14 +15,12 @@
 extern crate iohandle;
 extern crate libc;
 
+use ffi::net;
 use self::iohandle::FileDesc;
 use self::libc::{size_t, c_void};
 use std::old_io as io;
 use std::old_io::net::pipe::UnixStream;
 use std::os::unix::{AsRawFd, Fd};
-
-#[path = "../../ffi/net.rs" ]
-mod net;
 
 #[repr(C)]
 struct FdPadding {
