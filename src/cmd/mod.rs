@@ -52,7 +52,7 @@ impl_json!(PortalCall);
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum MonitorCall {
-    Mount(mount::MountAction)
+    Mount(mount::MountAction),
 }
 impl_json!(MonitorCall);
 
@@ -70,8 +70,8 @@ pub enum PortalRequest {
 
 fn list_kage_cmds<'a>() -> Vec<Box<KageCommand + 'a>> {
     vec!(
-        Box::new(self::run::RunKageCmd::new()) as Box<KageCommand>,
         Box::new(self::mount::MountKageCmd::new()) as Box<KageCommand>,
+        Box::new(self::run::RunKageCmd::new()) as Box<KageCommand>,
     )
 }
 
