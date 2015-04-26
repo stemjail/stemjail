@@ -56,13 +56,14 @@ fn portal_handle(stream: UnixStream, portal: &Portal) -> Result<(), String> {
 
 // TODO: Handle return error
 fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(), String> {
-    let (_, decoded_str) = try!(read_stream(stream));
+    let (bstream, decoded_str) = try!(read_stream(stream));
     let decoded = match MonitorCall::decode(&decoded_str) {
         Ok(d) => d,
         Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
     };
     match decoded {
         MonitorCall::Mount(action) => action.call(cmd_tx),
+        MonitorCall::Shim(action) => action.call(cmd_tx, bstream),
     }
 }
 

@@ -37,6 +37,7 @@ macro_rules! impl_json {
 
 pub mod mount;
 pub mod run;
+pub mod shim;
 
 pub trait KageCommand {
     fn get_name<'a>(&'a self) -> &'a String;
@@ -53,6 +54,7 @@ impl_json!(PortalCall);
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum MonitorCall {
     Mount(mount::MountAction),
+    Shim(shim::ShimAction),
 }
 impl_json!(MonitorCall);
 
@@ -72,6 +74,7 @@ fn list_kage_cmds<'a>() -> Vec<Box<KageCommand + 'a>> {
     vec!(
         Box::new(self::mount::MountKageCmd::new()) as Box<KageCommand>,
         Box::new(self::run::RunKageCmd::new()) as Box<KageCommand>,
+        Box::new(self::shim::ShimKageCmd::new()) as Box<KageCommand>,
     )
 }
 

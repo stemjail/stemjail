@@ -45,9 +45,10 @@ use std::thread;
 pub use self::session::Stdio;
 
 mod session;
-mod util;
 
-static WORKDIR_PARENT: &'static str = "./parent";
+pub mod util;
+
+pub static WORKDIR_PARENT: &'static str = "./parent";
 
 pub trait JailFn: Send + Debug {
     fn call(&mut self, &Jail);
@@ -205,6 +206,7 @@ impl<'a> Jail<'a> {
         let excludes = if bind.from_parent {
             // Protect parent process listing
             // FIXME: Force bind.src to be an absolute path
+            // TODO: Factore with cmd/shim
             if bind.src.starts_with("/proc") {
                 warn!("Access to parent/proc denied");
                 return Err(io::Error::new(ErrorKind::PermissionDenied, "Access denied to parent /proc"));
