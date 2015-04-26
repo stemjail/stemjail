@@ -50,7 +50,7 @@ mod util;
 static WORKDIR_PARENT: &'static str = "./parent";
 
 pub trait JailFn: Send + Debug {
-    fn call(&self, &Jail);
+    fn call(&mut self, &Jail);
 }
 
 // TODO: Add tmpfs prelude to not pollute the root
@@ -660,16 +660,16 @@ impl<'a> Jail<'a> {
                     let event = events.wait();
                     if event == cmd_handle.id() {
                         match cmd_handle.recv() {
-                            Ok(f) => {
+                            Ok(mut f) => {
                                 debug!("Got command {:?}", f);
                                 f.call(self);
                             }
-                            Err(e) => warn!("Failed to receive mount command: {}", e),
+                            Err(e) => warn!("Failed to receive the command: {}", e),
                         }
                     } else if event == child_handle.id() {
                         match child_handle.recv() {
                             Ok(..) => break 'main,
-                            Err(e) => warn!("Failed to receive mount command: {}", e),
+                            Err(e) => warn!("Failed to receive the command: {}", e),
                         }
                     } else {
                         panic!("Received unknown event");
