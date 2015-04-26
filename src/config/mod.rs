@@ -46,7 +46,7 @@ pub fn get_config<T, U>(config_file: T) -> Result<U, ConfigError>
 pub fn get_configs<T, U>(profile_dir: T) -> Result<Vec<U>, ConfigError>
         where T: AsRef<Path>, U: Decodable {
     let mut ret = vec!();
-    for file in try!(fs::walk_dir(profile_dir)) {
+    for file in try!(fs::read_dir(profile_dir)) {
         let file = try!(file).path();
         match file.extension() {
             Some(ext) => {

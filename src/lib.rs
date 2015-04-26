@@ -15,7 +15,6 @@
 #![feature(collections)]
 #![feature(convert)]
 #![feature(core)]
-#![feature(fs_walk)]
 #![feature(io)]
 #![feature(libc)]
 #![feature(old_io)]
