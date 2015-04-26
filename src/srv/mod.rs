@@ -21,6 +21,7 @@ use jail::JailFn;
 use std::fs;
 use std::old_io::{Acceptor, Buffer, BufferedStream, IoErrorKind, Listener, Writer};
 use std::old_io::net::pipe::{UnixListener, UnixStream};
+use std::process::exit;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
@@ -90,15 +91,18 @@ pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
     Ok(())
 }
 
-// TODO: Handle return error
+// FIXME: Handle return error
 pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     let server = MONITOR_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
     let mut acceptor = match UnixListener::bind(&server).listen() {
         Err(e) => {
-            warn!("Failed to listen to {:?}: {}", server, e);
-            return;
+            // Can failed because of read-only FS/directory (e.g. no tmpfs for the socket) and then
+            // the monitor will fail to receive any command.
+            error!("Failed to listen to {:?}: {}", server, e);
+            // FIXME: Handle return error instead of exit
+            exit(1);
         }
         Ok(v) => v,
     };
