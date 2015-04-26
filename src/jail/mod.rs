@@ -458,24 +458,34 @@ impl<'a> Jail<'a> {
         // Devices
         try!(self.init_dev("/dev"));
 
-        // Finalize the pivot
-        let workdir = EphemeralDir::new();
+        // Prepare a private working directory
+        let pid = unsafe { libc::getpid() };
+        let workdir = PathBuf::from(format!("proc/{}/fdinfo", pid));
+
+        // Backup the original proc entry
+        let workdir_bkp = PathBuf::from(format!("proc/{}/fd", pid));
+        let mut bind = BindMount::new(workdir.clone(), workdir_bkp.clone());
+        bind.write = true;
+        try!(self.add_bind(&bind, true));
+
         // Save the workdir path to be able to exclude it from mount points
-        self.workdir = Some(Path::new("/").join(workdir.get_relative_path().clone()));
-        // Create the monitor (hidden) working directory
-        try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: workdir.get_relative_path().to_path_buf() }));
-        let parent = workdir.get_relative_path().join(WORKDIR_PARENT);
+        let workdir_abs = Path::new("/").join(&workdir);
+        self.workdir = Some(workdir_abs.clone());
+
+        // Create the monitor working directory
+        try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: PathBuf::from(&workdir) }));
+        let parent = workdir.join(WORKDIR_PARENT);
         // FIXME: Set umask to !io::USER_RWX
         try!(create_dir(&parent));
+
         // TODO: Bind mount the parent root to be able to drop mount branches (i.e. domain transitions)
         try!(pivot_root(&self.root.dst, &parent));
-        // Keep the workdir open (e.g. jail transitions)
-        try!(env::set_current_dir(workdir.get_relative_path()));
-        // Hide the workdir
-        drop(workdir);
 
-        // Cleanup parent mounts (for the clients)
-        //try!(umount(&parent, &fs0::MNT_DETACH));
+        // Keep the workdir open (e.g. jail transitions)
+        try!(env::set_current_dir(&workdir));
+
+        // Hide the workdir
+        try!(mount(&Path::new("/").join(&workdir_bkp), &workdir_abs, "none", &fs::MS_MOVE, &None));
         Ok(())
     }
 

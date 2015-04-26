@@ -53,6 +53,7 @@ pub mod raw {
     }
 
     // Syscall numbers from x86_64-linux-gnu/asm/unistd_64.h
+    #[allow(dead_code)]
     #[cfg(target_arch="x86_64")]
     pub fn gettid() -> pid_t {
         unsafe { sc0::syscall(186) as pid_t }
@@ -102,7 +103,6 @@ pub fn pivot_root<T,U>(new_root: T, put_old: U) -> io::Result<()>
     }
 }
 
-#[allow(dead_code)]
 pub fn umount<T>(target: T, flags: &fs0::MntFlags) -> io::Result<()> where T: AsRef<Path> {
     let target = try!(CString::new(path2bytes!(&target)));
     match unsafe { raw::umount2(target.as_ptr(), flags.bits()) } {

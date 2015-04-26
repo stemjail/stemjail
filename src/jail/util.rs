@@ -15,14 +15,12 @@
 extern crate libc;
 extern crate rand;
 
-use ffi::ns::{fs0, raw, umount};
+use ffi::ns::{fs0, umount};
 use self::rand::Rng;
 use std::fs::{PathExt, File, create_dir, create_dir_all, remove_dir};
 use std::io;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Sender};
-use std::thread;
 
 /// Concatenate two paths (different from `join()`)
 pub fn nest_path<T, U>(root: T, subdir: U) -> PathBuf where T: AsRef<Path>, U: AsRef<Path> {
@@ -106,54 +104,6 @@ pub fn create_same_type<T, U>(src: T, dst: U) -> io::Result<()>
         try!(touch_if_not(dst));
     }
     Ok(())
-}
-
-/// Create a directory and make it disappear when dropped.
-/// This work even when the directory is in use.
-pub struct EphemeralDir<'a> {
-    delete_tx: Sender<()>,
-    rel_path: PathBuf,
-    guard: Option<thread::JoinGuard<'a, ()>>,
-}
-
-#[cfg(target_os = "linux")]
-impl<'a> EphemeralDir<'a> {
-    pub fn new() -> EphemeralDir<'a> {
-        let (tid_tx, tid_rx) = channel();
-        let (delete_tx, delete_rx) = channel();
-        let guard = thread::scoped(move || {
-            // get[pt]id(2) are always successful
-            let tid_path = format!("proc/{}/task/{}/fdinfo",
-                                   unsafe { libc::getpid() },
-                                   raw::gettid());
-            let _ = tid_tx.send(tid_path);
-            // Block to keep the ephemeral directory usable
-            let _ = delete_rx.recv();
-        });
-        let rel_path = match tid_rx.recv() {
-            Ok(v) => PathBuf::from(v),
-            Err(e) => panic!("Failed to create an ephemeral directory: {}", e),
-        };
-        EphemeralDir {
-            delete_tx: delete_tx,
-            rel_path: rel_path,
-            guard: Some(guard),
-        }
-    }
-
-    pub fn get_relative_path(&self) -> &Path {
-        self.rel_path.as_ref()
-    }
-}
-
-#[unsafe_destructor]
-impl<'a> Drop for EphemeralDir<'a> {
-    fn drop(&mut self) {
-        let _ = self.delete_tx.send(());
-        if let Some(guard) = self.guard.take() {
-            let _ = guard.join();
-        }
-    }
 }
 
 pub struct TmpWorkDir {
