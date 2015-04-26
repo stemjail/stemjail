@@ -21,9 +21,6 @@ extern crate rustc_serialize;
 
 use rustc_serialize::json;
 
-pub mod mount;
-pub mod run;
-
 // TODO: Replace with generic trait
 macro_rules! impl_json {
     ($name: ty) => {
@@ -37,6 +34,9 @@ macro_rules! impl_json {
         }
     }
 }
+
+pub mod mount;
+pub mod run;
 
 pub trait KageCommand {
     fn get_name<'a>(&'a self) -> &'a String;
