@@ -69,9 +69,10 @@ impl RunRequest {
             },
             Err(e) => return Err(format!("Failed to receive the profile response: {}", e)),
         };
-        let args = match self.command.iter().next() {
-            Some(_) => self.command.clone(),
-            None => config.run.cmd.clone(),
+        let args = if self.command.len() > 0 {
+            self.command.clone()
+        } else {
+            config.run.cmd.clone()
         };
         let exe = match args.iter().next() {
             Some(c) => c.clone(),
@@ -79,7 +80,7 @@ impl RunRequest {
         };
         let cwd = match env::current_dir() {
             Ok(d) => d,
-            Err(e) => return Err(format!("Failed to get CWD: {}", e)),
+            Err(e) => return Err(format!("Failed to get the current directory: {}", e)),
         };
 
         let mut j = jail::Jail::new(
