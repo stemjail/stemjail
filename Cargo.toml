@@ -23,3 +23,6 @@ version = ">= 0.2.0"
 [dependencies.pty]
 path = "../pty-rs"
 version = ">= 0.1.0"
+
+[dependencies.stemflow]
+path = "../stemflow"

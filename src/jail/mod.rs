@@ -14,6 +14,7 @@
 
 #![allow(deprecated)]
 
+use config::profile::JailDom;
 use EVENT_TIMEOUT;
 use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare};
@@ -80,9 +81,11 @@ pub struct TmpfsMount<'a> {
 
 // TODO: Add UUID
 pub struct Jail<'a> {
+    // Jail description
     name: String,
+    // Always the root
     root: BindMount,
-    binds: Vec<BindMount>,
+    dom: JailDom,
     tmps: Vec<TmpfsMount<'a>>,
     stdio: Option<Stdio>,
     pid: Arc<RwLock<Option<pid_t>>>,
@@ -92,19 +95,15 @@ pub struct Jail<'a> {
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, root: PathBuf, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
+    pub fn new(name: String, root: PathBuf, dom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
         // TODO: Use TmpWorkDir
         let tmp_dir = PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() }));
-        // Hack to cleanly manage the root bind mount
-        let mut root_binds = vec!(BindMount::new(root.clone(), PathBuf::from("/")));
-        root_binds.push_all(binds.as_slice());
-        //let root_binds = binds;
         Jail {
             name: name,
             // TODO: Add a fallback for root.dst
             root: BindMount::new(root, tmp_dir),
-            binds: root_binds,
+            dom: dom,
             tmps: tmps,
             stdio: None,
             pid: Arc::new(RwLock::new(None)),
@@ -436,7 +435,10 @@ impl<'a> Jail<'a> {
         let dev_path = PathBuf::from("/dev");
         let proc_path = PathBuf::from("/proc");
         let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
-        let all_binds = try!(self.expand_binds(self.binds.clone(), &exclude_binds));
+        // Hack to cleanly manage the root bind mount
+        let mut root_binds = vec!(BindMount::new(self.root.src.clone(), PathBuf::from("/")));
+        root_binds.push_all(self.dom.binds.as_ref());
+        let all_binds = try!(self.expand_binds(root_binds, &exclude_binds));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }

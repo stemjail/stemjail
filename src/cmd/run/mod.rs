@@ -21,7 +21,6 @@ use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
 use srv::{ManagerAction, ManagerCall};
-use std::env;
 use std::old_io::net::pipe::UnixStream;
 use std::path::PathBuf;
 use std::sync::mpsc::{Sender, channel};
@@ -62,7 +61,7 @@ impl RunRequest {
             Ok(()) => {},
             Err(e) => return Err(format!("Failed to send the profile request: {}", e)),
         };
-        let config = match response_rx.recv() {
+        let profile_dom = match response_rx.recv() {
             Ok(r) => match r {
                 Some(c) => c,
                 None => return Err(format!("No profile named `{}`", self.profile)),
@@ -72,35 +71,17 @@ impl RunRequest {
         let args = if self.command.len() > 0 {
             self.command.clone()
         } else {
-            config.run.cmd.clone()
+            profile_dom.cmd.clone()
         };
         let exe = match args.iter().next() {
             Some(c) => c.clone(),
             None => return Err("Missing executable in the command (first argument)".to_string()),
         };
-        let cwd = match env::current_dir() {
-            Ok(d) => d,
-            Err(e) => return Err(format!("Failed to get the current directory: {}", e)),
-        };
 
         let mut j = jail::Jail::new(
-            config.name.clone(),
+            profile_dom.name,
             PathBuf::from("/"),
-            match config.fs.bind {
-                Some(ref b) => b.iter().map(
-                    |x| {
-                        let mut bind = jail::BindMount::new(
-                            cwd.join(&x.path),
-                            cwd.join(&x.path)
-                            );
-                        bind.write = match x.write {
-                            Some(w) => w,
-                            None => false,
-                        };
-                        bind
-                    }).collect(),
-                None => Vec::new(),
-            },
+            profile_dom.dom,
             vec!()
         );
 

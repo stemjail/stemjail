@@ -12,6 +12,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+use jail::BindMount;
+use std::env;
+use std::path::PathBuf;
+use std::sync::Arc;
+use stemflow::{Action, Domain, FileAccess, RcDomain, SetAccess};
+
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct ProfileConfig {
     pub name: String,
@@ -34,6 +40,66 @@ pub struct BindConfig {
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct RunConfig {
     pub cmd: Vec<String>,
+}
+
+
+impl<'a> Into<Vec<Arc<FileAccess>>> for &'a BindConfig {
+    /// Assume there is no relative path, otherwise they are ignored
+    fn into(self) -> Vec<Arc<FileAccess>> {
+        // TODO: Map between outside/src and inside/dst
+        let path = PathBuf::from(self.path.clone());
+        // TODO: Put the default policy in unique place
+        let file_access = if self.write.unwrap_or(false) {
+            FileAccess::new_rw(path)
+        } else {
+            FileAccess::new_ro(path)
+        };
+        match file_access {
+            Ok(fa) => fa.into_iter().map(|x| Arc::new(x)).collect(),
+            Err(()) => vec!(),
+        }
+    }
+}
+
+impl Into<Vec<Arc<FileAccess>>> for ProfileConfig {
+    fn into(self) -> Vec<Arc<FileAccess>> {
+        match self.fs.bind {
+            Some(bind) => bind.into_iter().map(|x| Into::<Vec<Arc<FileAccess>>>::into(&x))
+                .flat_map(|x| x.into_iter()).collect(),
+            None => vec!(),
+        }
+    }
+}
+
+pub struct ProfileDom {
+    pub name: String,
+    pub cmd: Vec<String>,
+    pub dom: JailDom,
+}
+
+pub struct JailDom {
+    pub binds: Vec<BindMount>,
+    pub dom: Arc<Domain>,
+}
+
+impl From<Arc<Domain>> for JailDom {
+    /// Loosely conversion: merge read and write into read-write, ignore write-only)
+    fn from(other: Arc<Domain>) -> JailDom {
+        // TODO: Remove unwrap
+        let cwd = env::current_dir().unwrap();
+        // For each read access, if the path match a write access, then RW, else RO
+        let binds = other.acl.range_read().map(|access_read| {
+            let access_write = FileAccess::new(access_read.path.clone(), Action::Write).unwrap();
+            let path = cwd.join(access_read.as_ref());
+            let mut bind = BindMount::new(path.clone(), path);
+            bind.write = other.is_allowed(&Arc::new(access_write));
+            bind
+        }).collect();
+        JailDom {
+            binds: binds,
+            dom: other,
+        }
+    }
 }
 
 

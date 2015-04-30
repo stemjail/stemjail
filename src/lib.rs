@@ -36,6 +36,7 @@ extern crate mnt;
 extern crate pty;
 extern crate rand;
 extern crate rustc_serialize;
+extern crate stemflow;
 extern crate toml;
 
 pub mod cmd;

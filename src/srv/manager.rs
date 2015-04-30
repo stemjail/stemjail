@@ -13,7 +13,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use config::portal::Portal;
-use config::profile::ProfileConfig;
+use config::profile::ProfileDom;
 use std::sync::mpsc::{Receiver, Sender};
 
 pub enum ManagerAction {
@@ -22,18 +22,39 @@ pub enum ManagerAction {
 
 pub struct ManagerCall {
     pub action: ManagerAction,
-    pub response: Sender<Option<ProfileConfig>>,
+    pub response: Sender<Option<ProfileDom>>,
 }
 
-pub fn manager_listen(portal: Portal, manager_rx: Receiver<ManagerCall>) {
+pub fn manager_listen(mut portal: Portal, manager_rx: Receiver<ManagerCall>) {
     'listen: loop {
         match manager_rx.recv() {
             Ok(req) => {
                 match req.action {
                     ManagerAction::NewDom(name) => {
-                        let config = portal.profile(name).cloned();
+                        let cmd = {
+                            match portal.profile(&name) {
+                                Some(config) => Some(config.run.cmd.clone()),
+                                None => None,
+                            }
+                        };
+                        let msg = match cmd {
+                            Some(cmd) => {
+                                match portal.domain(&name) {
+                                    Some(dom) => Some(ProfileDom {
+                                        name: name,
+                                        cmd: cmd,
+                                        dom: dom.into(),
+                                    }),
+                                    None => {
+                                        error!("No domain found for the config: {:?}", name);
+                                        None
+                                    }
+                                }
+                            }
+                            None => None,
+                        };
                         // Do not block
-                        match req.response.send(config) {
+                        match req.response.send(msg) {
                             Ok(()) => {}
                             Err(_) => break 'listen,
                         }
