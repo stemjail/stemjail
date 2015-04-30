@@ -12,33 +12,33 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#[derive(Debug, RustcDecodable, PartialEq)]
+#[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct ProfileConfig {
     pub name: String,
     pub fs: FsConfig,
     pub run: RunConfig,
 }
 
-#[derive(Debug, RustcDecodable, PartialEq)]
+#[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct FsConfig {
     pub root: String,
     pub bind: Option<Vec<BindConfig>>,
     pub tmp: Option<Vec<TmpConfig>>,
 }
 
-#[derive(Debug, RustcDecodable, PartialEq)]
+#[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct BindConfig {
     pub src: String,
     pub dst: Option<String>,
     pub write: Option<bool>,
 }
 
-#[derive(Debug, RustcDecodable, PartialEq)]
+#[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct TmpConfig {
     pub dir: String,
 }
 
-#[derive(Debug, RustcDecodable, PartialEq)]
+#[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct RunConfig {
     pub cmd: Vec<String>,
 }

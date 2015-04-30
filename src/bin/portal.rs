@@ -21,7 +21,6 @@ extern crate env_logger;
 extern crate log;
 extern crate stemjail;
 
-use std::sync::Arc;
 use stemjail::config::get_configs;
 use stemjail::config::portal::Portal;
 use stemjail::srv::portal_listen;
@@ -40,15 +39,17 @@ fn main() {
     env_logger::init().unwrap();
 
     // TODO: Add dynamic configuration reload
-    let portal = Arc::new(Portal {
-        configs: match get_configs(stemjail::PORTAL_PROFILES_PATH) {
+    let portal = Portal::new(
+        match get_configs(stemjail::PORTAL_PROFILES_PATH) {
             Ok(c) => c,
             Err(e) => exit_error!("Failed to get configuration: {}", e),
         }
-    });
-    let names: Vec<&String> = portal.configs.iter().map(|x| &x.name ).collect();
-    info!("Loaded configurations: {:?}", names);
-    match portal_listen(portal.clone()) {
+    );
+    {
+        let names: Vec<&String> = portal.configs.iter().map(|x| &x.name ).collect();
+        info!("Loaded configurations: {:?}", names);
+    }
+    match portal_listen(portal) {
         Ok(_) => {},
         Err(e) => exit_error!("Failed to listen for clients: {}", e),
     }

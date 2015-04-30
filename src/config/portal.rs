@@ -17,3 +17,11 @@ use super::profile::ProfileConfig;
 pub struct Portal {
     pub configs: Vec<ProfileConfig>,
 }
+
+impl Portal {
+    pub fn new(configs: Vec<ProfileConfig>) -> Portal {
+        Portal {
+            configs: configs,
+        }
+    }
+}

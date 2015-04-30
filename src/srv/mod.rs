@@ -18,6 +18,7 @@ use cmd::{MonitorCall, PortalCall};
 use config::portal::Portal;
 use {EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
 use jail::JailFn;
+use self::manager::manager_listen;
 use std::fs;
 use std::old_io::{Acceptor, Buffer, BufferedStream, IoErrorKind, Listener, Writer};
 use std::old_io::net::pipe::{UnixListener, UnixStream};
@@ -25,8 +26,12 @@ use std::process::exit;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Sender, channel};
 use std::thread;
+
+pub use srv::manager::{ManagerAction, ManagerCall};
+
+mod manager;
 
 fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String), String> {
     let mut bstream = BufferedStream::new(stream);
@@ -41,7 +46,7 @@ fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String
     Ok((bstream, encoded))
 }
 
-fn portal_handle(stream: UnixStream, portal: &Portal) -> Result<(), String> {
+fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerCall>) -> Result<(), String> {
     let (bstream, decoded_str) = try!(read_stream(stream));
     let decoded = match PortalCall::decode(&decoded_str) {
         Ok(d) => d,
@@ -51,7 +56,7 @@ fn portal_handle(stream: UnixStream, portal: &Portal) -> Result<(), String> {
 
     // Use the client command if any or the configuration command otherwise
     match decoded {
-        PortalCall::Run(action) => action.call(stream, portal),
+        PortalCall::Run(action) => action.call(stream, manager_tx),
     }
 }
 
@@ -68,26 +73,37 @@ fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(),
     }
 }
 
-pub fn portal_listen(portal: Arc<Portal>) -> Result<(), String> {
+fn portal_ext_listen(manager_tx: Sender<ManagerCall>) {
     let server = PORTAL_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
     let stream = UnixListener::bind(&server);
-    for stream in stream.listen().incoming() {
-        match stream {
-            Ok(s) => {
-                let portal = portal.clone();
+    for client in stream.listen().incoming() {
+        match client {
+            Ok(c) => {
+                let manager_tx = manager_tx.clone();
                 // TODO: Join all threads
-                thread::spawn(move || {
-                    match portal_handle(s, &*portal) {
+                thread::spawn(|| {
+                    match portal_handle(c, manager_tx) {
                         Ok(_) => {},
-                        Err(e) => println!("Error handling client: {}", e),
+                        Err(e) => error!("Error handling client: {}", e),
                     }
                 });
             }
-            Err(e) => return Err(format!("Connection error: {}", e)),
+            Err(e) => {
+                warn!("Portal connection error: {}", e);
+                return;
+            }
         }
     }
+}
+
+pub fn portal_listen(portal: Portal) -> Result<(), String> {
+    let (manager_tx, manager_rx) = channel();
+    thread::spawn(|| portal_ext_listen(manager_tx));
+
+    // Spawn the domain manager on the current thread
+    manager_listen(portal, manager_rx);
     Ok(())
 }
 
@@ -112,7 +128,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
             Ok(s) => {
                 let client_cmd_fn = cmd_tx.clone();
                 // TODO: Join all threads
-                thread::spawn(move || {
+                thread::spawn(|| {
                     // TODO: Forward the quit event to monitor_handle
                     match monitor_handle(s, client_cmd_fn) {
                         Ok(_) => {},

@@ -16,14 +16,15 @@
 
 /// `Request::call(&self, RequestInit)` use `RequestFsm`
 
-use config::portal::Portal;
 use getopts::Options;
 use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
+use srv::{ManagerAction, ManagerCall};
 use std::env;
 use std::old_io::net::pipe::UnixStream;
 use std::path::PathBuf;
+use std::sync::mpsc::{Sender, channel};
 use super::{PortalAck, PortalRequest};
 
 mod fsm_kage;
@@ -35,9 +36,9 @@ pub enum RunAction {
 }
 
 impl RunAction {
-    pub fn call(&self, stream: UnixStream, portal: &Portal) -> Result<(), String> {
+    pub fn call(&self, stream: UnixStream, manager_tx: Sender<ManagerCall>) -> Result<(), String> {
         match self {
-            &RunAction::DoRun(ref req) => req.call(RequestFsm::new(stream), portal),
+            &RunAction::DoRun(ref req) => req.call(RequestFsm::new(stream), manager_tx),
         }
     }
 }
@@ -50,10 +51,23 @@ pub struct RunRequest {
 }
 
 impl RunRequest {
-    fn call(&self, machine: RequestInit, portal: &Portal) -> Result<(), String> {
-        let config = match portal.configs.iter().find(|c| { c.name == self.profile }) {
-            Some(c) => c,
-            None => return Err(format!("No profile named `{}`", self.profile)),
+    fn call(&self, machine: RequestInit, manager_tx: Sender<ManagerCall>) -> Result<(), String> {
+        let (response_tx, response_rx) = channel();
+        let call = ManagerCall {
+            action: ManagerAction::NewDom(self.profile.clone()),
+            response: response_tx,
+        };
+        // TODO: Add error typing
+        match manager_tx.send(call) {
+            Ok(()) => {},
+            Err(e) => return Err(format!("Failed to send the profile request: {}", e)),
+        };
+        let config = match response_rx.recv() {
+            Ok(r) => match r {
+                Some(c) => c,
+                None => return Err(format!("No profile named `{}`", self.profile)),
+            },
+            Err(e) => return Err(format!("Failed to receive the profile response: {}", e)),
         };
         let args = match self.command.iter().next() {
             Some(_) => self.command.clone(),
