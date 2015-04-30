@@ -2,16 +2,9 @@
 
 name = "example1"
 
-[fs]
-root = "./tmp-chroot"
-
 [[fs.bind]]
-src = "/tmp"
+path = "/tmp"
 write = true
-
-[[fs.bind]]
-src = "/home"
-dst = "/data-ro"
 
 [run]
 cmd = ["/bin/sh", "-c", "id"]

@@ -21,27 +21,21 @@ pub struct ProfileConfig {
 
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct FsConfig {
-    pub root: String,
     pub bind: Option<Vec<BindConfig>>,
-    pub tmp: Option<Vec<TmpConfig>>,
 }
 
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct BindConfig {
-    pub src: String,
-    pub dst: Option<String>,
+    // TODO: Force absolute path
+    pub path: String,
     pub write: Option<bool>,
-}
-
-#[derive(Clone, Debug, RustcDecodable, PartialEq)]
-pub struct TmpConfig {
-    pub dir: String,
 }
 
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct RunConfig {
     pub cmd: Vec<String>,
 }
+
 
 #[test]
 fn test_get_config_example1() {
@@ -53,20 +47,12 @@ fn test_get_config_example1() {
     let c2 = ProfileConfig {
         name: "example1".to_string(),
         fs: FsConfig {
-            root: "./tmp-chroot".to_string(),
             bind: Some(vec!(
                 BindConfig {
-                    src: "/tmp".to_string(),
-                    dst: None,
+                    path: "/tmp".to_string(),
                     write: Some(true),
                 },
-                BindConfig {
-                    src: "/home".to_string(),
-                    dst: Some("/data-ro".to_string()),
-                    write: None,
-                },
             )),
-            tmp: None,
         },
         run: RunConfig {
             cmd: vec!("/bin/sh".to_string(), "-c".to_string(), "id".to_string()),
@@ -85,17 +71,14 @@ fn test_get_config_example2() {
     let c2 = ProfileConfig {
         name: "example2".to_string(),
         fs: FsConfig {
-            root: "/".to_string(),
             bind: Some(vec!(
                 BindConfig {
-                    src: "/dev/shm".to_string(),
-                    dst: Some("/run".to_string()),
+                    path: "/dev/shm".to_string(),
                     write: Some(true),
                 },
-            )),
-            tmp: Some(vec!(
-                TmpConfig {
-                    dir: "/tmp".to_string(),
+                BindConfig {
+                    path: "/tmp".to_string(),
+                    write: Some(true),
                 },
             )),
         },

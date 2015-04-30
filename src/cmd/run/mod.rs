@@ -85,16 +85,14 @@ impl RunRequest {
 
         let mut j = jail::Jail::new(
             config.name.clone(),
-            cwd.join(&config.fs.root),
+            PathBuf::from("/"),
             match config.fs.bind {
                 Some(ref b) => b.iter().map(
                     |x| {
                         let mut bind = jail::BindMount::new(
-                            cwd.join(&x.src),
-                            match x.dst {
-                                Some(ref d) => cwd.join(d),
-                                None => cwd.join(&x.src),
-                            });
+                            cwd.join(&x.path),
+                            cwd.join(&x.path)
+                            );
                         bind.write = match x.write {
                             Some(w) => w,
                             None => false,
@@ -103,14 +101,7 @@ impl RunRequest {
                     }).collect(),
                 None => Vec::new(),
             },
-            match config.fs.tmp {
-                Some(ref b) => b.iter().map(
-                    |x| jail::TmpfsMount {
-                        name: None,
-                        dst: PathBuf::from(&x.dir),
-                    }).collect(),
-                None => Vec::new(),
-            }
+            vec!()
         );
 
         let ack = PortalAck {

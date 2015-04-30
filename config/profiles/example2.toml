@@ -2,16 +2,13 @@
 
 name = "example2"
 
-[fs]
-root = "/"
-
 [[fs.bind]]
-src = "/dev/shm"
-dst = "/run"
+path = "/dev/shm"
 write = true
 
-[[fs.tmp]]
-dir = "/tmp"
+[[fs.bind]]
+path = "/tmp"
+write = true
 
 [run]
 cmd = ["/usr/bin/setsid", "-c", "/bin/sh"]
