@@ -1,0 +1,18 @@
+# Portal profile example #2
+
+name = "example2-transition1"
+
+[[fs.bind]]
+path = "/dev/shm"
+write = true
+
+[[fs.bind]]
+path = "/var/tmp"
+write = true
+
+[[fs.bind]]
+path = "/tmp"
+write = true
+
+[run]
+cmd = ["/usr/bin/setsid", "-c", "/bin/sh"]
