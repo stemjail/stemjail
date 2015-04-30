@@ -17,8 +17,6 @@
 /// enum `MonitorCall` -> custom cmd { enum Action -> struct Request }
 /// struct `PortalAck` -> `PartalRequest`
 
-extern crate rustc_serialize;
-
 use rustc_serialize::json;
 
 // TODO: Replace with generic trait

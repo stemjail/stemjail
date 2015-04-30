@@ -12,11 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-extern crate libc;
-extern crate rand;
-
 use ffi::ns::{fs0, umount};
-use self::rand::Rng;
+use rand::{Rng, thread_rng};
 use std::fs::{PathExt, File, create_dir, create_dir_all, remove_dir};
 use std::io;
 use std::io::ErrorKind;
@@ -115,7 +112,7 @@ pub struct TmpWorkDir {
 impl TmpWorkDir {
     // Can't use TempDir because it create an absolute path (through the removed workdir)
     pub fn new(prefix: &str) -> io::Result<Self> {
-        let tmp_suffix: String = rand::thread_rng().gen_ascii_chars().take(12).collect();
+        let tmp_suffix: String = thread_rng().gen_ascii_chars().take(12).collect();
         let tmp_dir = PathBuf::from(format!("./tmp_{}_{}", prefix, tmp_suffix));
         // With very bad luck, the command will fail :(
         // FIXME: Set umask to !io::USER_RWX

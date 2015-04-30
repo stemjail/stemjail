@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -14,12 +14,9 @@
 
 #![allow(deprecated)]
 
-extern crate iohandle;
-extern crate libc;
-
 use ffi::net;
-use self::iohandle::FileDesc;
-use self::libc::{size_t, c_void};
+use iohandle::FileDesc;
+use libc::{size_t, c_void};
 use std::io;
 use std::old_io::net::pipe::UnixStream;
 use std::os::unix::io::{AsRawFd, RawFd};

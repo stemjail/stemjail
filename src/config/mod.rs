@@ -12,14 +12,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_serialize;
-extern crate toml;
-
-use self::rustc_serialize::Decodable;
-use self::toml::Decoder;
+use rustc_serialize::Decodable;
 use std::fs;
-use std::path::Path;
 use std::io::Read;
+use std::path::Path;
+use toml;
 
 pub use self::error::ConfigError;
 
@@ -38,7 +35,7 @@ pub fn get_config<T, U>(config_file: T) -> Result<U, ConfigError>
         Some(r) => toml::Value::Table(r),
         None => return Err(ConfigError::new(format!("Parse error: {:?}", parser.errors))),
     };
-    let mut decoder = Decoder::new(toml);
+    let mut decoder = toml::Decoder::new(toml);
     let config = try!(Decodable::decode(&mut decoder));
     Ok(config)
 }

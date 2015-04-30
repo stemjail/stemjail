@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -11,8 +11,6 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
-
-extern crate libc;
 
 use std::env;
 use std::ffi::CString;
@@ -28,9 +26,7 @@ pub mod fs;
 pub mod fs0;
 
 pub mod raw {
-    extern crate libc;
-
-    use self::libc::{c_char, c_int, c_uint, c_ulong, pid_t};
+    use libc::{c_char, c_int, c_uint, c_ulong, pid_t};
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
@@ -45,7 +41,7 @@ pub mod raw {
 
     // Syscall without argument
     mod sc0 {
-        use super::libc::c_int;
+        use libc::c_int;
 
         extern {
             pub fn syscall(number: c_int) -> c_int;

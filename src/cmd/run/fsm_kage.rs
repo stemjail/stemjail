@@ -14,15 +14,12 @@
 
 /// Finite-state machine for a `KageCommand` call
 
-extern crate iohandle;
-extern crate libc;
-extern crate pty;
-
 use cmd::{PortalAck, PortalCall, PortalRequest};
 use fdpass;
+use iohandle::FileDesc;
+use libc;
 use PORTAL_SOCKET_PATH;
-use self::iohandle::FileDesc;
-use self::pty::TtyClient;
+use pty::TtyClient;
 use std::io;
 use std::marker::PhantomData;
 use std::old_io::{Buffer, BufferedStream, Writer};

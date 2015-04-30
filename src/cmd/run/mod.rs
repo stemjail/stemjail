@@ -16,13 +16,11 @@
 
 /// `Request::call(&self, RequestInit)` use `RequestFsm`
 
-extern crate getopts;
-
 use config::portal::Portal;
+use getopts::Options;
 use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
-use self::getopts::Options;
 use std::env;
 use std::old_io::net::pipe::UnixStream;
 use std::path::PathBuf;

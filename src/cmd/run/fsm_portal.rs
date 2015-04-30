@@ -14,12 +14,10 @@
 
 /// Finite-state machine for a `RunRequest` call
 
-extern crate iohandle;
-
 use cmd::PortalAck;
 use fdpass;
+use iohandle::FileDesc;
 use jail;
-use self::iohandle::FileDesc;
 use std::marker::PhantomData;
 use std::old_io::{BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;

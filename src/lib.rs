@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -28,7 +28,15 @@
 extern crate bitflags;
 #[macro_use]
 extern crate log;
+
+extern crate getopts;
+extern crate iohandle;
+extern crate libc;
+extern crate mnt;
+extern crate pty;
+extern crate rand;
 extern crate rustc_serialize;
+extern crate toml;
 
 pub mod cmd;
 pub mod config;

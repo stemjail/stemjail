@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -15,7 +15,7 @@
 use std::error::Error;
 use std::fmt;
 use std::io;
-use super::toml::DecodeError;
+use toml::DecodeError;
 
 #[derive(Debug)]
 pub struct ConfigError {

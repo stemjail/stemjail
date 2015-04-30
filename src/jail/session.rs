@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -12,11 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-extern crate iohandle;
-extern crate pty;
-
-use self::iohandle::FileDesc;
-use self::pty::TtyServer;
+use iohandle::FileDesc;
+use pty::TtyServer;
 use std::io;
 use std::path::Path;
 

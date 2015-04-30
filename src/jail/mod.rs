@@ -14,15 +14,12 @@
 
 #![allow(deprecated)]
 
-extern crate mnt;
-extern crate libc;
-
 use EVENT_TIMEOUT;
 use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare};
-use self::libc::funcs::posix88::unistd::{fork, setsid, getgid, getuid};
-use self::libc::types::os::arch::posix88::pid_t;
-use self::mount::{get_mount, get_submounts, MntOps, VecMountEntry};
+use libc;
+use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
+use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
 use self::util::*;
 use srv;
 use std::borrow::Cow::{Borrowed, Owned};
@@ -98,7 +95,7 @@ impl<'a> Jail<'a> {
     pub fn new(name: String, root: PathBuf, binds: Vec<BindMount>, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
         // TODO: Use TmpWorkDir
-        let tmp_dir = PathBuf::from(format!("/proc/{}/fdinfo", unsafe { libc::getpid() }));
+        let tmp_dir = PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() }));
         // Hack to cleanly manage the root bind mount
         let mut root_binds = vec!(BindMount::new(root.clone(), PathBuf::from("/")));
         root_binds.push_all(binds.as_slice());
@@ -461,7 +458,7 @@ impl<'a> Jail<'a> {
         try!(self.init_dev("/dev"));
 
         // Prepare a private working directory
-        let pid = unsafe { libc::getpid() };
+        let pid = unsafe { getpid() };
         let workdir = PathBuf::from(format!("proc/{}/fdinfo", pid));
 
         // Backup the original proc entry
@@ -683,15 +680,15 @@ impl<'a> Jail<'a> {
                 debug!("Jail child monitor exited");
                 let _ = cmd_thread.join();
                 debug!("Jail command monitor exited");
-                unsafe { libc::exit(0); }
+                unsafe { exit(0); }
             } else {
                 // Parent
                 drop(jail_pid_tx);
                 drop(slave_fd.take());
-                let mut status: libc::c_int = 0;
+                let mut status: c_int = 0;
                 // TODO: Replace waitpid(2) with wait(2)
                 let _ = unsafe { raw::waitpid(pid, &mut status, 0) };
-                unsafe { libc::exit(0); }
+                unsafe { exit(0); }
             }
         } else {
             // Parent
@@ -725,7 +722,7 @@ impl<'a> Jail<'a> {
             }});
             debug!("Waiting for child {} to terminate", pid);
             thread::spawn(move || {
-                let mut status: libc::c_int = 0;
+                let mut status: c_int = 0;
                 // TODO: Replace waitpid(2) with wait(2)
                 match unsafe { raw::waitpid(pid, &mut status, 0) } {
                     //-1 => panic!("Failed to wait for child {}", pid),

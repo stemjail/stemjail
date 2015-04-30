@@ -14,14 +14,12 @@
 
 #![allow(deprecated)]
 
-extern crate getopts;
-
+use getopts::Options;
 use jail::{Jail, JailFn, WORKDIR_PARENT};
 use jail::util::nest_path;
 use rustc_serialize::json;
 use self::fsm_kage::KageFsm;
 use self::fsm_monitor::MonitorFsmInit;
-use self::getopts::Options;
 use std::fmt;
 use std::fs;
 use std::io;

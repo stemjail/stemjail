@@ -1,4 +1,4 @@
-// Copyright (C) 2014 Mickaël Salaün
+// Copyright (C) 2014-2015 Mickaël Salaün
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -12,9 +12,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-extern crate libc;
-
-use self::libc::{c_int, size_t, ssize_t, c_uint, c_void};
+use libc::{c_int, size_t, ssize_t, c_uint, c_void};
 use std::io;
 use std::marker::PhantomData;
 use std::mem::{size_of, size_of_val};
@@ -23,9 +21,7 @@ use std::os::unix::io::AsRawFd;
 use std::ptr;
 
 pub mod raw {
-    extern crate libc;
-
-    use self::libc::{c_int, ssize_t, c_void};
+    use libc::{c_int, ssize_t, c_void};
 
     extern {
         pub fn recvmsg(sockfd: c_int, msg: *mut c_void, flags: c_int) -> ssize_t;
