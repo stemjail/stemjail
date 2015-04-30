@@ -31,7 +31,7 @@ pub fn manager_listen(portal: Portal, manager_rx: Receiver<ManagerCall>) {
             Ok(req) => {
                 match req.action {
                     ManagerAction::NewDom(name) => {
-                        let config = portal.configs.iter().find(|c| { c.name == name }).cloned();
+                        let config = portal.profile(name).cloned();
                         // Do not block
                         match req.response.send(config) {
                             Ok(()) => {}

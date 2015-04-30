@@ -12,10 +12,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
 use super::profile::ProfileConfig;
 
 pub struct Portal {
-    pub configs: Vec<ProfileConfig>,
+    configs: Vec<ProfileConfig>,
 }
 
 impl Portal {
@@ -23,5 +24,15 @@ impl Portal {
         Portal {
             configs: configs,
         }
+    }
+
+    pub fn profile<T>(&self, name: T) -> Option<&ProfileConfig> where T: AsRef<str> {
+        self.configs.iter().find(|c| { AsRef::<str>::as_ref(&c.name) == name.as_ref() })
+    }
+}
+
+impl fmt::Display for Portal {
+    fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
+        write!(out, "profiles: {:?}", self.configs.iter().map(|x| &x.name ).collect::<Vec<_>>())
     }
 }

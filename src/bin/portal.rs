@@ -45,10 +45,7 @@ fn main() {
             Err(e) => exit_error!("Failed to get configuration: {}", e),
         }
     );
-    {
-        let names: Vec<&String> = portal.configs.iter().map(|x| &x.name ).collect();
-        info!("Loaded configurations: {:?}", names);
-    }
+    info!("Loaded configuration: {}", portal);
     match portal_listen(portal) {
         Ok(_) => {},
         Err(e) => exit_error!("Failed to listen for clients: {}", e),
