@@ -33,9 +33,10 @@ macro_rules! impl_json {
     }
 }
 
-pub mod mount;
-pub mod run;
-pub mod shim;
+// Commands
+mod mount;
+mod run;
+mod shim;
 
 pub trait KageCommand {
     fn get_name<'a>(&'a self) -> &'a String;
