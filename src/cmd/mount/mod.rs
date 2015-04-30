@@ -90,15 +90,6 @@ impl MountKageCmd {
     }
 }
 
-macro_rules! get_path {
-    ($matches: expr, $name: expr) => {
-        match $matches.opt_str($name) {
-            Some(s) => PathBuf::from(s),
-            None => return Err(format!("Missing {} path", $name)),
-        }
-    }
-}
-
 impl super::KageCommand for MountKageCmd {
     fn get_name<'a>(&'a self) -> &'a String {
         &self.name
@@ -122,10 +113,7 @@ impl super::KageCommand for MountKageCmd {
         let src = get_path!(matches, "source");
         let dst = get_path!(matches, "destination");
 
-        // Check for remaining useless arguments
-        if ! matches.free.is_empty() {
-            return Err("Unknown trailing argument".to_string());
-        }
+        check_remaining!(matches);
 
         let req = MountRequest {
             bind: {

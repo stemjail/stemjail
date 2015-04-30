@@ -19,24 +19,14 @@
 
 use rustc_serialize::json;
 
-// TODO: Replace with generic trait
-macro_rules! impl_json {
-    ($name: ty) => {
-        impl $name {
-            pub fn decode(encoded: &String) -> json::DecodeResult<$name> {
-                json::decode(encoded.as_ref())
-            }
-            pub fn encode(&self) -> Result<String, json::EncoderError> {
-                json::encode(&self)
-            }
-        }
-    }
-}
+#[macro_use]
+mod util;
 
 // Commands
 mod mount;
 mod run;
 mod shim;
+
 
 pub trait KageCommand {
     fn get_name<'a>(&'a self) -> &'a String;

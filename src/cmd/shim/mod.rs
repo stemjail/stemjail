@@ -27,6 +27,7 @@ use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
+use super::util;
 
 mod fsm_kage;
 mod fsm_monitor;
@@ -82,16 +83,8 @@ impl<T> fmt::Debug for MonitorBundle<T> where T: fmt::Debug {
 }
 
 impl ListRequest {
-    // Forbid use of "." (i.e. the parent domain root directory)
     pub fn check(&self) -> Result<(), String> {
-        if ! self.path.is_absolute() {
-            return Err("The path is not absolute".to_string());
-        }
-        // TODO: Factore with jail.import_bind()
-        if self.path.starts_with("/proc") {
-            return Err("Access denied to /proc".to_string());
-        }
-        Ok(())
+        util::check_parent_path(&self.path)
     }
 }
 
@@ -150,15 +143,6 @@ impl ShimKageCmd {
     }
 }
 
-macro_rules! get_path {
-    ($matches: expr, $name: expr) => {
-        match $matches.opt_str($name) {
-            Some(s) => PathBuf::from(s),
-            None => return Err(format!("Missing {} path", $name)),
-        }
-    }
-}
-
 impl super::KageCommand for ShimKageCmd {
     fn get_name<'a>(&'a self) -> &'a String {
         &self.name
@@ -180,10 +164,7 @@ impl super::KageCommand for ShimKageCmd {
         }
         let path = get_path!(matches, "list");
 
-        // Check for remaining useless arguments
-        if ! matches.free.is_empty() {
-            return Err("Unknown trailing argument".to_string());
-        }
+        check_remaining!(matches);
 
         let req = ListRequest {
             path: path,
