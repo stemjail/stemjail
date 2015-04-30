@@ -216,6 +216,7 @@ impl<'a> Jail<'a> {
             let dst = devdir_full.join(dst);
             try!(soft_link(src, dst));
         }
+        try!(self.add_tmpfs(&TmpfsMount { name: Some("shm"), dst: devdir.join("shm") }));
 
         // Seal /dev
         // TODO: Drop the root user to realy seal something…
@@ -455,6 +456,7 @@ impl<'a> Jail<'a> {
         let dst = nest_path(&self.root.dst, &tmp.dst);
         let opt = "mode=0700";
         debug!("Creating tmpfs in {}", tmp.dst.display());
+        try!(mkdir_if_not(&dst));
         try!(mount(&name, &dst, "tmpfs", &flags, &Some(opt)));
         Ok(())
     }
