@@ -22,7 +22,7 @@ use std::marker::PhantomData;
 use std::old_io::{Buffer, BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;
 use std::old_path::posix::Path as OldPath;
-use super::{ShimAction, ListRequest, ListResponse};
+use super::{AccessRequest, ListRequest, ListResponse, ShimAction};
 
 macro_rules! fsm_next {
     ($myself: expr) => {
@@ -73,6 +73,22 @@ impl KageFsm<state::Init> {
         }
         match self.bstream.flush() {
             Ok(_) => Ok(fsm_next!(self)),
+            Err(e) => Err(format!("Failed to flush command: {}", e)),
+        }
+    }
+
+    pub fn send_access_request(mut self, req: AccessRequest) -> Result<(), String> {
+        let action = MonitorCall::Shim(ShimAction::Access(req));
+        let encoded = match action.encode() {
+            Ok(s) => s,
+            Err(e) => return Err(format!("Failed to encode command: {}", e)),
+        };
+        match self.bstream.write_line(encoded.as_ref()) {
+            Ok(_) => {},
+            Err(e) => return Err(format!("Failed to send command: {}", e)),
+        }
+        match self.bstream.flush() {
+            Ok(_) => Ok(()),
             Err(e) => Err(format!("Failed to flush command: {}", e)),
         }
     }

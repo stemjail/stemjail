@@ -63,7 +63,7 @@ impl MountRequest {
 }
 
 impl JailFn for MountRequest {
-    fn call(&mut self, jail: &Jail) {
+    fn call(&mut self, jail: &mut Jail) {
         let ret = jail.import_bind(&self.bind);
         // TODO: Send result to client
         debug!("Mount result: {:?}", ret);

@@ -39,6 +39,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread;
+use stemflow::{FileAccess, RcDomain};
 
 pub use self::session::Stdio;
 
@@ -49,7 +50,7 @@ pub mod util;
 pub static WORKDIR_PARENT: &'static str = "./parent";
 
 pub trait JailFn: Send + Debug {
-    fn call(&mut self, &Jail);
+    fn call(&mut self, &mut Jail);
 }
 
 // TODO: Add tmpfs prelude to not pollute the root
@@ -85,7 +86,7 @@ pub struct Jail<'a> {
     name: String,
     // Always the root
     root: BindMount,
-    dom: JailDom,
+    jdom: JailDom,
     tmps: Vec<TmpfsMount<'a>>,
     stdio: Option<Stdio>,
     pid: Arc<RwLock<Option<pid_t>>>,
@@ -95,7 +96,7 @@ pub struct Jail<'a> {
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, root: PathBuf, dom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
+    pub fn new(name: String, root: PathBuf, jdom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
         // TODO: Use TmpWorkDir
         let tmp_dir = PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() }));
@@ -103,12 +104,44 @@ impl<'a> Jail<'a> {
             name: name,
             // TODO: Add a fallback for root.dst
             root: BindMount::new(root, tmp_dir),
-            dom: dom,
+            jdom: jdom,
             tmps: tmps,
             stdio: None,
             pid: Arc::new(RwLock::new(None)),
             end_event: None,
             workdir: None,
+        }
+    }
+
+    // FIXME: Exclude /dev and /proc in the configurations
+    pub fn gain_access(&mut self, acl: Vec<FileAccess>) -> Result<(), ()> {
+        let acl = acl.into_iter().map(|x| Arc::new(x)).collect();
+        match self.jdom.dom.reachable(&acl) {
+            Some(dom) => {
+                // TODO: Compare the reference
+                if dom == self.jdom.dom {
+                    debug!("Current domain already allow this access");
+                    return Ok(());
+                }
+                let prev = self.jdom.dom.name.clone();
+                self.jdom = dom.into();
+                let binds = self.jdom.binds.iter().map(|x| {
+                    let mut b = x.clone();
+                    b.from_parent = true;
+                    b
+                });
+                for bind in binds {
+                    // FIXME: Check transition result and restore to previous state if any error
+                    // FIXME: Do all mounts in the workdir and if all OK, move them in the jail
+                    let _ = self.import_bind(&bind);
+                }
+                debug!("Domain transition: {} -> {}", prev, self.jdom.dom.name);
+                Ok(())
+            }
+            None => {
+                debug!("No domain reachable");
+                Err(())
+            }
         }
     }
 
@@ -437,7 +470,7 @@ impl<'a> Jail<'a> {
         let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
         // Hack to cleanly manage the root bind mount
         let mut root_binds = vec!(BindMount::new(self.root.src.clone(), PathBuf::from("/")));
-        root_binds.push_all(self.dom.binds.as_ref());
+        root_binds.push_all(self.jdom.binds.as_ref());
         let all_binds = try!(self.expand_binds(root_binds, &exclude_binds));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));

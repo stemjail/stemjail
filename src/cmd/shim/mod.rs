@@ -27,6 +27,7 @@ use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
+use stemflow::FileAccess;
 use super::util;
 
 mod fsm_kage;
@@ -34,6 +35,7 @@ mod fsm_monitor;
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum ShimAction {
+    Access(AccessRequest),
     List(ListRequest),
 }
 
@@ -46,6 +48,18 @@ impl ShimAction {
                         let bundle = MonitorBundle {
                             request: req,
                             machine: Some(MonitorFsmInit::new(client)),
+                        };
+                        cmd_tx.send(Box::new(bundle))
+                    }
+                    Err(e) => return Err(format!("Request error: {}", e)),
+                }
+            }
+            ShimAction::Access(req) => {
+                match req.check() {
+                    Ok(_) => {
+                        let bundle = MonitorBundle {
+                            request: req,
+                            machine: None,
                         };
                         cmd_tx.send(Box::new(bundle))
                     }
@@ -103,7 +117,7 @@ impl MonitorBundle<ListRequest> {
 
 impl JailFn for MonitorBundle<ListRequest> {
     // TODO: Spawn a dedicated thread
-    fn call(&mut self, _: &Jail) {
+    fn call(&mut self, _: &mut Jail) {
         let res = self.list(nest_path(WORKDIR_PARENT, &self.request.path));
         let res = ListResponse {
             result: match res {
@@ -126,6 +140,42 @@ impl JailFn for MonitorBundle<ListRequest> {
     }
 }
 
+
+#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
+pub struct AccessRequest {
+    pub path: PathBuf,
+    pub write: bool,
+}
+
+impl AccessRequest {
+    pub fn check(&self) -> Result<(), String> {
+        util::check_parent_path(&self.path)
+    }
+}
+
+impl JailFn for MonitorBundle<AccessRequest> {
+    fn call(&mut self, jail: &mut Jail) {
+        debug!("Ask access: {} {}", self.request.path.display(), self.request.write);
+        let acl = if self.request.write {
+            FileAccess::new_rw(self.request.path.clone())
+        } else {
+            FileAccess::new_ro(self.request.path.clone())
+        };
+        match acl {
+            Ok(acl) => {
+                match jail.gain_access(acl) {
+                    Ok(()) => debug!("Access granted"),
+                    Err(()) => debug!("Access denied"),
+                }
+            }
+            Err(()) => {
+                error!("Failed to create an ACL for {}", self.request.path.display());
+            }
+        }
+    }
+}
+
+
 pub struct ShimKageCmd {
     name: String,
     opts: Options,
@@ -136,10 +186,37 @@ impl ShimKageCmd {
         let mut opts = Options::new();
         opts.optflag("h", "help", "Print this message");
         opts.optopt("l", "list", "List a directory from the parent", "DIR");
+        opts.optopt("a", "access", "Ask to access a path from the parent", "PATH");
+        opts.optflag("w", "write", "Ask for write access");
         ShimKageCmd {
             name: "shim".to_string(),
             opts: opts,
         }
+    }
+
+    fn do_list(&self, path: PathBuf) -> Result<(), String> {
+        let req = ListRequest {
+            path: path,
+        };
+        try!(req.check());
+
+        let machine = try!(KageFsm::new());
+        let machine = try!(machine.send_list_request(req));
+        let list = try!(machine.recv_list_response()).result;
+        println!("{}", list.into_iter().map(|x| x.to_string_lossy().into_owned()).collect::<Vec<_>>().connect("\n"));
+        Ok(())
+    }
+
+    fn do_access(&self, path: PathBuf, write: bool) -> Result<(), String> {
+        let req = AccessRequest {
+            path: path,
+            write: write,
+        };
+        try!(req.check());
+
+        let machine = try!(KageFsm::new());
+        try!(machine.send_access_request(req));
+        Ok(())
     }
 }
 
@@ -162,22 +239,23 @@ impl super::KageCommand for ShimKageCmd {
             println!("{}", self.get_usage());
             return Ok(());
         }
-        let path = get_path!(matches, "list");
 
-        check_remaining!(matches);
-
-        let req = ListRequest {
-            path: path,
-        };
-        match req.check() {
-            Ok(_) => {}
-            e => return e,
+        match matches.opt_str("list") {
+            Some(path) => {
+                check_remaining!(matches);
+                return self.do_list(PathBuf::from(path));
+            }
+            None => {}
         }
 
-        let machine = try!(KageFsm::new());
-        let machine = try!(machine.send_list_request(req));
-        let list = try!(machine.recv_list_response()).result;
-        println!("{}", list.into_iter().map(|x| x.to_string_lossy().into_owned()).collect::<Vec<_>>().connect("\n"));
-        Ok(())
+        match matches.opt_str("access") {
+            Some(path) => {
+                check_remaining!(matches);
+                return self.do_access(PathBuf::from(path), matches.opt_present("write"));
+            }
+            None => {}
+        }
+
+        Err("No command".into())
     }
 }
