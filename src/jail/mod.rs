@@ -234,22 +234,28 @@ impl<'a> Jail<'a> {
         };
         // FIXME: Verify path traversal sanitization (e.g. no "..")
         let excludes = if bind.from_parent {
-            // Protect parent process listing
+            // Protect parent process and dev listing
             // FIXME: Force bind.src to be an absolute path
             // TODO: Factore with cmd/shim
-            if bind.src.starts_with("/proc") {
-                warn!("Access to parent/proc denied");
-                return Err(io::Error::new(ErrorKind::PermissionDenied, "Access denied to parent /proc"));
+            match self.protected_paths().iter().find(|x| bind.src.starts_with(x)) {
+                Some(d) => {
+                    warn!("Access denied to parent {}", d.display());
+                    return Err(io::Error::new(ErrorKind::PermissionDenied, "Access denied"));
+                }
+                None => {}
             }
             vec!()
         } else {
             vec!(workdir.clone())
         };
-        // Deny /proc from being masked
+        // Deny some directories from being masked
         // FIXME: Force bind.dst to be an absolute path
-        if bind.dst.starts_with("/proc") {
-            warn!("Can't overlaps /proc");
-            return Err(io::Error::new(ErrorKind::PermissionDenied, "Access denied to /proc"));
+        match self.protected_paths().iter().find(|x| bind.dst.starts_with(x)) {
+            Some(d) => {
+                warn!("Can't overlaps {}", d.display());
+                return Err(io::Error::new(ErrorKind::PermissionDenied, "Can't overlays"));
+            }
+            None => {}
         }
         let parent = workdir.join(WORKDIR_PARENT);
         // Create temporary and unique directory for an atomic cmd/mount command
@@ -461,19 +467,25 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
+    fn protected_paths(&self) -> Vec<&Path> {
+        // Protect custom procfs and devices
+        vec!(Path::new("/dev"), Path::new("/proc"))
+    }
+
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&mut self) -> io::Result<()> {
         // Prepare to remove all parent mounts with a pivot
         // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
 
         // TODO: Bind mount and seal the root before expanding bind mounts
-        let dev_path = PathBuf::from("/dev");
-        let proc_path = PathBuf::from("/proc");
-        let exclude_binds = vec!(&dev_path, &proc_path, &self.root.dst);
         // Hack to cleanly manage the root bind mount
         let mut root_binds = vec!(BindMount::new(self.root.src.clone(), PathBuf::from("/")));
         root_binds.push_all(self.jdom.binds.as_ref());
-        let all_binds = try!(self.expand_binds(root_binds, &exclude_binds));
+        let all_binds = try!(self.expand_binds(root_binds, &{
+            let mut exclude = self.protected_paths();
+            exclude.push(self.root.dst.as_ref());
+            exclude
+        }));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }
