@@ -55,7 +55,7 @@ pub trait JailFn: Send + Debug {
 
 // TODO: Add tmpfs prelude to not pollute the root
 
-#[derive(Debug, Clone, RustcDecodable, RustcEncodable)]
+#[derive(Debug, Clone, PartialEq, RustcDecodable, RustcEncodable)]
 pub struct BindMount {
     pub src: PathBuf,
     pub dst: PathBuf,
@@ -123,9 +123,12 @@ impl<'a> Jail<'a> {
                     debug!("Current domain already allow this access");
                     return Ok(());
                 }
-                let prev = self.jdom.dom.name.clone();
+                let prev = self.jdom.clone();
                 self.jdom = dom.into();
-                let binds = self.jdom.binds.iter().map(|x| {
+                // TODO: Optimize with intersection
+                let binds = self.jdom.binds.iter().filter(|&x|
+                    prev.binds.iter().find(|&y| *y == *x).is_none()
+                ).map(|x| {
                     let mut b = x.clone();
                     b.from_parent = true;
                     b
@@ -135,7 +138,7 @@ impl<'a> Jail<'a> {
                     // FIXME: Do all mounts in the workdir and if all OK, move them in the jail
                     let _ = self.import_bind(&bind);
                 }
-                debug!("Domain transition: {} -> {}", prev, self.jdom.dom.name);
+                debug!("Domain transition: {} -> {}", prev.dom.name, self.jdom.dom.name);
                 Ok(())
             }
             None => {

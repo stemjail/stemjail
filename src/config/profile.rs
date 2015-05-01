@@ -77,6 +77,7 @@ pub struct ProfileDom {
     pub dom: JailDom,
 }
 
+#[derive(Clone)]
 pub struct JailDom {
     pub binds: Vec<BindMount>,
     pub dom: Arc<Domain>,
