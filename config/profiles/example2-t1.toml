@@ -3,7 +3,7 @@
 name = "example2-transition1"
 
 [[fs.bind]]
-path = "/dev/shm"
+path = "/run"
 write = true
 
 [[fs.bind]]

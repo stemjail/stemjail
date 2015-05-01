@@ -139,7 +139,7 @@ fn test_get_config_example2() {
         fs: FsConfig {
             bind: Some(vec!(
                 BindConfig {
-                    path: "/dev/shm".to_string(),
+                    path: "/run".to_string(),
                     write: Some(true),
                 },
                 BindConfig {
