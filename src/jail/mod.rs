@@ -76,8 +76,22 @@ impl BindMount {
 
 #[derive(Clone)]
 pub struct TmpfsMount<'a> {
-    pub name: Option<&'a str>,
-    pub dst: PathBuf,
+    name: Option<&'a str>,
+    dst: PathBuf,
+}
+
+impl<'a> TmpfsMount<'a> {
+    pub fn new(dst: PathBuf) -> TmpfsMount<'a> {
+        TmpfsMount {
+            name: None,
+            dst: dst,
+        }
+    }
+
+    pub fn name(mut self, name: &'a str) -> TmpfsMount<'a> {
+        self.name = Some(name);
+        self
+    }
 }
 
 // TODO: Add UUID
@@ -173,7 +187,7 @@ impl<'a> Jail<'a> {
         info!("Populating {}", devdir.display());
         let devdir_full = nest_path(&self.root.dst, &devdir);
         try!(mkdir_if_not(&devdir_full));
-        try!(self.add_tmpfs(&TmpfsMount { name: Some("dev"), dst: devdir.to_path_buf() }));
+        try!(self.add_tmpfs(&TmpfsMount::new(devdir.to_path_buf()).name("dev")));
 
         // TODO: Use macro
         // Create mount points
@@ -219,7 +233,7 @@ impl<'a> Jail<'a> {
             let dst = devdir_full.join(dst);
             try!(soft_link(src, dst));
         }
-        try!(self.add_tmpfs(&TmpfsMount { name: Some("shm"), dst: devdir.join("shm") }));
+        try!(self.add_tmpfs(&TmpfsMount::new(devdir.join("shm")).name("shm")));
 
         // Seal /dev
         // TODO: Drop the root user to realy seal something…
@@ -524,7 +538,7 @@ impl<'a> Jail<'a> {
         self.workdir = Some(workdir_abs.clone());
 
         // Create the monitor working directory
-        try!(self.add_tmpfs(&TmpfsMount { name: Some("monitor"), dst: PathBuf::from(&workdir) }));
+        try!(self.add_tmpfs(&TmpfsMount::new(PathBuf::from(&workdir)).name("monitor")));
         let parent = workdir.join(WORKDIR_PARENT);
         // FIXME: Set umask to !io::USER_RWX
         try!(create_dir(&parent));
