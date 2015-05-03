@@ -165,7 +165,7 @@ impl<'a> Jail<'a> {
                 for bind in binds {
                     // FIXME: Check transition result and restore to previous state if any error
                     // FIXME: Do all mounts in the workdir and if all OK, move them in the jail
-                    let _ = self.import_bind(&bind);
+                    let _ = self._import_bind(&bind, true);
                 }
                 debug!("Domain transition: {} -> {}", prev.dom.name, self.jdom.dom.name);
                 Ok(())
@@ -230,8 +230,8 @@ impl<'a> Jail<'a> {
 
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
-            let dst = nest_path(&self.root, &dev.dst);
-            let bind = BindMount::new(dev.src.clone(), dst).writable(true);
+            let bind = BindMount::new(dev.src.clone(), nest_path(&self.root, &dev.dst))
+                .writable(true);
             try!(self.add_bind(&bind, true));
         }
         let links = &[
@@ -253,6 +253,12 @@ impl<'a> Jail<'a> {
     }
 
     pub fn import_bind(&self, bind: &BindMount) -> io::Result<()> {
+        // Do not create destination mount point
+        self._import_bind(bind, false)
+    }
+
+    // FIXME: Handle non-directory mount
+    fn _import_bind(&self, bind: &BindMount, create_dst: bool) -> io::Result<()> {
         let workdir = match self.workdir {
             Some(ref w) => w,
             // TODO: Create a new error or a FSM for self.workdir
@@ -314,7 +320,7 @@ impl<'a> Jail<'a> {
                 }
             };
             mount.dst = nest_path(&tmp_dir, rel_dst);
-            match self.add_bind(&mount, true){
+            match self.add_bind(&mount, true) {
                 Ok(..) => {
                     // Unmount all previous mounts if an error occured
                     tmp_dir.unmount(true);
@@ -327,6 +333,9 @@ impl<'a> Jail<'a> {
         }
 
         debug!("Moving bind mount from {} to {}", tmp_dir.as_ref().display(), bind.dst.display());
+        if create_dst {
+            try!(create_same_type(&tmp_dir, &bind.dst));
+        }
         match mount(&tmp_dir, &bind.dst, "none", &fs::MS_MOVE, &None) {
             Ok(..) => tmp_dir.unmount(false),
             Err(e) => {
@@ -355,6 +364,7 @@ impl<'a> Jail<'a> {
 
         // Create needed directorie(s) and/or file
         // XXX: This should be allowed for clients too
+        // FIXME: dst is a temporary destination!
         try!(create_same_type(src, dst));
 
         let none_str = "none";

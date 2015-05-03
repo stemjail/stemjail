@@ -103,6 +103,7 @@ pub fn create_same_type<T, U>(src: T, dst: U) -> io::Result<()>
     Ok(())
 }
 
+// TODO: Handle temporary file (e.g. bind mount a file)
 pub struct TmpWorkDir {
     path: PathBuf,
     do_unmount: bool,
