@@ -81,7 +81,7 @@ impl RunRequest {
         let mut j = jail::Jail::new(
             profile_dom.name,
             PathBuf::from("/"),
-            profile_dom.dom,
+            profile_dom.jdom,
             vec!()
         );
 

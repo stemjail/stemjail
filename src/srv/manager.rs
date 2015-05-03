@@ -40,10 +40,10 @@ pub fn manager_listen(mut portal: Portal, manager_rx: Receiver<ManagerCall>) {
                         let msg = match cmd {
                             Some(cmd) => {
                                 match portal.domain(&name) {
-                                    Some(dom) => Some(ProfileDom {
+                                    Some(jdom) => Some(ProfileDom {
                                         name: name,
                                         cmd: cmd,
-                                        dom: dom.into(),
+                                        jdom: jdom.into(),
                                     }),
                                     None => {
                                         error!("No domain found for the config: {:?}", name);
