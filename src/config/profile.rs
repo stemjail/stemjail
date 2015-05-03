@@ -92,9 +92,7 @@ impl From<Arc<Domain>> for JailDom {
         let binds = other.acl.range_read().map(|access_read| {
             let access_write = FileAccess::new(access_read.path.clone(), Action::Write).unwrap();
             let path = cwd.join(access_read.as_ref());
-            let mut bind = BindMount::new(path.clone(), path);
-            bind.write = other.is_allowed(&Arc::new(access_write));
-            bind
+            BindMount::new(path.clone(), path).writable(other.is_allowed(&Arc::new(access_write)))
         }).collect();
         JailDom {
             binds: binds,

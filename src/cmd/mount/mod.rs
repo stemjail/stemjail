@@ -45,16 +45,26 @@ impl MountAction {
 
 #[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct MountRequest {
-    pub bind: BindMount,
+    pub src: PathBuf,
+    pub dst: PathBuf,
+    pub write: bool,
+    pub parent: bool,
+}
+
+impl<'a> Into<BindMount> for &'a mut MountRequest {
+    fn into(self) -> BindMount {
+        BindMount::new(self.src.clone(), self.dst.clone())
+            .writable(self.write).from_parent(self.parent)
+    }
 }
 
 impl MountRequest {
     // Forbid use of "." (i.e. the parent domain root directory)
     pub fn check(&self) -> Result<(), String> {
-        if !self.bind.src.is_absolute() {
+        if ! self.src.is_absolute() {
             return Err("The mount source is not an absolute path".to_string());
         }
-        if !self.bind.dst.is_absolute() {
+        if ! self.dst.is_absolute() {
             return Err("The mount destination is not an absolute path".to_string());
         }
         // FIXME: Add domain transition check (cf. parent mount)
@@ -64,7 +74,7 @@ impl MountRequest {
 
 impl JailFn for MountRequest {
     fn call(&mut self, jail: &mut Jail) {
-        let ret = jail.import_bind(&self.bind);
+        let ret = jail.import_bind(&self.into());
         // TODO: Send result to client
         debug!("Mount result: {:?}", ret);
     }
@@ -116,12 +126,10 @@ impl super::KageCommand for MountKageCmd {
         check_remaining!(matches);
 
         let req = MountRequest {
-            bind: {
-                let mut bind = BindMount::new(src, dst);
-                bind.write = matches.opt_present("write");
-                bind.from_parent = matches.opt_present("parent");
-                bind
-            }
+            src: src,
+            dst: dst,
+            write: matches.opt_present("write"),
+            parent: matches.opt_present("parent"),
         };
         match req.check() {
             Ok(_) => {}

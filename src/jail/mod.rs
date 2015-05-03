@@ -55,12 +55,12 @@ pub trait JailFn: Send + Debug {
 
 // TODO: Add tmpfs prelude to not pollute the root
 
-#[derive(Debug, Clone, PartialEq, RustcDecodable, RustcEncodable)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BindMount {
-    pub src: PathBuf,
-    pub dst: PathBuf,
-    pub write: bool,
-    pub from_parent: bool,
+    src: PathBuf,
+    dst: PathBuf,
+    writable: bool,
+    from_parent: bool,
 }
 
 impl BindMount {
@@ -68,9 +68,19 @@ impl BindMount {
         BindMount {
             src: source,
             dst: destination,
-            write: false,
+            writable: false,
             from_parent: false,
         }
+    }
+
+    pub fn writable(mut self, writable: bool) -> BindMount {
+        self.writable = writable;
+        self
+    }
+
+    pub fn from_parent(mut self, from_parent: bool) -> BindMount {
+        self.from_parent = from_parent;
+        self
     }
 }
 
@@ -204,9 +214,7 @@ impl<'a> Jail<'a> {
             ];
         let mut devs: Vec<BindMount> = devs.iter().map(|dev| {
             let src = devdir.join(dev);
-            let mut bind = BindMount::new(src.clone(), src);
-            bind.write = true;
-            bind
+            BindMount::new(src.clone(), src).writable(true)
         }).collect();
 
         // Add current TTY
@@ -215,9 +223,7 @@ impl<'a> Jail<'a> {
             // FIXME: Assume `s` begin with "/dev/"
             Some(ref s) => {
                 let p = s.as_ref();
-                let mut bind = BindMount::new(p.to_path_buf(), p.to_path_buf());
-                bind.write = true;
-                devs.push(bind);
+                devs.push(BindMount::new(p.to_path_buf(), p.to_path_buf()).writable(true));
             }
             None => {}
         }
@@ -225,9 +231,7 @@ impl<'a> Jail<'a> {
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
             let dst = nest_path(&self.root, &dev.dst);
-            try!(create_same_type(&dev.src, &dst));
-            let mut bind = BindMount::new(dev.src.clone(), dst.clone());
-            bind.write = true;
+            let bind = BindMount::new(dev.src.clone(), dst).writable(true);
             try!(self.add_bind(&bind, true));
         }
         let links = &[
@@ -255,7 +259,8 @@ impl<'a> Jail<'a> {
             None => return Err(io::Error::new(ErrorKind::Other, "No workdir")),
         };
         // FIXME: Verify path traversal sanitization (e.g. no "..")
-        let excludes = if bind.from_parent {
+        let parent = workdir.join(WORKDIR_PARENT);
+        let (excludes, tmp_bind) = if bind.from_parent {
             // Protect parent process and dev listing
             // FIXME: Force bind.src to be an absolute path
             // TODO: Factore with cmd/shim
@@ -266,9 +271,13 @@ impl<'a> Jail<'a> {
                 }
                 None => {}
             }
-            vec!()
+            // Relative path for src
+            let mut tmp_bind = bind.clone();
+            // Virtual source path to check sub mounts
+            tmp_bind.src = nest_path(&parent, &bind.src);
+            (vec!(), tmp_bind)
         } else {
-            vec!(workdir.clone())
+            (vec!(workdir.clone()), bind.clone())
         };
         // Deny some directories from being masked
         // FIXME: Force bind.dst to be an absolute path
@@ -279,23 +288,10 @@ impl<'a> Jail<'a> {
             }
             None => {}
         }
-        let parent = workdir.join(WORKDIR_PARENT);
         // Create temporary and unique directory for an atomic cmd/mount command
         let mut tmp_dir = try!(TmpWorkDir::new("mount"));
-        let tmp_bind = BindMount {
-            // Relative path for src
-            src: if bind.from_parent {
-                // Virtual source path to check sub mounts
-                nest_path(&parent, &bind.src)
-            } else {
-                bind.src.clone()
-            },
-            dst: bind.dst.clone(),
-            write: bind.write,
-            from_parent: bind.from_parent,
-        };
 
-        let submounts = try!(self.expand_binds(vec!(tmp_bind.clone()), &excludes.iter().collect()));
+        let submounts = try!(self.expand_binds(vec!(tmp_bind), &excludes.iter().collect()));
         for mount in submounts.iter() {
             let mut mount = mount.clone();
             if mount.from_parent {
@@ -367,7 +363,7 @@ impl<'a> Jail<'a> {
         let bind_flags = fs::MS_BIND | fs::MS_REC;
         try!(mount(src, dst, none_str, &bind_flags, &None));
 
-        if ! bind.write {
+        if ! bind.writable {
             // When write action is forbiden we must not use the MS_REC to avoid unattended
             // read/write files during the jail life.
             let none_path = "none";
@@ -432,7 +428,7 @@ impl<'a> Jail<'a> {
         let mut all_binds: Vec<BindMount> = vec!();
         for bind in binds.into_iter() {
             // FIXME: Extend the full path (like "readlink -f") to not recursively mount
-            let sub_binds = if bind.write {
+            let sub_binds = if bind.writable {
                 vec!(bind.clone())
             } else {
                 // Complete with all child mount points if needed (i.e. read-only mount tree)
@@ -449,12 +445,8 @@ impl<'a> Jail<'a> {
                             }
                         };
                         // Extend bind with same attributes
-                        let new_bind = BindMount {
-                            src: sub_src,
-                            dst: nest_path(&bind.dst, &rel_dst),
-                            write: bind.write,
-                            from_parent: bind.from_parent,
-                        };
+                        let new_bind = BindMount::new(sub_src, nest_path(&bind.dst, &rel_dst))
+                            .writable(bind.writable).from_parent(bind.from_parent);
                         sub_binds.push(new_bind);
                     }
                 }
@@ -535,8 +527,7 @@ impl<'a> Jail<'a> {
 
         // Backup the original proc entry
         let workdir_bkp = PathBuf::from(format!("proc/{}/fd", pid));
-        let mut bind = BindMount::new(workdir.clone(), workdir_bkp.clone());
-        bind.write = true;
+        let bind = BindMount::new(workdir.clone(), workdir_bkp.clone()).writable(true);
         try!(self.add_bind(&bind, true));
 
         // Save the workdir path to be able to exclude it from mount points
