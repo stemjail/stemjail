@@ -22,7 +22,6 @@ use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
 use srv::{ManagerAction, ManagerCall};
 use std::old_io::net::pipe::UnixStream;
-use std::path::PathBuf;
 use std::sync::mpsc::{Sender, channel};
 use super::{PortalAck, PortalRequest};
 
@@ -80,7 +79,6 @@ impl RunRequest {
 
         let mut j = jail::Jail::new(
             profile_dom.name,
-            PathBuf::from("/"),
             profile_dom.jdom,
             vec!()
         );

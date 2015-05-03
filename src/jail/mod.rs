@@ -78,6 +78,7 @@ impl BindMount {
 pub struct TmpfsMount<'a> {
     name: Option<&'a str>,
     dst: PathBuf,
+    is_root: bool,
 }
 
 impl<'a> TmpfsMount<'a> {
@@ -85,6 +86,7 @@ impl<'a> TmpfsMount<'a> {
         TmpfsMount {
             name: None,
             dst: dst,
+            is_root: false,
         }
     }
 
@@ -92,14 +94,20 @@ impl<'a> TmpfsMount<'a> {
         self.name = Some(name);
         self
     }
+
+    pub fn is_root(mut self, is_root: bool) -> TmpfsMount<'a> {
+        self.is_root = is_root;
+        self
+    }
 }
+
 
 // TODO: Add UUID
 pub struct Jail<'a> {
-    // Jail description
+    /// Jail description
     name: String,
-    // Always the root
-    root: BindMount,
+    /// Destination root
+    root: PathBuf,
     jdom: JailDom,
     tmps: Vec<TmpfsMount<'a>>,
     stdio: Option<Stdio>,
@@ -110,14 +118,11 @@ pub struct Jail<'a> {
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, root: PathBuf, jdom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
+    pub fn new(name: String, jdom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
         // TODO: Check for a real procfs
-        // TODO: Use TmpWorkDir
-        let tmp_dir = PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() }));
         Jail {
             name: name,
-            // TODO: Add a fallback for root.dst
-            root: BindMount::new(root, tmp_dir),
+            root: PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() })),
             jdom: jdom,
             tmps: tmps,
             stdio: None,
@@ -185,7 +190,7 @@ impl<'a> Jail<'a> {
     fn init_dev<T>(&self, devdir: T) -> io::Result<()> where T: AsRef<Path> {
         let devdir = devdir.as_ref();
         info!("Populating {}", devdir.display());
-        let devdir_full = nest_path(&self.root.dst, &devdir);
+        let devdir_full = nest_path(&self.root, &devdir);
         try!(mkdir_if_not(&devdir_full));
         try!(self.add_tmpfs(&TmpfsMount::new(devdir.to_path_buf()).name("dev")));
 
@@ -219,7 +224,7 @@ impl<'a> Jail<'a> {
 
         for dev in devs.iter() {
             debug!("Creating {}", dev.dst.display());
-            let dst = nest_path(&self.root.dst, &dev.dst);
+            let dst = nest_path(&self.root, &dev.dst);
             try!(create_same_type(&dev.src, &dst));
             let mut bind = BindMount::new(dev.src.clone(), dst.clone());
             bind.write = true;
@@ -343,7 +348,7 @@ impl<'a> Jail<'a> {
         let dst = if is_absolute {
             Borrowed(&bind.dst)
         } else {
-            Owned(nest_path(&self.root.dst, &bind.dst))
+            Owned(nest_path(&self.root, &bind.dst))
         };
         let dst = &*dst;
         let src = &bind.src;
@@ -426,7 +431,6 @@ impl<'a> Jail<'a> {
         // Need to keep the mount points order and prioritize the last (i.e. user) mount points
         let mut all_binds: Vec<BindMount> = vec!();
         for bind in binds.into_iter() {
-            // TODO: Check to not replace the root.dst mount points
             // FIXME: Extend the full path (like "readlink -f") to not recursively mount
             let sub_binds = if bind.write {
                 vec!(bind.clone())
@@ -476,9 +480,13 @@ impl<'a> Jail<'a> {
             None => "tmpfs",
         });
         let flags = fs::MsFlags::empty();
-        let dst = nest_path(&self.root.dst, &tmp.dst);
-        let opt = "mode=0700";
         debug!("Creating tmpfs in {}", tmp.dst.display());
+        let dst = if tmp.is_root {
+            tmp.dst.clone()
+        } else {
+            nest_path(&self.root, &tmp.dst)
+        };
+        let opt = "mode=0700";
         try!(mkdir_if_not(&dst));
         try!(mount(&name, &dst, "tmpfs", &flags, &Some(opt)));
         Ok(())
@@ -491,22 +499,20 @@ impl<'a> Jail<'a> {
 
     // TODO: impl Drop to unmount and remove mount directories/files
     fn init_fs(&mut self) -> io::Result<()> {
-        // Prepare to remove all parent mounts with a pivot
-        // TODO: Add a path blacklist to hide some directories (e.g. when root.src == /)
+        // Create an empty and writable root to be able to add any bind mounts
+        // FIXME: Seal the root
+        try!(self.add_tmpfs(&TmpfsMount::new(self.root.clone()).name("root").is_root(true)));
 
-        // TODO: Bind mount and seal the root before expanding bind mounts
-        // Hack to cleanly manage the root bind mount
-        let mut root_binds = vec!(BindMount::new(self.root.src.clone(), PathBuf::from("/")));
-        root_binds.push_all(self.jdom.binds.as_ref());
-        let all_binds = try!(self.expand_binds(root_binds, &{
+        // Prepare to remove all parent mounts with a pivot
+        let all_binds = try!(self.expand_binds(self.jdom.binds.clone(), &{
             let mut exclude = self.protected_paths();
-            exclude.push(self.root.dst.as_ref());
+            exclude.push(self.root.as_ref());
             exclude
         }));
         for bind in all_binds.iter() {
             try!(self.add_bind(bind, false));
         }
-        try!(env::set_current_dir(&self.root.dst));
+        try!(env::set_current_dir(&self.root));
 
         // TODO: Check all bind and tmpfs mount points consistency
         for tmp in self.tmps.iter() {
@@ -515,7 +521,7 @@ impl<'a> Jail<'a> {
 
         // procfs
         let proc_src = "proc";
-        let proc_dst = self.root.dst.join(&proc_src);
+        let proc_dst = self.root.join(&proc_src);
         try!(mkdir_if_not(&proc_dst));
         let proc_flags = fs::MsFlags::empty();
         try!(mount(&proc_src, &proc_dst, "proc", &proc_flags, &None));
@@ -544,7 +550,7 @@ impl<'a> Jail<'a> {
         try!(create_dir(&parent));
 
         // TODO: Bind mount the parent root to be able to drop mount branches (i.e. domain transitions)
-        try!(pivot_root(&self.root.dst, &parent));
+        try!(pivot_root(&self.root, &parent));
 
         // Keep the workdir open (e.g. jail transitions)
         try!(env::set_current_dir(&workdir));
@@ -609,7 +615,7 @@ impl<'a> Jail<'a> {
         } else if pid == 0 {
             // Child
             drop(jail_pid_rx);
-            info!("Child jailing into {}", self.root.src.display());
+            info!("Child jailing");
             // Become a process group leader
             // TODO: Change behavior for dedicated TTY
             match unsafe { setsid() } {
