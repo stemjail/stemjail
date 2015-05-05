@@ -14,10 +14,12 @@
 
 use config::portal::Portal;
 use config::profile::ProfileDom;
+use std::io;
 use std::sync::mpsc::{Receiver, Sender};
 
 pub enum ManagerAction {
     NewDom(NewDomRequest),
+    GetDot(GetDotRequest),
 }
 
 pub struct NewDomResponse {
@@ -61,12 +63,45 @@ impl NewDomRequest {
     }
 }
 
+pub struct GetDotResponse {
+    pub dot: Option<String>,
+}
+
+pub struct GetDotRequest {
+    pub response: Sender<GetDotResponse>,
+}
+
+impl GetDotRequest {
+    fn call(self, portal: &mut Portal) -> Result<(), ()> {
+        let mut dot = io::Cursor::new(vec!());
+        let dot = match portal.render(&mut dot) {
+            Ok(()) => match String::from_utf8(dot.into_inner()) {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    error!("Failed to convert DOT to UTF8: {}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                error!("Failed to convert to DOT: {}", e);
+                None
+            }
+        };
+        // Do not block
+        match self.response.send(GetDotResponse { dot: dot }) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(()),
+        }
+    }
+}
+
 pub fn manager_listen(mut portal: Portal, manager_rx: Receiver<ManagerAction>) {
     'listen: loop {
         match manager_rx.recv() {
             Ok(req) => {
                 let ret = match req {
                     ManagerAction::NewDom(req) => req.call(&mut portal),
+                    ManagerAction::GetDot(req) => req.call(&mut portal),
                 };
                 if ret.is_err() {
                     break 'listen;

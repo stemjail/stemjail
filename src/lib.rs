@@ -21,6 +21,7 @@
 #![feature(old_path)]
 #![feature(path_ext)]
 #![feature(path_relative_from)]
+#![feature(rustc_private)]
 #![feature(std_misc)]
 #![feature(unsafe_destructor)]
 
@@ -30,6 +31,7 @@ extern crate bitflags;
 extern crate log;
 
 extern crate getopts;
+extern crate graphviz;
 extern crate iohandle;
 extern crate libc;
 extern crate mnt;

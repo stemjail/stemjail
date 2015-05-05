@@ -23,6 +23,7 @@ use rustc_serialize::json;
 mod util;
 
 // Commands
+mod info;
 mod mount;
 mod run;
 mod shim;
@@ -37,6 +38,7 @@ pub trait KageCommand {
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum PortalCall {
     Run(run::RunAction),
+    Info(info::InfoAction),
 }
 impl_json!(PortalCall);
 
@@ -61,6 +63,7 @@ pub enum PortalRequest {
 
 fn list_kage_cmds<'a>() -> Vec<Box<KageCommand + 'a>> {
     vec!(
+        Box::new(self::info::InfoKageCmd::new()) as Box<KageCommand>,
         Box::new(self::mount::MountKageCmd::new()) as Box<KageCommand>,
         Box::new(self::run::RunKageCmd::new()) as Box<KageCommand>,
         Box::new(self::shim::ShimKageCmd::new()) as Box<KageCommand>,

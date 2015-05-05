@@ -1,0 +1,91 @@
+// Copyright (C) 2015 Mickaël Salaün
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, version 3 of the License.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+#![allow(deprecated)]
+
+/// Finite-state machine for a `KageCommand` call
+
+use cmd::PortalCall;
+use PORTAL_SOCKET_PATH;
+use std::marker::PhantomData;
+use std::old_io::{Buffer, BufferedStream, Writer};
+use std::old_io::net::pipe::UnixStream;
+use super::{DotRequest, DotResponse, InfoAction};
+
+macro_rules! fsm_next {
+    ($myself: expr) => {
+        KageFsm {
+            bstream: $myself.bstream,
+            _state: PhantomData,
+        }
+    }
+}
+
+
+// Private states
+mod state {
+    #[allow(dead_code)]
+    pub struct Init;
+    #[allow(dead_code)]
+    pub struct RecvDot;
+}
+
+pub struct KageFsm<T> {
+    bstream: BufferedStream<UnixStream>,
+    _state: PhantomData<T>,
+}
+
+// Dummy FSM for now, but help to keep it consistent and enforce number of actions
+impl KageFsm<state::Init> {
+    pub fn new() -> Result<KageFsm<state::Init>, String> {
+        let server = PORTAL_SOCKET_PATH;
+        let bstream = match UnixStream::connect(&server) {
+            Ok(s) => BufferedStream::new(s),
+            Err(e) => return Err(format!("Failed to connect: {}", e)),
+        };
+        Ok(KageFsm {
+            bstream: bstream,
+            _state: PhantomData,
+        })
+    }
+
+    pub fn send_dot_request(mut self, req: DotRequest) -> Result<KageFsm<state::RecvDot>, String> {
+        let action = PortalCall::Info(InfoAction::GetDot(req));
+        let encoded = match action.encode() {
+            Ok(s) => s,
+            Err(e) => return Err(format!("Failed to encode command: {}", e)),
+        };
+        match self.bstream.write_line(encoded.as_ref()) {
+            Ok(_) => {},
+            Err(e) => return Err(format!("Failed to send command: {}", e)),
+        }
+        match self.bstream.flush() {
+            Ok(_) => Ok(fsm_next!(self)),
+            Err(e) => Err(format!("Failed to flush command: {}", e)),
+        }
+    }
+}
+
+impl KageFsm<state::RecvDot> {
+    pub fn recv_dot_response(mut self) -> Result<DotResponse, String> {
+        let encoded_str = match self.bstream.read_line() {
+            Ok(s) => s,
+            Err(e) => return Err(format!("Failed to read: {}", e)),
+        };
+        match DotResponse::decode(&encoded_str) {
+            Ok(d) => Ok(d),
+            Err(e) => return Err(format!("Failed to decode JSON: {:?}", e)),
+        }
+    }
+}

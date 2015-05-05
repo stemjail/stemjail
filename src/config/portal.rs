@@ -12,7 +12,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+use graphviz;
 use std::fmt;
+use std::io;
 use std::sync::Arc;
 use stemflow::{Domain, FileAccess, ResPool};
 use super::profile::ProfileConfig;
@@ -55,6 +57,10 @@ impl Portal {
             }
             _ => None,
         }
+    }
+
+    pub fn render<T>(&self, out: &mut T) -> io::Result<()> where T: io::Write {
+        graphviz::render(&self.pool, out)
     }
 }
 

@@ -29,7 +29,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
-pub use srv::manager::{ManagerAction, NewDomRequest};
+pub use srv::manager::{GetDotRequest, ManagerAction, NewDomRequest};
 
 mod manager;
 
@@ -57,6 +57,7 @@ fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Resul
     // Use the client command if any or the configuration command otherwise
     match decoded {
         PortalCall::Run(action) => action.call(stream, manager_tx),
+        PortalCall::Info(action) => action.call(stream, manager_tx),
     }
 }
 
