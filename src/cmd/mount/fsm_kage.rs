@@ -41,7 +41,7 @@ impl KageFsm<state::Init> {
         let server = OldPath::new(MONITOR_SOCKET_PATH);
         let stream = match UnixStream::connect(&server) {
             Ok(s) => s,
-            Err(e) => return Err(format!("Failed to connect to client: {}", e)),
+            Err(e) => return Err(format!("Failed to connect: {}", e)),
         };
         Ok(KageFsm {
             stream: stream,

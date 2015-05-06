@@ -53,7 +53,7 @@ impl KageFsm<state::Init> {
         let server = PORTAL_SOCKET_PATH;
         let stream = match UnixStream::connect(&server) {
             Ok(s) => s,
-            Err(e) => return Err(format!("Failed to connect to client: {}", e)),
+            Err(e) => return Err(format!("Failed to connect: {}", e)),
         };
         Ok(fsm_new!(stream))
     }
@@ -78,7 +78,7 @@ impl KageFsm<state::Init> {
         // Recv ack and infos (e.g. FD passing)
         let encoded_str = match bstream.read_line() {
             Ok(s) => s,
-            Err(e) => return Err(format!("Error reading client: {}", e)),
+            Err(e) => return Err(format!("Failed to read: {}", e)),
         };
         let decoded = match PortalAck::decode(&encoded_str) {
             Ok(d) => d,

@@ -53,7 +53,7 @@ impl KageFsm<state::Init> {
         let server = OldPath::new(MONITOR_SOCKET_PATH);
         let bstream = match UnixStream::connect(&server) {
             Ok(s) => BufferedStream::new(s),
-            Err(e) => return Err(format!("Failed to connect to client: {}", e)),
+            Err(e) => return Err(format!("Failed to connect: {}", e)),
         };
         Ok(KageFsm {
             bstream: bstream,
@@ -98,7 +98,7 @@ impl KageFsm<state::RecvList> {
     pub fn recv_list_response(mut self) -> Result<ListResponse, String> {
         let encoded_str = match self.bstream.read_line() {
             Ok(s) => s,
-            Err(e) => return Err(format!("Error reading client: {}", e)),
+            Err(e) => return Err(format!("Failed to read: {}", e)),
         };
         match ListResponse::decode(&encoded_str) {
             Ok(d) => Ok(d),
