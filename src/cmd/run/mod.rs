@@ -20,7 +20,7 @@ use getopts::Options;
 use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
-use srv::{ManagerAction, ManagerCall};
+use srv::{ManagerAction, NewDomRequest};
 use std::old_io::net::pipe::UnixStream;
 use std::sync::mpsc::{Sender, channel};
 use super::{PortalAck, PortalRequest};
@@ -34,7 +34,7 @@ pub enum RunAction {
 }
 
 impl RunAction {
-    pub fn call(&self, stream: UnixStream, manager_tx: Sender<ManagerCall>) -> Result<(), String> {
+    pub fn call(&self, stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
         match self {
             &RunAction::DoRun(ref req) => req.call(RequestFsm::new(stream), manager_tx),
         }
@@ -49,19 +49,19 @@ pub struct RunRequest {
 }
 
 impl RunRequest {
-    fn call(&self, machine: RequestInit, manager_tx: Sender<ManagerCall>) -> Result<(), String> {
+    fn call(&self, machine: RequestInit, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
         let (response_tx, response_rx) = channel();
-        let call = ManagerCall {
-            action: ManagerAction::NewDom(self.profile.clone()),
+        let action = ManagerAction::NewDom(NewDomRequest {
+            name: self.profile.clone(),
             response: response_tx,
-        };
+        });
         // TODO: Add error typing
-        match manager_tx.send(call) {
+        match manager_tx.send(action) {
             Ok(()) => {},
             Err(e) => return Err(format!("Failed to send the profile request: {}", e)),
         };
         let profile_dom = match response_rx.recv() {
-            Ok(r) => match r {
+            Ok(r) => match r.profile {
                 Some(c) => c,
                 None => return Err(format!("No profile named `{}`", self.profile)),
             },

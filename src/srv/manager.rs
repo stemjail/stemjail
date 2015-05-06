@@ -17,48 +17,59 @@ use config::profile::ProfileDom;
 use std::sync::mpsc::{Receiver, Sender};
 
 pub enum ManagerAction {
-    NewDom(String),
+    NewDom(NewDomRequest),
 }
 
-pub struct ManagerCall {
-    pub action: ManagerAction,
-    pub response: Sender<Option<ProfileDom>>,
+pub struct NewDomResponse {
+    pub profile: Option<ProfileDom>,
 }
 
-pub fn manager_listen(mut portal: Portal, manager_rx: Receiver<ManagerCall>) {
+pub struct NewDomRequest {
+    pub name: String,
+    pub response: Sender<NewDomResponse>,
+}
+
+impl NewDomRequest {
+    fn call(self, portal: &mut Portal) -> Result<(), ()> {
+        let cmd = {
+            match portal.profile(&self.name) {
+                Some(config) => Some(config.run.cmd.clone()),
+                None => None,
+            }
+        };
+        let msg = match cmd {
+            Some(cmd) => {
+                match portal.domain(&self.name) {
+                    Some(jdom) => Some(ProfileDom {
+                        name: self.name,
+                        cmd: cmd,
+                        jdom: jdom.into(),
+                    }),
+                    None => {
+                        error!("No domain found for the config: {:?}", self.name);
+                        None
+                    }
+                }
+            }
+            None => None,
+        };
+        // Do not block
+        match self.response.send(NewDomResponse { profile: msg }) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(()),
+        }
+    }
+}
+
+pub fn manager_listen(mut portal: Portal, manager_rx: Receiver<ManagerAction>) {
     'listen: loop {
         match manager_rx.recv() {
             Ok(req) => {
-                match req.action {
-                    ManagerAction::NewDom(name) => {
-                        let cmd = {
-                            match portal.profile(&name) {
-                                Some(config) => Some(config.run.cmd.clone()),
-                                None => None,
-                            }
-                        };
-                        let msg = match cmd {
-                            Some(cmd) => {
-                                match portal.domain(&name) {
-                                    Some(jdom) => Some(ProfileDom {
-                                        name: name,
-                                        cmd: cmd,
-                                        jdom: jdom.into(),
-                                    }),
-                                    None => {
-                                        error!("No domain found for the config: {:?}", name);
-                                        None
-                                    }
-                                }
-                            }
-                            None => None,
-                        };
-                        // Do not block
-                        match req.response.send(msg) {
-                            Ok(()) => {}
-                            Err(_) => break 'listen,
-                        }
-                    }
+                let ret = match req {
+                    ManagerAction::NewDom(req) => req.call(&mut portal),
+                };
+                if ret.is_err() {
+                    break 'listen;
                 }
             }
             Err(_) => break 'listen,

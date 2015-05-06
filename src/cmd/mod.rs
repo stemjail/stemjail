@@ -36,7 +36,7 @@ pub trait KageCommand {
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum PortalCall {
-    Run(run::RunAction)
+    Run(run::RunAction),
 }
 impl_json!(PortalCall);
 

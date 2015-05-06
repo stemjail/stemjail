@@ -29,7 +29,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
-pub use srv::manager::{ManagerAction, ManagerCall};
+pub use srv::manager::{ManagerAction, NewDomRequest};
 
 mod manager;
 
@@ -46,7 +46,7 @@ fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String
     Ok((bstream, encoded))
 }
 
-fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerCall>) -> Result<(), String> {
+fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
     let (bstream, decoded_str) = try!(read_stream(stream));
     let decoded = match PortalCall::decode(&decoded_str) {
         Ok(d) => d,
@@ -73,7 +73,7 @@ fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(),
     }
 }
 
-fn portal_ext_listen(manager_tx: Sender<ManagerCall>) {
+fn portal_ext_listen(manager_tx: Sender<ManagerAction>) {
     let server = PORTAL_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
