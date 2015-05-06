@@ -732,10 +732,7 @@ impl<'a> Jail<'a> {
                     let event = events.wait();
                     if event == cmd_handle.id() {
                         match cmd_handle.recv() {
-                            Ok(mut f) => {
-                                debug!("Got command {:?}", f);
-                                f.call(self);
-                            }
+                            Ok(mut f) => f.call(self),
                             Err(e) => warn!("Failed to receive the command: {}", e),
                         }
                     } else if event == child_handle.id() {

@@ -54,6 +54,7 @@ fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Resul
     };
     let stream = bstream.into_inner();
 
+    debug!("Portal got request: {:?}", decoded);
     // Use the client command if any or the configuration command otherwise
     match decoded {
         PortalCall::Run(action) => action.call(stream, manager_tx),
@@ -68,6 +69,7 @@ fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(),
         Ok(d) => d,
         Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
     };
+    debug!("Monitor got request: {:?}", decoded);
     match decoded {
         MonitorCall::Mount(action) => action.call(cmd_tx),
         MonitorCall::Shim(action) => action.call(cmd_tx, bstream),
