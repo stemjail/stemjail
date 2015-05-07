@@ -141,7 +141,8 @@ impl JailFn for MonitorBundle<ListRequest> {
 }
 
 
-#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
+/// An `AccessRequest` always imply at least a read access
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, RustcDecodable, RustcEncodable)]
 pub struct AccessRequest {
     pub path: PathBuf,
     pub write: bool,
@@ -203,6 +204,7 @@ impl ShimKageCmd {
         let machine = try!(KageFsm::new());
         let machine = try!(machine.send_list_request(req));
         let list = try!(machine.recv_list_response()).result;
+        // TODO: Add an output Writer like do_dot()
         println!("{}", list.into_iter().map(|x| x.to_string_lossy().into_owned()).collect::<Vec<_>>().connect("\n"));
         Ok(())
     }
