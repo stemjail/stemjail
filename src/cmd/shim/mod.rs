@@ -194,7 +194,7 @@ impl ShimKageCmd {
         }
     }
 
-    fn do_list<T>(&self, path: T) -> Result<(), String> where T: AsRef<Path> {
+    pub fn do_list<T>(&self, path: T) -> Result<(), String> where T: AsRef<Path> {
         let req = ListRequest {
             path: path.as_ref().to_path_buf(),
         };
@@ -207,7 +207,7 @@ impl ShimKageCmd {
         Ok(())
     }
 
-    fn do_access<T>(&self, path: T, write: bool) -> Result<(), String> where T: AsRef<Path> {
+    pub fn do_access<T>(&self, path: T, write: bool) -> Result<(), String> where T: AsRef<Path> {
         let req = AccessRequest {
             path: path.as_ref().to_path_buf(),
             write: write,

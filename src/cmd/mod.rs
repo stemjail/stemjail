@@ -23,10 +23,10 @@ use rustc_serialize::json;
 mod util;
 
 // Commands
-mod info;
+pub mod info;
 mod mount;
 mod run;
-mod shim;
+pub mod shim;
 
 
 pub trait KageCommand {

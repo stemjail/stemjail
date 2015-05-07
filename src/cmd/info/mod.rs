@@ -89,7 +89,7 @@ impl InfoKageCmd {
         }
     }
 
-    fn do_dot<T>(&self, out: Option<T>) -> Result<(), String> where T: AsRef<Path> {
+    pub fn do_dot<T>(&self, out: Option<T>) -> Result<(), String> where T: AsRef<Path> {
         let machine = try!(KageFsm::new());
         let machine = try!(machine.send_dot_request(DotRequest));
         let dot = match try!(machine.recv_dot_response()).result {
