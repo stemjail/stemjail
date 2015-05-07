@@ -46,6 +46,7 @@ pub mod config;
 pub mod fdpass;
 pub mod jail;
 pub mod srv;
+pub mod util;
 
 #[macro_use]
 mod ffi;
