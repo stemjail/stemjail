@@ -12,10 +12,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(deprecated)]
-
+use cmd::util::send;
 use std::marker::PhantomData;
-use std::old_io::{BufferedStream, Writer};
+use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use super::ListResponse;
 
@@ -28,32 +27,20 @@ mod state {
 pub type MonitorFsmInit = MonitorFsm<state::Init>;
 
 struct MonitorFsm<T> {
-    stream: BufferedStream<UnixStream>,
+    bstream: BufferedStream<UnixStream>,
     _state: PhantomData<T>,
 }
 
 // Dummy FSM for now, but help to keep it consistent and enforce number of actions
 impl MonitorFsm<state::Init> {
-    pub fn new(stream: BufferedStream<UnixStream>) -> MonitorFsm<state::Init> {
+    pub fn new(bstream: BufferedStream<UnixStream>) -> MonitorFsm<state::Init> {
         MonitorFsm {
-            stream: stream,
+            bstream: bstream,
             _state: PhantomData,
         }
     }
 
-    pub fn send_list_response(self, response: ListResponse) -> Result<(), String> {
-        let encoded = match response.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to encode response: {}", e)),
-        };
-        let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_ref()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Failed to send response: {}", e)),
-        }
-        match bstream.flush() {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to flush response: {}", e)),
-        }
+    pub fn send_list_response(mut self, response: ListResponse) -> Result<(), String> {
+        send(&mut self.bstream, response)
     }
 }

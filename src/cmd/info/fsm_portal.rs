@@ -14,8 +14,9 @@
 
 /// Finite-state machine for a `RunRequest` call
 
+use cmd::util::send;
 use std::marker::PhantomData;
-use std::old_io::{BufferedStream, Writer};
+use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use super::DotResponse;
 
@@ -40,19 +41,9 @@ impl PortalFsm<state::Init> {
         }
     }
 
-    pub fn send_dot_response(self, response: DotResponse) -> Result<(), String>{
-        let encoded = match response.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to encode response: {}", e)),
-        };
+    pub fn send_dot_response(self, response: DotResponse) -> Result<(), String> {
         let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_ref()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Failed to send response: {}", e)),
-        }
-        match bstream.flush() {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to flush response: {}", e)),
-        }
+        try!(send(&mut bstream, response));
+        Ok(())
     }
 }

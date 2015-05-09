@@ -12,6 +12,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(deprecated)]
+
+use rustc_serialize::{Encodable, Decodable, json};
+use std::old_io::{Buffer, BufferedStream, Writer};
+use std::old_io::net::pipe::UnixStream;
 use std::path::Path;
 
 // TODO: Replace with generic trait
@@ -25,6 +30,34 @@ macro_rules! impl_json {
                 json::encode(&self)
             }
         }
+    }
+}
+
+pub fn send<T>(bstream: &mut BufferedStream<UnixStream>, object: T) -> Result<(), String>
+        where T: Encodable {
+    let encoded = match json::encode(&object) {
+        Ok(s) => s,
+        Err(e) => return Err(format!("Failed to encode request: {}", e)),
+    };
+    match bstream.write_line(encoded.as_ref()) {
+        Ok(_) => {},
+        Err(e) => return Err(format!("Failed to send request: {}", e)),
+    }
+    match bstream.flush() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to flush request: {}", e)),
+    }
+}
+
+pub fn recv<T>(bstream: &mut BufferedStream<UnixStream>) -> Result<T, String>
+        where T: Decodable {
+    let encoded_str = match bstream.read_line() {
+        Ok(s) => s,
+        Err(e) => return Err(format!("Failed to read: {}", e)),
+    };
+    match json::decode(&encoded_str) {
+        Ok(d) => Ok(d),
+        Err(e) => Err(format!("Failed to decode JSON: {:?}", e)),
     }
 }
 

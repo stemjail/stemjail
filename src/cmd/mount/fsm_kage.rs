@@ -17,9 +17,10 @@
 /// Finite-state machine for a `KageCommand` call
 
 use cmd::MonitorCall;
+use cmd::util::send;
 use MONITOR_SOCKET_PATH;
 use std::marker::PhantomData;
-use std::old_io::{BufferedStream, Writer};
+use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use std::old_path::posix::Path as OldPath;
 use super::{MountAction, MountRequest};
@@ -51,18 +52,7 @@ impl KageFsm<state::Init> {
 
     pub fn send_mount(self, req: MountRequest) -> Result<(), String> {
         let action = MonitorCall::Mount(MountAction::DoMount(req));
-        let encoded = match action.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to encode command: {}", e)),
-        };
         let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_ref()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Failed to send command: {}", e)),
-        }
-        match bstream.flush() {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to flush command: {}", e)),
-        }
+        send(&mut bstream, action)
     }
 }

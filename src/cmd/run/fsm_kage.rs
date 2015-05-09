@@ -15,6 +15,7 @@
 /// Finite-state machine for a `KageCommand` call
 
 use cmd::{PortalAck, PortalCall, PortalRequest};
+use cmd::util::{recv, send};
 use fdpass;
 use iohandle::FileDesc;
 use libc;
@@ -22,7 +23,7 @@ use PORTAL_SOCKET_PATH;
 use pty::TtyClient;
 use std::io;
 use std::marker::PhantomData;
-use std::old_io::{Buffer, BufferedStream, Writer};
+use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use super::{RunAction, RunRequest};
 
@@ -61,29 +62,11 @@ impl KageFsm<state::Init> {
     pub fn send_run(self, req: RunRequest) -> Result<(KageFsm<state::SendFd>, PortalRequest), String> {
         let stdio = req.stdio;
         let action = PortalCall::Run(RunAction::DoRun(req));
-        let encoded = match action.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to encode command: {}", e)),
-        };
         let mut bstream = BufferedStream::new(self.stream);
-        match bstream.write_line(encoded.as_ref()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Failed to send command: {}", e)),
-        }
-        match bstream.flush() {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Failed to flush command: {}", e)),
-        }
+        try!(send(&mut bstream, action));
 
         // Recv ack and infos (e.g. FD passing)
-        let encoded_str = match bstream.read_line() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to read: {}", e)),
-        };
-        let decoded = match PortalAck::decode(&encoded_str) {
-            Ok(d) => d,
-            Err(e) => return Err(format!("Failed to decode JSON: {:?}", e)),
-        };
+        let decoded: PortalAck  = try!(recv(&mut bstream));
 
         // TODO: Remove dup checks
         let valid_req = match decoded.request {
