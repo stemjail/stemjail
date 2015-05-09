@@ -195,7 +195,7 @@ impl ShimKageCmd {
         }
     }
 
-    pub fn do_list<T>(&self, path: T) -> Result<(), String> where T: AsRef<Path> {
+    pub fn do_list<T>(path: T) -> Result<(), String> where T: AsRef<Path> {
         let req = ListRequest {
             path: path.as_ref().to_path_buf(),
         };
@@ -209,7 +209,7 @@ impl ShimKageCmd {
         Ok(())
     }
 
-    pub fn do_access<T>(&self, path: T, write: bool) -> Result<(), String> where T: AsRef<Path> {
+    pub fn do_access<T>(path: T, write: bool) -> Result<(), String> where T: AsRef<Path> {
         let req = AccessRequest {
             path: path.as_ref().to_path_buf(),
             write: write,
@@ -245,7 +245,7 @@ impl super::KageCommand for ShimKageCmd {
         match matches.opt_str("list") {
             Some(path) => {
                 check_remaining!(matches);
-                return self.do_list(PathBuf::from(path));
+                return ShimKageCmd::do_list(PathBuf::from(path));
             }
             None => {}
         }
@@ -253,7 +253,7 @@ impl super::KageCommand for ShimKageCmd {
         match matches.opt_str("access") {
             Some(path) => {
                 check_remaining!(matches);
-                return self.do_access(PathBuf::from(path), matches.opt_present("write"));
+                return ShimKageCmd::do_access(PathBuf::from(path), matches.opt_present("write"));
             }
             None => {}
         }
