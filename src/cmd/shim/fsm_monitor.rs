@@ -16,7 +16,7 @@ use cmd::util::send;
 use std::marker::PhantomData;
 use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
-use super::ListResponse;
+use super::{AccessResponse, ListResponse};
 
 // Private states
 mod state {
@@ -41,6 +41,10 @@ impl MonitorFsm<state::Init> {
     }
 
     pub fn send_list_response(mut self, response: ListResponse) -> Result<(), String> {
+        send(&mut self.bstream, response)
+    }
+
+    pub fn send_access_response(mut self, response: AccessResponse) -> Result<(), String> {
         send(&mut self.bstream, response)
     }
 }

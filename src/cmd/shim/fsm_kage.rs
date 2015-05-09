@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use std::old_path::posix::Path as OldPath;
-use super::{AccessRequest, ListRequest, ListResponse, ShimAction};
+use super::{AccessRequest, AccessResponse, ListRequest, ListResponse, ShimAction};
 
 macro_rules! fsm_next {
     ($myself: expr) => {
@@ -39,6 +39,8 @@ mod state {
     pub struct Init;
     #[allow(dead_code)]
     pub struct RecvList;
+    #[allow(dead_code)]
+    pub struct RecvAcl;
 }
 
 pub struct KageFsm<T> {
@@ -46,7 +48,6 @@ pub struct KageFsm<T> {
     _state: PhantomData<T>,
 }
 
-// Dummy FSM for now, but help to keep it consistent and enforce number of actions
 impl KageFsm<state::Init> {
     pub fn new() -> Result<KageFsm<state::Init>, String> {
         let server = OldPath::new(MONITOR_SOCKET_PATH);
@@ -67,15 +68,22 @@ impl KageFsm<state::Init> {
         Ok(fsm_next!(self))
     }
 
-    pub fn send_access_request(mut self, req: AccessRequest) -> Result<(), String> {
+    pub fn send_access_request(mut self, req: AccessRequest)
+            -> Result<KageFsm<state::RecvAcl>, String> {
         let action = MonitorCall::Shim(ShimAction::Access(req));
         try!(send(&mut self.bstream, action));
-        Ok(())
+        Ok(fsm_next!(self))
     }
 }
 
 impl KageFsm<state::RecvList> {
     pub fn recv_list_response(mut self) -> Result<ListResponse, String> {
+        recv(&mut self.bstream)
+    }
+}
+
+impl KageFsm<state::RecvAcl> {
+    pub fn recv_access_response(mut self) -> Result<AccessResponse, String> {
         recv(&mut self.bstream)
     }
 }

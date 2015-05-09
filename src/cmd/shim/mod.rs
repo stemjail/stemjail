@@ -59,7 +59,7 @@ impl ShimAction {
                     Ok(_) => {
                         let bundle = MonitorBundle {
                             request: req,
-                            machine: None,
+                            machine: Some(MonitorFsmInit::new(client)),
                         };
                         cmd_tx.send(Box::new(bundle))
                     }
@@ -87,6 +87,7 @@ impl_json!(ListResponse);
 
 pub struct MonitorBundle<T> {
     pub request: T,
+    // TODO: Remove the Option (need to revamp the JailFn::call() use)
     pub machine: Option<MonitorFsmInit>,
 }
 
@@ -140,38 +141,73 @@ impl JailFn for MonitorBundle<ListRequest> {
     }
 }
 
-
-/// An `AccessRequest` always imply at least a read access
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, RustcDecodable, RustcEncodable)]
-pub struct AccessRequest {
+/// An `AccessData` always imply at least a read access
+#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
+pub struct AccessData {
     pub path: PathBuf,
     pub write: bool,
 }
 
+#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
+pub struct AccessRequest {
+    pub data: AccessData,
+    pub get_all_access: bool,
+}
+
 impl AccessRequest {
     pub fn check(&self) -> Result<(), String> {
-        util::check_parent_path(&self.path)
+        util::check_parent_path(&self.data.path)
     }
 }
 
+#[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
+pub struct AccessResponse {
+    pub new_access: Vec<AccessData>,
+}
+impl_json!(AccessResponse);
+
 impl JailFn for MonitorBundle<AccessRequest> {
     fn call(&mut self, jail: &mut Jail) {
-        debug!("Ask access: {} {}", self.request.path.display(), self.request.write);
-        let acl = if self.request.write {
-            FileAccess::new_rw(self.request.path.clone())
+        let acl = if self.request.data.write {
+            FileAccess::new_rw(self.request.data.path.clone())
         } else {
-            FileAccess::new_ro(self.request.path.clone())
+            FileAccess::new_ro(self.request.data.path.clone())
         };
-        match acl {
-            Ok(acl) => {
-                match jail.gain_access(acl) {
-                    Ok(()) => debug!("Access granted"),
-                    Err(()) => debug!("Access denied"),
+        let response = AccessResponse {
+            new_access: {
+                let ret = match acl {
+                    Ok(acl) => {
+                        match jail.gain_access(acl) {
+                            Ok(new_access) => {
+                                debug!("Access granted to {:?}", new_access);
+                                new_access
+                            }
+                            Err(()) => {
+                                debug!("Access denied");
+                                vec!()
+                            }
+                        }
+                    }
+                    Err(()) => {
+                        error!("Failed to create an ACL for {:?}", self.request.data);
+                        vec!()
+                    }
+                };
+                if self.request.get_all_access {
+                    jail.as_ref().binds.iter().map(|x| x.into()).collect()
+                } else {
+                    ret
                 }
             }
-            Err(()) => {
-                error!("Failed to create an ACL for {}", self.request.path.display());
+        };
+        match self.machine.take() {
+            Some(m) => {
+                match m.send_access_response(response) {
+                    Ok(()) => {}
+                    Err(e) => error!("Connection result: {:?}", e),
+                }
             }
+            None => error!("No connection possible"),
         }
     }
 }
@@ -195,7 +231,7 @@ impl ShimKageCmd {
         }
     }
 
-    pub fn do_list<T>(path: T) -> Result<(), String> where T: AsRef<Path> {
+    pub fn list_directory<T>(path: T) -> Result<(), String> where T: AsRef<Path> {
         let req = ListRequest {
             path: path.as_ref().to_path_buf(),
         };
@@ -209,16 +245,21 @@ impl ShimKageCmd {
         Ok(())
     }
 
-    pub fn do_access<T>(path: T, write: bool) -> Result<(), String> where T: AsRef<Path> {
+    /// @get_all_access: Get back a list of all current access
+    pub fn ask_access<T>(path: T, write: bool, get_all_access: bool) -> Result<Vec<AccessData>, String>
+            where T: AsRef<Path> {
         let req = AccessRequest {
-            path: path.as_ref().to_path_buf(),
-            write: write,
+            data: AccessData {
+                path: path.as_ref().to_path_buf(),
+                write: write,
+            },
+            get_all_access: get_all_access,
         };
         try!(req.check());
 
         let machine = try!(KageFsm::new());
-        try!(machine.send_access_request(req));
-        Ok(())
+        let machine = try!(machine.send_access_request(req));
+        Ok(try!(machine.recv_access_response()).new_access)
     }
 }
 
@@ -245,7 +286,7 @@ impl super::KageCommand for ShimKageCmd {
         match matches.opt_str("list") {
             Some(path) => {
                 check_remaining!(matches);
-                return ShimKageCmd::do_list(PathBuf::from(path));
+                return ShimKageCmd::list_directory(PathBuf::from(path));
             }
             None => {}
         }
@@ -253,7 +294,14 @@ impl super::KageCommand for ShimKageCmd {
         match matches.opt_str("access") {
             Some(path) => {
                 check_remaining!(matches);
-                return ShimKageCmd::do_access(PathBuf::from(path), matches.opt_present("write"));
+                return match ShimKageCmd::ask_access(PathBuf::from(path),
+                        matches.opt_present("write"), false) {
+                    Ok(s) => {
+                        println!("Gain access: {:?}", s);
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
             }
             None => {}
         }

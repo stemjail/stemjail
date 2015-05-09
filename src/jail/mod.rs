@@ -14,6 +14,7 @@
 
 #![allow(deprecated)]
 
+use cmd::shim::AccessData;
 use config::profile::JailDom;
 use EVENT_TIMEOUT;
 use ffi::ns::{fs, raw, sched};
@@ -84,6 +85,24 @@ impl BindMount {
     }
 }
 
+impl Into<AccessData> for BindMount {
+    fn into(self) -> AccessData {
+        AccessData {
+            path: self.dst,
+            write: self.writable,
+        }
+    }
+}
+
+impl<'a> Into<AccessData> for &'a BindMount {
+    fn into(self) -> AccessData {
+        AccessData {
+            path: self.dst.clone(),
+            write: self.writable,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct TmpfsMount<'a> {
     name: Option<&'a str>,
@@ -126,6 +145,12 @@ pub struct Jail<'a> {
     workdir: Option<PathBuf>,
 }
 
+impl<'a> AsRef<JailDom> for Jail<'a> {
+    fn as_ref(&self) -> &JailDom {
+        &self.jdom
+    }
+}
+
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
     pub fn new(name: String, jdom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
@@ -143,14 +168,14 @@ impl<'a> Jail<'a> {
     }
 
     // FIXME: Exclude /dev and /proc in the configurations
-    pub fn gain_access(&mut self, acl: Vec<FileAccess>) -> Result<(), ()> {
+    pub fn gain_access(&mut self, acl: Vec<FileAccess>) -> Result<Vec<AccessData>, ()> {
         let acl = acl.into_iter().map(|x| Arc::new(x)).collect();
         match self.jdom.dom.reachable(&acl) {
             Some(dom) => {
                 // TODO: Compare the reference
                 if dom == self.jdom.dom {
                     debug!("Current domain already allow this access");
-                    return Ok(());
+                    return Ok(vec!());
                 }
                 let prev = self.jdom.clone();
                 self.jdom = dom.into();
@@ -162,13 +187,16 @@ impl<'a> Jail<'a> {
                     b.from_parent = true;
                     b
                 });
+                let mut new_access = vec!();
                 for bind in binds {
                     // FIXME: Check transition result and restore to previous state if any error
                     // FIXME: Do all mounts in the workdir and if all OK, move them in the jail
                     let _ = self._import_bind(&bind, true);
+                    // Record the bind mount even if it failed (cache purpose)
+                    new_access.push(bind.into());
                 }
                 debug!("Domain transition: {} -> {}", prev.dom.name, self.jdom.dom.name);
-                Ok(())
+                Ok(new_access)
             }
             None => {
                 debug!("No domain reachable");
