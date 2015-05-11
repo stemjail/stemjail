@@ -16,12 +16,13 @@ use graphviz;
 use std::fmt;
 use std::io;
 use std::sync::Arc;
-use stemflow::{Domain, FileAccess, ResPool};
+use stemflow::{FileAccess, ResPool};
+use super::ArcDomain;
 use super::profile::ProfileConfig;
 
 pub struct Portal {
     configs: Vec<ProfileConfig>,
-    pool: ResPool,
+    pool: ResPool<Arc<FileAccess>>,
 }
 
 impl Portal {
@@ -41,7 +42,7 @@ impl Portal {
         self.configs.iter().find(|c| AsRef::<str>::as_ref(&c.name) == name.as_ref())
     }
 
-    pub fn domain<T>(&mut self, name: T) -> Option<Arc<Domain>> where T: AsRef<str> {
+    pub fn domain<T>(&mut self, name: T) -> Option<ArcDomain> where T: AsRef<str> {
         let acl = match self.profile(name).map(|x| &x.fs.bind) {
             Some(&Some(ref bind)) => {
                 let acl = bind.iter().map(|x| Into::<Vec<Arc<FileAccess>>>::into(x))

@@ -20,14 +20,16 @@ use jail::util::nest_path;
 use rustc_serialize::json;
 use self::fsm_kage::KageFsm;
 use self::fsm_monitor::MonitorFsmInit;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::fs;
 use std::io;
 use std::old_io::BufferedStream;
 use std::old_io::net::pipe::UnixStream;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::mpsc::Sender;
-use stemflow::FileAccess;
+use stemflow::{Access, Action, SetAccess, FileAccess};
 use super::util;
 
 mod fsm_kage;
@@ -148,6 +150,41 @@ pub struct AccessData {
     pub write: bool,
 }
 
+impl Into<Vec<Arc<FileAccess>>> for AccessData {
+    fn into(self) -> Vec<Arc<FileAccess>> {
+        let path = Arc::new(self.path);
+        let mut ret = vec!(Arc::new(FileAccess {
+            path: path.clone(),
+            action: Action::Read,
+        }));
+        if self.write {
+            ret.push(Arc::new(FileAccess {
+                path: path.clone(),
+                action: Action::Write,
+            }));
+        }
+        ret
+    }
+}
+
+/// There is two caches:
+/// * `granted` is used to prune the `access_data` request hierarchy
+/// * `denied` is used to find an exact match for the `access_data` request
+/// e.g. Deny /var but allow /var/cache
+pub struct AccessCache {
+    granted: BTreeSet<Arc<FileAccess>>,
+    denied: BTreeSet<Arc<FileAccess>>,
+}
+
+impl AccessCache {
+    pub fn new() -> AccessCache {
+        AccessCache {
+            granted: BTreeSet::new(),
+            denied: BTreeSet::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct AccessRequest {
     pub data: AccessData,
@@ -157,6 +194,16 @@ pub struct AccessRequest {
 impl AccessRequest {
     pub fn check(&self) -> Result<(), String> {
         util::check_parent_path(&self.data.path)
+    }
+
+    pub fn new<T>(path: T, write: bool) -> AccessRequest where T: AsRef<Path> {
+        AccessRequest {
+            data: AccessData {
+                path: path.as_ref().to_path_buf(),
+                write: write,
+            },
+            get_all_access: false,
+        }
     }
 }
 
@@ -194,6 +241,7 @@ impl JailFn for MonitorBundle<AccessRequest> {
                     }
                 };
                 if self.request.get_all_access {
+                    // TODO: Use FileAccess
                     jail.as_ref().binds.iter().map(|x| x.into()).collect()
                 } else {
                     ret
@@ -246,20 +294,53 @@ impl ShimKageCmd {
     }
 
     /// @get_all_access: Get back a list of all current access
-    pub fn ask_access<T>(path: T, write: bool, get_all_access: bool) -> Result<Vec<AccessData>, String>
-            where T: AsRef<Path> {
-        let req = AccessRequest {
-            data: AccessData {
-                path: path.as_ref().to_path_buf(),
-                write: write,
-            },
-            get_all_access: get_all_access,
-        };
-        try!(req.check());
-
+    pub fn ask_access(request: AccessRequest) -> Result<Vec<AccessData>, String> {
+        try!(request.check());
         let machine = try!(KageFsm::new());
-        let machine = try!(machine.send_access_request(req));
+        let machine = try!(machine.send_access_request(request));
         Ok(try!(machine.recv_access_response()).new_access)
+    }
+
+    // FIXME: Fake /proc and /dev access authorization
+    pub fn cache_ask_access(access_data: AccessData, cache: &mut AccessCache)
+            -> Result<(), String> {
+        let acl: Vec<Arc<FileAccess>> = access_data.clone().into();
+        // The denied cache must exactly match the request to not ignore a valid (nested) one
+        if ! acl.iter().find(|&x| ! ( cache.granted.is_allowed(x) || cache.denied.contains(x) )).is_some() {
+            Ok(())
+        } else {
+            let req = AccessRequest {
+                data: access_data.clone(),
+                get_all_access: cache.granted.is_empty(),
+            };
+
+            match ShimKageCmd::ask_access(req) {
+                Ok(new_access) => {
+                    if new_access.is_empty() {
+                        // Access denied
+                        for access in acl.into_iter() {
+                            let _ = cache.denied.insert(access);
+                        }
+                    } else {
+                        // New access
+                        let _ = cache.granted.insert_dedup_all(new_access.into_iter().flat_map(|x| {
+                            let i: Vec<Arc<FileAccess>> = x.into();
+                            i.into_iter()
+                        }));
+                    }
+                    Ok(())
+                }
+                Err(e) => {
+                    // Cache the request to not replay it
+                    for access in acl.into_iter() {
+                        let _ = cache.denied.insert(access);
+                    }
+                    Err(e)
+                }
+            }
+            // TODO: Cleanup included requests if needed (not a big deal because StemJail
+            // hints help to get the big picture).
+        }
     }
 }
 
@@ -294,8 +375,8 @@ impl super::KageCommand for ShimKageCmd {
         match matches.opt_str("access") {
             Some(path) => {
                 check_remaining!(matches);
-                return match ShimKageCmd::ask_access(PathBuf::from(path),
-                        matches.opt_present("write"), false) {
+                return match ShimKageCmd::ask_access(
+                        AccessRequest::new(path, matches.opt_present("write"))) {
                     Ok(s) => {
                         println!("Gain access: {:?}", s);
                         Ok(())

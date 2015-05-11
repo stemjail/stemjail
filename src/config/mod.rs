@@ -16,6 +16,8 @@ use rustc_serialize::Decodable;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use std::sync::Arc;
+use stemflow::{Domain, FileAccess};
 use toml;
 
 pub use self::error::ConfigError;
@@ -24,6 +26,8 @@ mod error;
 
 pub mod portal;
 pub mod profile;
+
+pub type ArcDomain = Arc<Domain<Arc<FileAccess>>>;
 
 // TODO: Check for absolute path only
 pub fn get_config<T, U>(config_file: T) -> Result<U, ConfigError>

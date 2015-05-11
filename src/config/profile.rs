@@ -16,7 +16,8 @@ use jail::BindMount;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
-use stemflow::{Action, Domain, FileAccess, RcDomain, SetAccess};
+use stemflow::{Action, FileAccess, RcDomain, SetAccess};
+use super::ArcDomain;
 
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]
 pub struct ProfileConfig {
@@ -80,12 +81,12 @@ pub struct ProfileDom {
 #[derive(Clone)]
 pub struct JailDom {
     pub binds: Vec<BindMount>,
-    pub dom: Arc<Domain>,
+    pub dom: ArcDomain,
 }
 
-impl From<Arc<Domain>> for JailDom {
+impl From<ArcDomain> for JailDom {
     /// Loosely conversion: merge read and write into read-write, ignore write-only)
-    fn from(other: Arc<Domain>) -> JailDom {
+    fn from(other: ArcDomain) -> JailDom {
         // TODO: Remove unwrap
         let cwd = env::current_dir().unwrap();
         // For each read access, if the path match a write access, then RW, else RO
