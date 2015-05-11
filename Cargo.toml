@@ -1,6 +1,6 @@
 [project]
 name = "stemjail"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Mickaël Salaün <mickael.salaun@ssi.gouv.fr>"]
 
 [dependencies]
