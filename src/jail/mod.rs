@@ -40,7 +40,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread;
-use stemflow::{FileAccess, RcDomain};
+use stemflow::{FileAccess, RefDom};
 
 pub use self::session::Stdio;
 

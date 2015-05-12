@@ -16,7 +16,7 @@ use jail::BindMount;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
-use stemflow::{Action, FileAccess, RcDomain, SetAccess};
+use stemflow::{Action, FileAccess, RefDom, SetAccess};
 use super::ArcDomain;
 
 #[derive(Clone, Debug, RustcDecodable, PartialEq)]

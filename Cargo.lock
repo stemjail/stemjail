@@ -11,7 +11,7 @@ dependencies = [
  "pty 0.1.0",
  "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "stemflow 0.4.0",
+ "stemflow 0.5.0",
  "toml 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -86,7 +86,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "stemflow"
-version = "0.4.0"
+version = "0.5.0"
 
 [[package]]
 name = "termios"
