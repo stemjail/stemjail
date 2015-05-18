@@ -12,10 +12,6 @@ rand = "*"
 rustc-serialize = "*"
 toml = "*"
 
-[dependencies.iohandle]
-path = "../iohandle-rs"
-version = ">= 0.1.0"
-
 [dependencies.mnt]
 path = "../mnt-rs"
 version = ">= 0.2.0"

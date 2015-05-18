@@ -16,8 +16,8 @@
 
 use cmd::PortalAck;
 use fdpass;
-use iohandle::FileDesc;
 use jail;
+use pty::FileDesc;
 use std::marker::PhantomData;
 use std::old_io::{BufferedStream, Writer};
 use std::old_io::net::pipe::UnixStream;

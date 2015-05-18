@@ -32,7 +32,6 @@ extern crate log;
 
 extern crate getopts;
 extern crate graphviz;
-extern crate iohandle;
 extern crate libc;
 extern crate mnt;
 extern crate pty;

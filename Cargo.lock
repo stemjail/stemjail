@@ -5,7 +5,6 @@ dependencies = [
  "bitflags 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "iohandle 0.1.0",
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mnt 0.2.0",
  "pty 0.1.0",
@@ -38,10 +37,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iohandle"
-version = "0.1.0"
-
-[[package]]
 name = "libc"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -62,7 +57,6 @@ version = "0.2.0"
 name = "pty"
 version = "0.1.0"
 dependencies = [
- "iohandle 0.1.0",
  "termios 1.1.2",
 ]
 

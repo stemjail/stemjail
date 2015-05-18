@@ -15,8 +15,8 @@
 #![allow(deprecated)]
 
 use ffi::net;
-use iohandle::FileDesc;
 use libc::{size_t, c_void};
+use pty::FileDesc;
 use std::io;
 use std::old_io::net::pipe::UnixStream;
 use std::os::unix::io::{AsRawFd, RawFd};

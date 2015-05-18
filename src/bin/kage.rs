@@ -19,7 +19,6 @@
 #![feature(libc)]
 
 extern crate env_logger;
-extern crate iohandle;
 extern crate libc;
 #[macro_use]
 extern crate log;
