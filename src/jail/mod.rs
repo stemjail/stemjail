@@ -18,7 +18,7 @@ use cmd::shim::AccessData;
 use config::profile::JailDom;
 use EVENT_TIMEOUT;
 use ffi::ns::{fs, raw, sched};
-use ffi::ns::{mount, pivot_root, unshare};
+use ffi::ns::{mount, pivot_root, unshare, sethostname};
 use libc;
 use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
 use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
@@ -196,6 +196,7 @@ impl<'a> Jail<'a> {
                     new_access.push(bind.into());
                 }
                 debug!("Domain transition: {} -> {}", prev.dom.name, self.jdom.dom.name);
+                self.update_hostname();
                 Ok(new_access)
             }
             None => {
@@ -589,9 +590,16 @@ impl<'a> Jail<'a> {
         Ok(())
     }
 
+    fn update_hostname(&self) {
+        match sethostname(&self.jdom.dom.name) {
+            Ok(()) => {}
+            Err(e) => warn!("Failed to set the jail name: {}", e),
+        }
+    }
+
     // TODO: Return io::Result<()>
     pub fn run<T>(&mut self, run: T, args: &Vec<String>, stdio: Option<Stdio>) where T: AsRef<Path> {
-        info!("Running jail {}", self.name);
+        info!("Running jail {}: {}", self.name, self.jdom.dom.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
         // Fork a new process
@@ -679,6 +687,7 @@ impl<'a> Jail<'a> {
                 panic!("Failed to fork #2");
             } else if pid == 0 {
                 // Child
+                self.update_hostname();
                 // TODO: Expose the TTY
                 match self.init_fs() {
                     Ok(_) => {}

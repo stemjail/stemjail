@@ -26,7 +26,7 @@ pub mod fs;
 pub mod fs0;
 
 pub mod raw {
-    use libc::{c_char, c_int, c_uint, c_ulong, pid_t};
+    use libc::{c_char, c_int, c_uint, c_ulong, pid_t, size_t};
 
     extern {
         pub fn chroot(path: *const c_char) -> c_int;
@@ -34,6 +34,7 @@ pub mod raw {
                      filesystemtype: *const c_char, mountflags: c_ulong,
                      data: *const c_char) -> c_int;
         pub fn pivot_root(new_root: *const c_char, put_old: *const c_char) -> c_int;
+        pub fn sethostname(name: *const c_char, len: size_t) -> c_int;
         pub fn umount2(target: *const c_char, flags: c_uint) -> c_int;
         pub fn unshare(flags: c_uint) -> c_int;
         pub fn waitpid(pid: pid_t, status: *mut c_int, options: c_int) -> pid_t;
@@ -94,6 +95,14 @@ pub fn pivot_root<T,U>(new_root: T, put_old: U) -> io::Result<()>
     let new_root = try!(CString::new(path2bytes!(&new_root)));
     let put_old = try!(CString::new(path2bytes!(&put_old)));
     match unsafe { raw::pivot_root(new_root.as_ptr(), put_old.as_ptr()) } {
+        0 => Ok(()),
+        _ => Err(io::Error::last_os_error()),
+    }
+}
+
+pub fn sethostname<T>(name: T) -> io::Result<()> where T: AsRef<str> {
+    let name = try!(CString::new(name.as_ref()));
+    match unsafe { raw::sethostname(name.as_ptr(), name.as_bytes().len() as ::libc::size_t) } {
         0 => Ok(()),
         _ => Err(io::Error::last_os_error()),
     }
