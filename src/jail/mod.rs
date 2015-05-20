@@ -143,6 +143,7 @@ pub struct Jail<'a> {
     pid: Arc<RwLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
     workdir: Option<PathBuf>,
+    confined: bool,
 }
 
 impl<'a> AsRef<JailDom> for Jail<'a> {
@@ -153,7 +154,7 @@ impl<'a> AsRef<JailDom> for Jail<'a> {
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, jdom: JailDom, tmps: Vec<TmpfsMount>) -> Jail {
+    pub fn new(name: String, jdom: JailDom, tmps: Vec<TmpfsMount>, confined: bool) -> Jail {
         // TODO: Check for a real procfs
         Jail {
             name: name,
@@ -164,7 +165,12 @@ impl<'a> Jail<'a> {
             pid: Arc::new(RwLock::new(None)),
             end_event: None,
             workdir: None,
+            confined: confined,
         }
+    }
+
+    pub fn is_confined(&self) -> bool {
+        self.confined
     }
 
     // FIXME: Exclude /dev and /proc in the configurations

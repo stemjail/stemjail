@@ -23,10 +23,11 @@ use super::profile::ProfileConfig;
 pub struct Portal {
     configs: Vec<ProfileConfig>,
     pool: ResPool<Arc<FileAccess>>,
+    confined: bool,
 }
 
 impl Portal {
-    pub fn new(configs: Vec<ProfileConfig>) -> Portal {
+    pub fn new(configs: Vec<ProfileConfig>, confined: bool) -> Portal {
         let mut pool = ResPool::new();
         for config in configs.iter() {
             // TODO: Reference the config into the corresponding domain
@@ -35,6 +36,7 @@ impl Portal {
         Portal {
             configs: configs,
             pool: pool,
+            confined: confined,
         }
     }
 
@@ -62,6 +64,10 @@ impl Portal {
 
     pub fn render<T>(&self, out: &mut T) -> io::Result<()> where T: io::Write {
         graphviz::render(&self.pool, out)
+    }
+
+    pub fn is_confined(&self) -> bool {
+        self.confined
     }
 }
 

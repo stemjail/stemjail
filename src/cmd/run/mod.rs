@@ -60,9 +60,9 @@ impl RunRequest {
             Ok(()) => {},
             Err(e) => return Err(format!("Failed to send the profile request: {}", e)),
         };
-        let profile_dom = match response_rx.recv() {
+        let (profile_dom, confined) = match response_rx.recv() {
             Ok(r) => match r.profile {
-                Some(c) => c,
+                Some(p) => (p, r.confined),
                 None => return Err(format!("No profile named `{}`", self.profile)),
             },
             Err(e) => return Err(format!("Failed to receive the profile response: {}", e)),
@@ -80,7 +80,8 @@ impl RunRequest {
         let mut j = jail::Jail::new(
             profile_dom.name,
             profile_dom.jdom,
-            vec!()
+            vec!(),
+            confined
         );
 
         let ack = PortalAck {

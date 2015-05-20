@@ -74,6 +74,10 @@ impl MountRequest {
 
 impl JailFn for MountRequest {
     fn call(&mut self, jail: &mut Jail) {
+        if jail.is_confined() {
+            warn!("Unauthorized command");
+            return;
+        }
         let ret = jail.import_bind(&self.into());
         // TODO: Send result to client
         debug!("Mount result: {:?}", ret);

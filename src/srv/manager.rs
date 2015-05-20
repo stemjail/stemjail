@@ -24,6 +24,7 @@ pub enum ManagerAction {
 
 pub struct NewDomResponse {
     pub profile: Option<ProfileDom>,
+    pub confined: bool,
 }
 
 pub struct NewDomRequest {
@@ -56,7 +57,7 @@ impl NewDomRequest {
             None => None,
         };
         // Do not block
-        match self.response.send(NewDomResponse { profile: msg }) {
+        match self.response.send(NewDomResponse { profile: msg, confined: portal.is_confined() }) {
             Ok(()) => Ok(()),
             Err(_) => Err(()),
         }

@@ -120,7 +120,11 @@ impl MonitorBundle<ListRequest> {
 
 impl JailFn for MonitorBundle<ListRequest> {
     // TODO: Spawn a dedicated thread
-    fn call(&mut self, _: &mut Jail) {
+    fn call(&mut self, jail: &mut Jail) {
+        if jail.is_confined() {
+            warn!("Unauthorized command");
+            return;
+        }
         let res = self.list(nest_path(WORKDIR_PARENT, &self.request.path));
         let res = ListResponse {
             result: match res {
