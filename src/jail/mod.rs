@@ -154,7 +154,10 @@ impl<'a> AsRef<JailDom> for Jail<'a> {
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, jdom: JailDom, tmps: Vec<TmpfsMount>, confined: bool) -> Jail {
+    pub fn new(name: String, jdom: JailDom, mut tmps: Vec<TmpfsMount>, confined: bool) -> Jail {
+        // Make a private /tmp for the monitor socket
+        // TODO: Use an abstract UNIX socket + cred check
+        tmps.push(TmpfsMount::new(PathBuf::from("/tmp")));
         // TODO: Check for a real procfs
         Jail {
             name: name,
@@ -530,8 +533,12 @@ impl<'a> Jail<'a> {
     }
 
     fn protected_paths(&self) -> Vec<&Path> {
-        // Protect custom procfs and devices
-        vec!(Path::new("/dev"), Path::new("/proc"))
+        // Protect custom procfs, devices and monitor socket directories
+        vec!(
+            Path::new("/dev"),
+            Path::new("/proc"),
+            Path::new("/tmp"),
+        )
     }
 
     // TODO: impl Drop to unmount and remove mount directories/files
