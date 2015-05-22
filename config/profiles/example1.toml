@@ -3,8 +3,7 @@
 name = "example1"
 
 [[fs.bind]]
-path = "/tmp"
-write = true
+path = "/home"
 
 [run]
 cmd = ["/bin/sh", "-c", "id"]

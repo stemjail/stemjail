@@ -115,8 +115,8 @@ fn test_get_config_example1() {
         fs: FsConfig {
             bind: Some(vec!(
                 BindConfig {
-                    path: "/tmp".to_string(),
-                    write: Some(true),
+                    path: "/home".to_string(),
+                    write: None,
                 },
             )),
         },
@@ -143,8 +143,8 @@ fn test_get_config_example2() {
                     write: Some(true),
                 },
                 BindConfig {
-                    path: "/tmp".to_string(),
-                    write: Some(true),
+                    path: "/home".to_string(),
+                    write: None,
                 },
             )),
         },

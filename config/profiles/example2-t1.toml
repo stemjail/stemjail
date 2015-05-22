@@ -11,8 +11,7 @@ path = "/var/tmp"
 write = true
 
 [[fs.bind]]
-path = "/tmp"
-write = true
+path = "/home"
 
 [run]
 cmd = ["/usr/bin/setsid", "-c", "/bin/sh"]

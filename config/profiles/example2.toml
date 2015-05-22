@@ -7,8 +7,7 @@ path = "/run"
 write = true
 
 [[fs.bind]]
-path = "/tmp"
-write = true
+path = "/home"
 
 [run]
 cmd = ["/usr/bin/setsid", "-c", "/bin/sh"]
