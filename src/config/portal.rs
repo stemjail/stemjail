@@ -44,6 +44,10 @@ impl Portal {
         self.configs.iter().find(|c| AsRef::<str>::as_ref(&c.name) == name.as_ref())
     }
 
+    pub fn allow(&mut self, acl: &Vec<Arc<FileAccess>>) -> Option<ArcDomain> {
+        self.pool.allow(acl)
+    }
+
     pub fn domain<T>(&mut self, name: T) -> Option<ArcDomain> where T: AsRef<str> {
         let acl = match self.profile(name).map(|x| &x.fs.bind) {
             Some(&Some(ref bind)) => {

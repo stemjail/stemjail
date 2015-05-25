@@ -29,7 +29,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
-pub use srv::manager::{GetDotRequest, ManagerAction, NewDomRequest};
+pub use srv::manager::{DomDesc, GetDotRequest, ManagerAction, NewDomRequest};
 
 mod manager;
 

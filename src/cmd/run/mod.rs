@@ -20,7 +20,7 @@ use getopts::Options;
 use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
-use srv::{ManagerAction, NewDomRequest};
+use srv::{DomDesc, ManagerAction, NewDomRequest};
 use std::old_io::net::pipe::UnixStream;
 use std::sync::mpsc::{Sender, channel};
 use super::{PortalAck, PortalRequest};
@@ -43,7 +43,7 @@ impl RunAction {
 
 #[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct RunRequest {
-    pub profile: String,
+    pub profile: Option<String>,
     pub command: Vec<String>,
     pub stdio: bool,
 }
@@ -52,7 +52,10 @@ impl RunRequest {
     fn call(&self, machine: RequestInit, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
         let (response_tx, response_rx) = channel();
         let action = ManagerAction::NewDom(NewDomRequest {
-            name: self.profile.clone(),
+            desc: match self.profile {
+                Some(ref p) => DomDesc::Name(p.clone()),
+                None => DomDesc::Cmd(self.command.clone()),
+            },
             response: response_tx,
         });
         // TODO: Add error typing
@@ -63,7 +66,7 @@ impl RunRequest {
         let (profile_dom, confined) = match response_rx.recv() {
             Ok(r) => match r.profile {
                 Some(p) => (p, r.confined),
-                None => return Err(format!("No profile named `{}`", self.profile)),
+                None => return Err(format!("No domain found")),
             },
             Err(e) => return Err(format!("Failed to receive the profile response: {}", e)),
         };
@@ -78,7 +81,6 @@ impl RunRequest {
         };
 
         let mut j = jail::Jail::new(
-            profile_dom.name,
             profile_dom.jdom,
             vec!(),
             confined
@@ -159,14 +161,11 @@ impl super::KageCommand for RunKageCmd {
             println!("{}", self.get_usage());
             return Ok(());
         }
-        let profile = match matches.opt_str("profile") {
-            Some(p) => p,
-            None => return Err("Need a profile name".to_string()),
-        };
+        let profile = matches.opt_str("profile");
         let stdio = matches.opt_present("tty");
         let argi = matches.free.iter();
         let req = RunRequest {
-            profile: profile.clone(),
+            profile: profile,
             command: argi.map(|x| x.to_string()).collect(),
             stdio: stdio
         };

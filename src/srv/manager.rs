@@ -15,7 +15,10 @@
 use config::portal::Portal;
 use config::profile::ProfileDom;
 use std::io;
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
+use stemflow::{Action, FileAccess};
 
 pub enum ManagerAction {
     NewDom(NewDomRequest),
@@ -27,34 +30,65 @@ pub struct NewDomResponse {
     pub confined: bool,
 }
 
+#[derive(Debug)]
+pub enum DomDesc {
+    Name(String),
+    Cmd(Vec<String>),
+}
+
 pub struct NewDomRequest {
-    pub name: String,
+    pub desc: DomDesc,
     pub response: Sender<NewDomResponse>,
 }
 
 impl NewDomRequest {
     fn call(self, portal: &mut Portal) -> Result<(), ()> {
-        let cmd = {
-            match portal.profile(&self.name) {
-                Some(config) => Some(config.run.cmd.clone()),
-                None => None,
-            }
-        };
-        let msg = match cmd {
-            Some(cmd) => {
-                match portal.domain(&self.name) {
-                    Some(jdom) => Some(ProfileDom {
-                        name: self.name,
-                        cmd: cmd,
-                        jdom: jdom.into(),
-                    }),
-                    None => {
-                        error!("No domain found for the config: {:?}", self.name);
-                        None
+        let msg = {
+            match self.desc {
+                DomDesc::Name(ref name) => {
+                    let cmd_opt = match portal.profile(name) {
+                        Some(config) => Some(config.run.cmd.clone()),
+                        None => None,
+                    };
+                    match cmd_opt {
+                        Some(cmd) => {
+                            match portal.domain(name) {
+                                Some(jdom) => Some(ProfileDom {
+                                    cmd: cmd,
+                                    jdom: jdom.into(),
+                                }),
+                                None => {
+                                    error!("No domain found for {:?}", self.desc);
+                                    None
+                                }
+                            }
+                        }
+                        None => None,
+                    }
+                }
+                DomDesc::Cmd(ref cmd) => {
+                    match cmd.iter().next() {
+                        Some(path) => {
+                            // Build an artificial access request from the executable
+                            let access = vec!(Arc::new(FileAccess {
+                                path: Arc::new(PathBuf::from(path)),
+                                action: Action::Read,
+                            }));
+                            match portal.allow(&access) {
+                                Some(jdom) => Some(ProfileDom {
+                                    cmd: cmd.clone(),
+                                    jdom: jdom.into(),
+                                }),
+                                None => {
+                                    error!("No domain found for {:?}", self.desc);
+                                    None
+                                }
+                            }
+                        }
+                        None => None,
                     }
                 }
             }
-            None => None,
         };
         // Do not block
         match self.response.send(NewDomResponse { profile: msg, confined: portal.is_confined() }) {

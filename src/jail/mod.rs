@@ -133,8 +133,6 @@ impl<'a> TmpfsMount<'a> {
 
 // TODO: Add UUID
 pub struct Jail<'a> {
-    /// Jail description
-    name: String,
     /// Destination root
     root: PathBuf,
     jdom: JailDom,
@@ -154,13 +152,12 @@ impl<'a> AsRef<JailDom> for Jail<'a> {
 
 impl<'a> Jail<'a> {
     // TODO: Check configuration for duplicate binds entries and refuse to use it if so
-    pub fn new(name: String, jdom: JailDom, mut tmps: Vec<TmpfsMount>, confined: bool) -> Jail {
+    pub fn new(jdom: JailDom, mut tmps: Vec<TmpfsMount>, confined: bool) -> Jail {
         // Make a private /tmp for the monitor socket
         // TODO: Use an abstract UNIX socket + cred check
         tmps.push(TmpfsMount::new(PathBuf::from("/tmp")));
         // TODO: Check for a real procfs
         Jail {
-            name: name,
             root: PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() })),
             jdom: jdom,
             tmps: tmps,
@@ -612,7 +609,7 @@ impl<'a> Jail<'a> {
 
     // TODO: Return io::Result<()>
     pub fn run<T>(&mut self, run: T, args: &Vec<String>, stdio: Option<Stdio>) where T: AsRef<Path> {
-        info!("Running jail {}: {}", self.name, self.jdom.dom.name);
+        info!("Running jail: {}", self.jdom.dom.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
         // Fork a new process

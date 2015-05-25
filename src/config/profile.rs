@@ -73,7 +73,6 @@ impl Into<Vec<Arc<FileAccess>>> for ProfileConfig {
 }
 
 pub struct ProfileDom {
-    pub name: String,
     pub cmd: Vec<String>,
     pub jdom: JailDom,
 }
