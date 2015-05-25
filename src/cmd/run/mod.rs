@@ -131,6 +131,7 @@ impl RunKageCmd {
     pub fn new() -> RunKageCmd {
         let mut opts = Options::new();
         opts.optflag("h", "help", "Print this message");
+        opts.optopt("p", "profile", "Use a specific profile", "NAME");
         opts.optflag("t", "tty", "Create and connect to the remote TTY");
         RunKageCmd {
             name: "run".to_string(),
@@ -158,12 +159,12 @@ impl super::KageCommand for RunKageCmd {
             println!("{}", self.get_usage());
             return Ok(());
         }
-        let mut argi = matches.free.iter();
-        let profile = match argi.next() {
+        let profile = match matches.opt_str("profile") {
             Some(p) => p,
             None => return Err("Need a profile name".to_string()),
         };
         let stdio = matches.opt_present("tty");
+        let argi = matches.free.iter();
         let req = RunRequest {
             profile: profile.clone(),
             command: argi.map(|x| x.to_string()).collect(),
