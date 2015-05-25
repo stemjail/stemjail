@@ -2,7 +2,7 @@
 
 DIR_BASE="$(readlink -f -- "$(dirname -- "$0")/..")"
 
-ARGS="run example2 -t"
+ARGS="run -t pro-bank"
 if [ $# -ne 0 ]; then
 	ARGS="$*"
 fi

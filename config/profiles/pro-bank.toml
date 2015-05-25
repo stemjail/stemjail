@@ -1,0 +1,28 @@
+# Portal profile for the personal bank account management
+
+name = "pro-bank"
+
+[[fs.bind]]
+path = "/bin"
+
+[[fs.bind]]
+path = "/etc"
+
+[[fs.bind]]
+path = "/lib"
+
+[[fs.bind]]
+path = "/lib64"
+
+[[fs.bind]]
+path = "/usr"
+
+[[fs.bind]]
+path = "/var/cache"
+
+[[fs.bind]]
+path = "/home/user/Bank"
+write = true
+
+[run]
+cmd = ["/bin/sh"]
