@@ -106,7 +106,7 @@ impl From<ArcDomain> for JailDom {
 #[test]
 fn test_get_config_example1() {
     // TODO: Use absolute configuration path
-    let c1: ProfileConfig = match super::get_config("./config/profiles/example1.toml") {
+    let c1: ProfileConfig = match super::get_config("./config/profiles/test/example1.toml") {
         Ok(c) => c,
         Err(e) => panic!("{}", e),
     };
@@ -130,7 +130,7 @@ fn test_get_config_example1() {
 #[test]
 fn test_get_config_example2() {
     // TODO: Use absolute configuration path
-    let c1: ProfileConfig = match super::get_config("./config/profiles/example2.toml") {
+    let c1: ProfileConfig = match super::get_config("./config/profiles/test/example2.toml") {
         Ok(c) => c,
         Err(e) => panic!("{}", e),
     };
