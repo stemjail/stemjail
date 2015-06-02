@@ -114,7 +114,6 @@ It's useless for a malicious process to not notify the monitor because then the 
 
 For now, you need Rust 1.0.0-beta (because of missing features in the 1.0.0 release).
 To easily build all dependencies, you need Cargo (the 0.2.0 build with Rust 1.0.0-beta).
-You need to install *rust-bindgen* because of the *termios.rs* dependency.
 
 ## Clone repositories
 
@@ -124,8 +123,8 @@ $ git clone https://github.com/stemjail/stemflow
 $ git clone https://github.com/stemjail/stemshim
 $ git clone https://github.com/stemjail/pty-rs
 $ git clone https://github.com/stemjail/mnt-rs
+$ git clone https://github.com/stemjail/termios.rs --branch static
 ```
-
 
 ## Build StemShim
 
