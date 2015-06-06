@@ -21,9 +21,9 @@ A profile configuration reflects a user activity (e.g. bank account, personal pi
 The only interactive step involving the enduser is the profile creation.
 Profiles are then used by StemJail as domains to create dedicated jails per activity.
 
-A common jail starts with a minimal effective access set but a potential wide access set.
+A common jail starts with a minimal effective access set but a potentially wide access set.
 In a jail, when a user application process tries to access a path, the jail can evolve to a new environment with a wider effective access set but a tighter potential access set.
-This way, the user activity (and so the domain) can automatically be detected without interrupting his workflow.
+This way, user activity (and the domain) can automatically be detected without interrupting the user's workflow.
 See StemFlow for more details.
 
 Each jail get a dedicated */dev*, */proc* and */tmp* (ephemeral files).
