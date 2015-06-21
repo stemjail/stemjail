@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+use bufstream::BufStream;
 use cmd::util::send;
 use std::marker::PhantomData;
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
 use super::{AccessResponse, ListResponse};
+use unix_socket::UnixStream;
 
 // Private states
 mod state {
@@ -27,13 +27,13 @@ mod state {
 pub type MonitorFsmInit = MonitorFsm<state::Init>;
 
 struct MonitorFsm<T> {
-    bstream: BufferedStream<UnixStream>,
+    bstream: BufStream<UnixStream>,
     _state: PhantomData<T>,
 }
 
 // Dummy FSM for now, but help to keep it consistent and enforce number of actions
 impl MonitorFsm<state::Init> {
-    pub fn new(bstream: BufferedStream<UnixStream>) -> MonitorFsm<state::Init> {
+    pub fn new(bstream: BufStream<UnixStream>) -> MonitorFsm<state::Init> {
         MonitorFsm {
             bstream: bstream,
             _state: PhantomData,

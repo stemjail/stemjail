@@ -14,27 +14,28 @@
 
 #![allow(deprecated)]
 
+use bufstream::BufStream;
 use cmd::{MonitorCall, PortalCall};
 use config::portal::Portal;
 use {EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
 use jail::JailFn;
 use self::manager::manager_listen;
 use std::fs;
-use std::old_io::{Acceptor, Buffer, BufferedStream, IoErrorKind, Listener, Writer};
-use std::old_io::net::pipe::{UnixListener, UnixStream};
+use std::io::ErrorKind;
 use std::process::exit;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
+use unix_socket::{UnixListener, UnixStream};
 
 pub use srv::manager::{DomDesc, GetDotRequest, ManagerAction, NewDomRequest};
 
 mod manager;
 
-fn read_stream(stream: UnixStream) -> Result<(BufferedStream<UnixStream>, String), String> {
-    let mut bstream = BufferedStream::new(stream);
+fn read_stream(stream: UnixStream) -> Result<(BufStream<UnixStream>, String), String> {
+    let mut bstream = BufStream::new(stream);
     let encoded = match bstream.read_line() {
         Ok(s) => s,
         Err(e) => return Err(format!("Failed to read command: {}", e)),
@@ -139,7 +140,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
                     }
                 });
             }
-            Err(ref e) if e.kind == IoErrorKind::TimedOut => {}
+            Err(ref e) if e.kind == ErrorKind::TimedOut => {}
             Err(e) => debug!("Connection error: {}", e),
         }
     }

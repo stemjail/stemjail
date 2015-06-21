@@ -14,11 +14,11 @@
 
 /// Finite-state machine for a `RunRequest` call
 
+use bufstream::BufStream;
 use cmd::util::send;
 use std::marker::PhantomData;
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
 use super::DotResponse;
+use unix_socket::UnixStream;
 
 // Private states
 mod state {
@@ -42,7 +42,7 @@ impl PortalFsm<state::Init> {
     }
 
     pub fn send_dot_response(self, response: DotResponse) -> Result<(), String> {
-        let mut bstream = BufferedStream::new(self.stream);
+        let mut bstream = BufStream::new(self.stream);
         try!(send(&mut bstream, response));
         Ok(())
     }

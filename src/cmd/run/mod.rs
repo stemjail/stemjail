@@ -21,9 +21,9 @@ use jail;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{RequestInit, RequestFsm};
 use srv::{DomDesc, ManagerAction, NewDomRequest};
-use std::old_io::net::pipe::UnixStream;
 use std::sync::mpsc::{Sender, channel};
 use super::{PortalAck, PortalRequest};
+use unix_socket::UnixStream;
 
 mod fsm_kage;
 mod fsm_portal;

@@ -14,6 +14,7 @@
 
 #![allow(deprecated)]
 
+use bufstream::BufStream;
 use getopts::Options;
 use jail::{Jail, JailFn, WORKDIR_PARENT};
 use jail::util::nest_path;
@@ -24,13 +25,12 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 use stemflow::{Access, Action, SetAccess, FileAccess};
 use super::util;
+use unix_socket::UnixStream;
 
 mod fsm_kage;
 mod fsm_monitor;
@@ -42,7 +42,7 @@ pub enum ShimAction {
 }
 
 impl ShimAction {
-    pub fn call(self, cmd_tx: Sender<Box<JailFn>>, client: BufferedStream<UnixStream>) -> Result<(), String> {
+    pub fn call(self, cmd_tx: Sender<Box<JailFn>>, client: BufStream<UnixStream>) -> Result<(), String> {
         let ret = match self {
             ShimAction::List(req) => {
                 match req.check() {

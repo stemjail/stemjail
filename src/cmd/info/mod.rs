@@ -23,9 +23,9 @@ use self::fsm_portal::{PortalFsmInit, PortalFsm};
 use srv::{GetDotRequest, ManagerAction};
 use std::fs::File;
 use std::io::Write;
-use std::old_io::net::pipe::UnixStream;
 use std::path::Path;
 use std::sync::mpsc::{Sender, channel};
+use unix_socket::UnixStream;
 
 mod fsm_kage;
 mod fsm_portal;

@@ -14,14 +14,13 @@
 
 /// Finite-state machine for a `KageCommand` call
 
+use bufstream::BufStream;
 use cmd::MonitorCall;
 use cmd::util::{recv, send};
 use MONITOR_SOCKET_PATH;
 use std::marker::PhantomData;
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
-use std::old_path::posix::Path as OldPath;
 use super::{AccessRequest, AccessResponse, ListRequest, ListResponse, ShimAction};
+use unix_socket::UnixStream;
 
 macro_rules! fsm_next {
     ($myself: expr) => {
@@ -44,15 +43,14 @@ mod state {
 }
 
 pub struct KageFsm<T> {
-    bstream: BufferedStream<UnixStream>,
+    bstream: BufStream<UnixStream>,
     _state: PhantomData<T>,
 }
 
 impl KageFsm<state::Init> {
     pub fn new() -> Result<KageFsm<state::Init>, String> {
-        let server = OldPath::new(MONITOR_SOCKET_PATH);
-        let bstream = match UnixStream::connect(&server) {
-            Ok(s) => BufferedStream::new(s),
+        let bstream = match UnixStream::connect(MONITOR_SOCKET_PATH) {
+            Ok(s) => BufStream::new(s),
             Err(e) => return Err(format!("Failed to connect: {}", e)),
         };
         Ok(KageFsm {

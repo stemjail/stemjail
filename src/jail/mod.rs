@@ -22,6 +22,7 @@ use ffi::ns::{mount, pivot_root, unshare, sethostname};
 use libc;
 use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
 use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
+use pty::Pipe;
 use self::util::*;
 use srv;
 use std::borrow::Cow::{Borrowed, Owned};
@@ -30,11 +31,9 @@ use std::fmt::Debug;
 use std::fs::{OpenOptions, create_dir, soft_link};
 use std::io;
 use std::io::{ErrorKind, Error, Write};
-use std::old_io::{Command, pipe, process};
-use std::old_io::{IoErrorKind, Reader, Writer};
-use std::old_path::Path as OldPath;
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
@@ -613,15 +612,15 @@ impl<'a> Jail<'a> {
 
         // TODO: Replace fork with a new process creation and dedicated protocol
         // Fork a new process
-        let mut sync_parent = match pipe::PipeStream::pair() {
+        let mut sync_parent = match Pipe::new() {
             Ok(p) => p,
             Err(e) => panic!("Failed to create pipe #1: {}", e),
         };
-        let mut sync_child = match pipe::PipeStream::pair() {
+        let mut sync_child = match Pipe::new() {
             Ok(p) => p,
             Err(e) => panic!("Failed to create pipe #2: {}", e),
         };
-        let (mut jail_pid_rx, mut jail_pid_tx) = match pipe::PipeStream::pair() {
+        let (mut jail_pid_rx, mut jail_pid_tx) = match Pipe::new() {
             Ok(p) => (p.reader, p.writer),
             Err(e) => panic!("Failed to create pipe #3: {}", e),
         };
@@ -637,16 +636,16 @@ impl<'a> Jail<'a> {
                 // Keep the slave FD open until the spawn
                 (
                     Some(slave_fd),
-                    process::InheritFd(fd),
-                    process::InheritFd(fd),
-                    process::InheritFd(fd),
+                    unsafe { Stdio::from_raw_fd(fd) },
+                    unsafe { Stdio::from_raw_fd(fd) },
+                    unsafe { Stdio::from_raw_fd(fd) },
                 )
             },
             None => {(
                 None,
-                process::InheritFd(libc::STDIN_FILENO),
-                process::InheritFd(libc::STDOUT_FILENO),
-                process::InheritFd(libc::STDERR_FILENO),
+                Stdio::inherit(),
+                Stdio::inherit(),
+                Stdio::inherit(),
             )}
         };
         let (end_tx, end_rx) = channel();
@@ -717,7 +716,7 @@ impl<'a> Jail<'a> {
                 // TODO: Try using detached()
                 let mut process = match Command::new(run.as_ref().to_string_lossy().as_slice())
                         // Must switch to / to avoid leaking hidden parent root
-                        .cwd(&OldPath::new("/"))
+                        .cwd("/")
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
@@ -755,19 +754,19 @@ impl<'a> Jail<'a> {
                 });
 
                 let child_thread = thread::scoped(move || {
-                    'main: loop {
+                    'child: loop {
                         process.set_timeout(EVENT_TIMEOUT);
                         let child_ret = process.wait();
                         match child_ret {
                             Ok(ret) => {
                                 debug!("Jail child (PID {}) exited with {}", process.id(), ret);
-                                break 'main;
+                                break 'child;
                             }
-                            Err(ref e) if e.kind == IoErrorKind::TimedOut => {}
+                            Err(ref e) if e.kind == ErrorKind::TimedOut => {}
                             Err(e) => {
                                 warn!("Failed to wait for child (PID {}): {}", process.id(), e);
                                 let _ = process.signal_kill();
-                                break 'main;
+                                break 'child;
                             }
                         }
                     }
@@ -775,7 +774,7 @@ impl<'a> Jail<'a> {
                 });
 
                 // Wait for client commands and child event
-                'main: loop {
+                'parent: loop {
                     let event = events.wait();
                     if event == cmd_handle.id() {
                         match cmd_handle.recv() {
@@ -784,7 +783,7 @@ impl<'a> Jail<'a> {
                         }
                     } else if event == child_handle.id() {
                         match child_handle.recv() {
-                            Ok(..) => break 'main,
+                            Ok(..) => break 'parent,
                             Err(e) => warn!("Failed to receive the command: {}", e),
                         }
                     } else {

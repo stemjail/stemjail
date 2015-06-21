@@ -11,12 +11,14 @@ exclude = [".gitignore"]
 
 [dependencies]
 bitflags = "*"
+bufstream = "*"
 env_logger = "*"
 getopts = "*"
 log = "*"
 rand = "*"
 rustc-serialize = "*"
 toml = "*"
+unix_socket = "*"
 
 [dependencies.mnt]
 path = "../mnt-rs"

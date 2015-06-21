@@ -14,6 +14,7 @@
 
 /// Finite-state machine for a `KageCommand` call
 
+use bufstream::BufStream;
 use cmd::{PortalAck, PortalCall, PortalRequest};
 use cmd::util::{recv, send};
 use fdpass;
@@ -22,9 +23,8 @@ use PORTAL_SOCKET_PATH;
 use pty::{FileDesc, TtyClient};
 use std::io;
 use std::marker::PhantomData;
-use std::old_io::BufferedStream;
-use std::old_io::net::pipe::UnixStream;
 use super::{RunAction, RunRequest};
+use unix_socket::UnixStream;
 
 // Private states
 mod state {
@@ -61,7 +61,7 @@ impl KageFsm<state::Init> {
     pub fn send_run(self, req: RunRequest) -> Result<(KageFsm<state::SendFd>, PortalRequest), String> {
         let stdio = req.stdio;
         let action = PortalCall::Run(RunAction::DoRun(req));
-        let mut bstream = BufferedStream::new(self.stream);
+        let mut bstream = BufStream::new(self.stream);
         try!(send(&mut bstream, action));
 
         // Recv ack and infos (e.g. FD passing)

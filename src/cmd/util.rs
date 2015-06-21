@@ -14,10 +14,10 @@
 
 #![allow(deprecated)]
 
+use bufstream::BufStream;
 use rustc_serialize::{Encodable, Decodable, json};
-use std::old_io::{Buffer, BufferedStream, Writer};
-use std::old_io::net::pipe::UnixStream;
 use std::path::Path;
+use unix_socket::UnixStream;
 
 // TODO: Replace with generic trait
 macro_rules! impl_json {
@@ -33,7 +33,7 @@ macro_rules! impl_json {
     }
 }
 
-pub fn send<T>(bstream: &mut BufferedStream<UnixStream>, object: T) -> Result<(), String>
+pub fn send<T>(bstream: &mut BufStream<UnixStream>, object: T) -> Result<(), String>
         where T: Encodable {
     let encoded = match json::encode(&object) {
         Ok(s) => s,
@@ -49,7 +49,7 @@ pub fn send<T>(bstream: &mut BufferedStream<UnixStream>, object: T) -> Result<()
     }
 }
 
-pub fn recv<T>(bstream: &mut BufferedStream<UnixStream>) -> Result<T, String>
+pub fn recv<T>(bstream: &mut BufStream<UnixStream>) -> Result<T, String>
         where T: Decodable {
     let encoded_str = match bstream.read_line() {
         Ok(s) => s,

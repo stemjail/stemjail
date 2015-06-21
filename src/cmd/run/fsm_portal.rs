@@ -14,13 +14,13 @@
 
 /// Finite-state machine for a `RunRequest` call
 
+use bufstream::BufStream;
 use cmd::PortalAck;
 use fdpass;
 use jail;
 use pty::FileDesc;
 use std::marker::PhantomData;
-use std::old_io::{BufferedStream, Writer};
-use std::old_io::net::pipe::UnixStream;
+use unix_socket::UnixStream;
 
 // Private states
 mod state {
@@ -67,7 +67,7 @@ impl RequestFsm<state::Init> {
             Ok(s) => s,
             Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
-        let mut bstream = BufferedStream::new(self.stream);
+        let mut bstream = BufStream::new(self.stream);
         match bstream.write_line(encoded.as_ref()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Failed to send acknowledgement: {}", e)),

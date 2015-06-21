@@ -30,6 +30,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
+extern crate bufstream;
 extern crate getopts;
 extern crate graphviz;
 extern crate libc;
@@ -39,6 +40,7 @@ extern crate rand;
 extern crate rustc_serialize;
 extern crate stemflow;
 extern crate toml;
+extern crate unix_socket;
 
 pub mod cmd;
 pub mod config;
