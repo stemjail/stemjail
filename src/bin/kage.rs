@@ -22,8 +22,8 @@ extern crate env_logger;
 extern crate libc;
 #[macro_use]
 extern crate log;
-extern crate pty;
 extern crate stemjail;
+extern crate tty;
 
 use std::env;
 use std::io::{Write, stderr};

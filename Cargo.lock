@@ -5,14 +5,15 @@ dependencies = [
  "bitflags 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bufstream 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fd 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "mnt 0.2.0",
- "pty 0.1.0",
+ "mnt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "stemflow 0.5.0",
  "toml 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tty 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "unix_socket 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -41,6 +42,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "fd"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "getopts"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -64,13 +70,7 @@ dependencies = [
 [[package]]
 name = "mnt"
 version = "0.2.0"
-
-[[package]]
-name = "pty"
-version = "0.1.0"
-dependencies = [
- "termios 1.1.2",
-]
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rand"
@@ -96,9 +96,9 @@ version = "0.5.0"
 
 [[package]]
 name = "termios"
-version = "1.1.2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "bitflags 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -108,6 +108,15 @@ version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rustc-serialize 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "tty"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "fd 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

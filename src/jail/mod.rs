@@ -17,12 +17,12 @@
 use cmd::shim::AccessData;
 use config::profile::JailDom;
 use EVENT_TIMEOUT;
+use fd::Pipe;
 use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare, sethostname};
 use libc;
 use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
 use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
-use pty::Pipe;
 use self::util::*;
 use srv;
 use std::borrow::Cow::{Borrowed, Owned};
@@ -631,7 +631,7 @@ impl<'a> Jail<'a> {
                 // XXX: The TTY must be new
                 let slave_fd = s.take_slave_fd().unwrap();
                 let fd = slave_fd.as_raw_fd();
-                //pty::set_nonblock(&fd);
+                //tty::set_nonblock(&fd);
                 self.stdio = Some(s);
                 // Keep the slave FD open until the spawn
                 (

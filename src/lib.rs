@@ -31,15 +31,16 @@ extern crate bitflags;
 extern crate log;
 
 extern crate bufstream;
+extern crate fd;
 extern crate getopts;
 extern crate graphviz;
 extern crate libc;
 extern crate mnt;
-extern crate pty;
 extern crate rand;
 extern crate rustc_serialize;
 extern crate stemflow;
 extern crate toml;
+extern crate tty;
 extern crate unix_socket;
 
 pub mod cmd;

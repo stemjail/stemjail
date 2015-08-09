@@ -18,8 +18,8 @@ use bufstream::BufStream;
 use cmd::PortalAck;
 use fdpass;
 use jail;
-use pty::FileDesc;
 use std::marker::PhantomData;
+use tty::FileDesc;
 use unix_socket::UnixStream;
 
 // Private states

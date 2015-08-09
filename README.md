@@ -35,7 +35,8 @@ StemJail is split into multiple libraries, one per repository:
 * *stemjail*: create and manage jails, according to the security policy, with three components: *kage*, *portal* and *monitor*
 * *stemflow*: access-control policy engine (domain transition)
 * *stemshim*: compatibility shim to preload the StemJail client (*kage*) in processes
-* *pty-rs*: create and manage pseudoterminals
+* *fd-rs*: file descriptor utilities
+* *tty-rs*: create and manage pseudoterminals
 * *mnt-rs*: mounts point listing
 
 The three components of StemJail can communicate through UNIX sockets:
@@ -119,9 +120,6 @@ To easily build all dependencies, you need Cargo (the 0.2.0 build with Rust 1.0.
 $ git clone https://github.com/stemjail/stemjail
 $ git clone https://github.com/stemjail/stemflow
 $ git clone https://github.com/stemjail/stemshim
-$ git clone https://github.com/stemjail/pty-rs
-$ git clone https://github.com/stemjail/mnt-rs
-$ git clone https://github.com/stemjail/termios.rs --branch static
 ```
 
 ## Build StemShim

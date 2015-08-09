@@ -13,20 +13,15 @@ exclude = [".gitignore"]
 bitflags = "*"
 bufstream = "*"
 env_logger = "*"
+fd = "*"
 getopts = "*"
 log = "*"
+mnt = "*"
 rand = "*"
 rustc-serialize = "*"
 toml = "*"
+tty = "*"
 unix_socket = "*"
-
-[dependencies.mnt]
-path = "../mnt-rs"
-version = ">= 0.2.0"
-
-[dependencies.pty]
-path = "../pty-rs"
-version = ">= 0.1.0"
 
 [dependencies.stemflow]
 path = "../stemflow"

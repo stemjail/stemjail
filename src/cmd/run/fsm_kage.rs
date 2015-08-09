@@ -20,10 +20,10 @@ use cmd::util::{recv, send};
 use fdpass;
 use libc;
 use PORTAL_SOCKET_PATH;
-use pty::{FileDesc, TtyClient};
 use std::io;
 use std::marker::PhantomData;
 use super::{RunAction, RunRequest};
+use tty::{FileDesc, TtyClient};
 use unix_socket::UnixStream;
 
 // Private states

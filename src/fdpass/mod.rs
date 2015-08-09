@@ -14,9 +14,9 @@
 
 #![allow(deprecated)]
 
+use fd::FileDesc;
 use ffi::net;
 use libc::{size_t, c_void};
-use pty::FileDesc;
 use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};
 use unix_socket::UnixStream;
