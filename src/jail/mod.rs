@@ -758,17 +758,16 @@ impl<'a> Jail<'a> {
 
                 let child_thread = thread::scoped(move || {
                     'child: loop {
-                        process.set_timeout(EVENT_TIMEOUT);
                         let child_ret = process.wait();
                         match child_ret {
                             Ok(ret) => {
                                 debug!("Jail child (PID {}) exited with {}", process.id(), ret);
                                 break 'child;
                             }
-                            Err(ref e) if e.kind == ErrorKind::TimedOut => {}
+                            Err(ref e) if e.kind() == ErrorKind::TimedOut => {}
                             Err(e) => {
                                 warn!("Failed to wait for child (PID {}): {}", process.id(), e);
-                                let _ = process.signal_kill();
+                                let _ = process.kill();
                                 break 'child;
                             }
                         }
