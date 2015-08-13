@@ -17,8 +17,6 @@
 #![feature(core)]
 #![feature(io)]
 #![feature(libc)]
-#![feature(old_io)]
-#![feature(old_path)]
 #![feature(path_ext)]
 #![feature(path_relative_from)]
 #![feature(rustc_private)]
