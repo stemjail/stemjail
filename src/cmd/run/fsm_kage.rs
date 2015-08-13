@@ -78,7 +78,10 @@ impl KageFsm<state::Init> {
         }
         debug!("Receive {:?}", &decoded.request);
 
-        Ok((fsm_new!(bstream.into_inner()), decoded.request))
+        match bstream.into_inner() {
+            Ok(b) => Ok((fsm_new!(b), decoded.request)),
+            Err(e) => Err(format!("Failed to flush: {:?}", e)),
+        }
     }
 }
 

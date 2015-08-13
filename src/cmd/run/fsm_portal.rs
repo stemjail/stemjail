@@ -73,7 +73,10 @@ impl RequestFsm<state::Init> {
             Ok(_) => {},
             Err(e) => return Err(format!("Failed to send acknowledgement: {}", e)),
         }
-        Ok(fsm_new!(bstream.into_inner()))
+        match bstream.into_inner() {
+            Ok(b) => Ok(fsm_new!(b)),
+            Err(e) => Err(format!("Failed to flush: {:?}", e)),
+        }
     }
 }
 
