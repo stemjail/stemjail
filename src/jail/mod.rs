@@ -48,6 +48,7 @@ mod session;
 pub mod util;
 
 pub static WORKDIR_PARENT: &'static str = "./parent";
+pub static ENV_WHITELIST: [&'static str; 2] = ["HOME", "TERM"];
 
 pub trait JailFn: Send + Debug {
     fn call(&mut self, &mut Jail);
@@ -706,24 +707,25 @@ impl<'a> Jail<'a> {
                 // A normal user must not be able to drop groups to avoid permission bypass (cf.
                 // user_namespaces(7): the setgroups file)
 
-                // FIXME when using env* functions: task '<unnamed>' failed at 'could not initialize task_rng: couldn't open file (no such file or directory (No such file or directory); path=/dev/urandom; mode=open; access=read)', .../rust/src/libstd/rand/mod.rs:200
-                // XXX: Inherit HOME and TERM for now
-                let env: Vec<(String, String)> = env::vars().filter_map(|(ref n, ref v)| {
-                    match n.as_slice() {
-                        "HOME" | "TERM" => Some((n.clone(), v.clone())),
-                        _ => None,
-                    }
-                }).collect();
-                // TODO: Try using detached()
-                let mut process = match Command::new(run.as_ref().to_string_lossy().as_slice())
+                //let mut process = match Command::new(run.as_ref())
+                let mut cmd = Command::new(run.as_ref());
+                let _ = cmd
                         // Must switch to / to avoid leaking hidden parent root
-                        .cwd("/")
+                        .current_dir("/")
                         .stdin(stdin)
                         .stdout(stdout)
                         .stderr(stderr)
-                        .env_set_all(env.as_slice())
-                        .args(args.as_slice())
-                        .spawn() {
+                        .env_clear()
+                        .args(args.as_slice());
+                for k in ENV_WHITELIST.iter() {
+                    match env::var(k) {
+                        Ok(v) => {
+                            let _ = cmd.env(k, v);
+                        }
+                        Err(..) => {}
+                    }
+                }
+                let mut process = match cmd.spawn() {
                     Ok(p) => p,
                     Err(e) => panic!("Failed to execute process: {}", e),
                 };
