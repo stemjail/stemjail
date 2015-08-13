@@ -16,14 +16,14 @@ use std::io;
 use std::path::Path;
 use tty::{FileDesc, TtyServer};
 
-pub struct Stdio {
+pub struct SessionIo {
     tty: TtyServer,
 }
 
-impl Stdio {
-    pub fn new(fd: &FileDesc) -> io::Result<Stdio> {
+impl SessionIo {
+    pub fn new(fd: &FileDesc) -> io::Result<SessionIo> {
         let tty = try!(TtyServer::new(Some(fd)));
-        Ok(Stdio {
+        Ok(SessionIo {
             tty: tty,
         })
     }
@@ -38,7 +38,7 @@ impl Stdio {
     }
 }
 
-impl AsRef<Path> for Stdio {
+impl AsRef<Path> for SessionIo {
     fn as_ref(&self) -> &Path {
         self.tty.as_ref()
     }

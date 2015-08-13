@@ -98,7 +98,7 @@ impl RunRequest {
         let (machine, stdio) = if self.stdio {
             let (machine, fd) = try!(machine.recv_fd());
             // XXX: Allocate a new TTY inside the jail?
-            match jail::Stdio::new(&fd) {
+            match jail::SessionIo::new(&fd) {
                 Ok(f) => (machine, Some(f)),
                 Err(e) => panic!("Failed to create stdio: {}", e),
             }

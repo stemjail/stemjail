@@ -31,9 +31,9 @@ use std::fmt::Debug;
 use std::fs::{OpenOptions, create_dir, soft_link};
 use std::io;
 use std::io::{ErrorKind, Error, Read, Write};
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
@@ -41,7 +41,7 @@ use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread;
 use stemflow::{FileAccess, RefDom};
 
-pub use self::session::Stdio;
+pub use self::session::SessionIo;
 
 mod session;
 
@@ -136,7 +136,7 @@ pub struct Jail<'a> {
     root: PathBuf,
     jdom: JailDom,
     tmps: Vec<TmpfsMount<'a>>,
-    stdio: Option<Stdio>,
+    stdio: Option<SessionIo>,
     pid: Arc<RwLock<Option<pid_t>>>,
     end_event: Option<Receiver<Result<(), ()>>>,
     workdir: Option<PathBuf>,
@@ -607,7 +607,7 @@ impl<'a> Jail<'a> {
     }
 
     // TODO: Return io::Result<()>
-    pub fn run<T>(&mut self, run: T, args: &Vec<String>, stdio: Option<Stdio>) where T: AsRef<Path> {
+    pub fn run<T>(&mut self, run: T, args: &Vec<String>, stdio: Option<SessionIo>) where T: AsRef<Path> {
         info!("Running jail: {}", self.jdom.dom.name);
 
         // TODO: Replace fork with a new process creation and dedicated protocol
@@ -858,7 +858,7 @@ impl<'a> Jail<'a> {
         }
     }
 
-    pub fn get_stdio(&self) -> &Option<Stdio> {
+    pub fn get_stdio(&self) -> &Option<SessionIo> {
         &self.stdio
     }
 

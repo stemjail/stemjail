@@ -96,7 +96,7 @@ impl RequestFsm<state::RecvFd> {
 }
 
 impl RequestFsm<state::SendFd> {
-    pub fn send_fd(mut self, stdio: &jail::Stdio) -> Result<(), String> {
+    pub fn send_fd(mut self, stdio: &jail::SessionIo) -> Result<(), String> {
         // TODO: Replace &[0] with a JSON command
         let iov = &[0];
         match fdpass::send_fd(&mut self.stream, iov, stdio.get_master()) {
