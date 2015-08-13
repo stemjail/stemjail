@@ -14,6 +14,7 @@
 
 #![allow(deprecated)]
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cmd::shim::AccessData;
 use config::profile::JailDom;
 use EVENT_TIMEOUT;
@@ -731,9 +732,8 @@ impl<'a> Jail<'a> {
                 };
                 // Need to keep the slave TTY open until passing to the child
                 drop(slave_fd.take());
-                // TODO: Check 32-bits compatibility with other arch
-                match jail_pid_tx.write_le_i32(process.id()) {
-                    Ok(_) => {}
+                match jail_pid_tx.write_i32::<LittleEndian>(process.id() as pid_t) {
+                    Ok(()) => {}
                     Err(e) => panic!("Failed to send child PID: {}", e),
                 }
                 drop(jail_pid_tx);
@@ -824,7 +824,7 @@ impl<'a> Jail<'a> {
                 Err(e) => panic!("Failed to synchronise with child: {}", e),
             }
             // Get the child PID
-            match jail_pid_rx.read_le_i32() {
+            match jail_pid_rx.read_i32::<LittleEndian>() {
                 Ok(p) => {
                     let mut lock = match jail_pid.write() {
                         Ok(g) => g,

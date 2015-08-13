@@ -29,6 +29,7 @@ extern crate bitflags;
 extern crate log;
 
 extern crate bufstream;
+extern crate byteorder;
 extern crate fd;
 extern crate getopts;
 extern crate graphviz;

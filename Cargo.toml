@@ -12,6 +12,7 @@ exclude = [".gitignore"]
 [dependencies]
 bitflags = "*"
 bufstream = "*"
+byteorder = "*"
 env_logger = "*"
 fd = "*"
 getopts = "*"
