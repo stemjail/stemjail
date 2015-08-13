@@ -16,6 +16,7 @@
 
 use bufstream::BufStream;
 use rustc_serialize::{Encodable, Decodable, json};
+use std::io::{BufRead, Write};
 use std::path::Path;
 use unix_socket::UnixStream;
 
@@ -39,7 +40,7 @@ pub fn send<T>(bstream: &mut BufStream<UnixStream>, object: T) -> Result<(), Str
         Ok(s) => s,
         Err(e) => return Err(format!("Failed to encode request: {}", e)),
     };
-    match bstream.write_line(encoded.as_ref()) {
+    match bstream.write_all(encoded.as_ref()) {
         Ok(_) => {},
         Err(e) => return Err(format!("Failed to send request: {}", e)),
     }
@@ -51,8 +52,9 @@ pub fn send<T>(bstream: &mut BufStream<UnixStream>, object: T) -> Result<(), Str
 
 pub fn recv<T>(bstream: &mut BufStream<UnixStream>) -> Result<T, String>
         where T: Decodable {
-    let encoded_str = match bstream.read_line() {
-        Ok(s) => s,
+    let mut encoded_str = String::new();
+    match bstream.read_line(&mut encoded_str) {
+        Ok(_) => {},
         Err(e) => return Err(format!("Failed to read: {}", e)),
     };
     match json::decode(&encoded_str) {

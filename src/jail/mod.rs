@@ -30,7 +30,7 @@ use std::env;
 use std::fmt::Debug;
 use std::fs::{OpenOptions, create_dir, soft_link};
 use std::io;
-use std::io::{ErrorKind, Error, Write};
+use std::io::{ErrorKind, Error, Read, Write};
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -681,11 +681,12 @@ impl<'a> Jail<'a> {
             }
 
             // Sync with parent
-            match sync_parent.writer.write_i8(0) {
+            match sync_parent.writer.write(&[0]) {
                 Ok(_) => {}
                 Err(e) => panic!("Failed to synchronise with parent #1: {}", e),
             }
-            match sync_child.reader.read_i8() {
+            let mut buf_signal = [0];
+            match sync_child.reader.read(&mut buf_signal) {
                 Ok(_) => {}
                 Err(e) => panic!("Failed to synchronise with parent #2: {}", e),
             }
