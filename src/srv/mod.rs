@@ -21,7 +21,7 @@ use {EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
 use jail::JailFn;
 use self::manager::manager_listen;
 use std::fs;
-use std::io::ErrorKind;
+use std::io::{BufRead, ErrorKind, Write};
 use std::process::exit;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -36,8 +36,9 @@ mod manager;
 
 fn read_stream(stream: UnixStream) -> Result<(BufStream<UnixStream>, String), String> {
     let mut bstream = BufStream::new(stream);
-    let encoded = match bstream.read_line() {
-        Ok(s) => s,
+    let mut encoded = String::new();
+    match bstream.read_line(&mut encoded) {
+        Ok(_) => {}
         Err(e) => return Err(format!("Failed to read command: {}", e)),
     };
     match bstream.flush() {
@@ -53,7 +54,10 @@ fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Resul
         Ok(d) => d,
         Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
     };
-    let stream = bstream.into_inner();
+    let stream = match bstream.into_inner() {
+        Ok(s) => s,
+        Err(e) => return Err(format!("Failed to pass command: {:?}", e)),
+    };
 
     debug!("Portal got request: {:?}", decoded);
     // Use the client command if any or the configuration command otherwise
@@ -81,8 +85,17 @@ fn portal_ext_listen(manager_tx: Sender<ManagerAction>) {
     let server = PORTAL_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
-    let stream = UnixListener::bind(&server);
-    for client in stream.listen().incoming() {
+    let stream = match UnixListener::bind(&server) {
+        Ok(s) => s,
+        Err(e) => {
+            // Can failed because of read-only FS/directory (e.g. no tmpfs for the socket) and then
+            // the monitor will fail to receive any command.
+            error!("Failed to bind to {:?}: {}", server, e);
+            // FIXME: Handle return error instead of exit
+            exit(1);
+        }
+    };
+    for client in stream.incoming() {
         match client {
             Ok(c) => {
                 let manager_tx = manager_tx.clone();
@@ -116,18 +129,17 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     let server = MONITOR_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
-    let mut acceptor = match UnixListener::bind(&server).listen() {
+    let mut acceptor = match UnixListener::bind(&server) {
         Err(e) => {
             // Can failed because of read-only FS/directory (e.g. no tmpfs for the socket) and then
             // the monitor will fail to receive any command.
-            error!("Failed to listen to {:?}: {}", server, e);
+            error!("Failed to bind to {:?}: {}", server, e);
             // FIXME: Handle return error instead of exit
             exit(1);
         }
         Ok(v) => v,
     };
     while !quit.load(Relaxed) {
-        acceptor.set_timeout(EVENT_TIMEOUT);
         match acceptor.accept() {
             Ok(s) => {
                 let client_cmd_fn = cmd_tx.clone();
@@ -140,7 +152,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
                     }
                 });
             }
-            Err(ref e) if e.kind == ErrorKind::TimedOut => {}
+            Err(ref e) if e.kind() == ErrorKind::TimedOut => {}
             Err(e) => debug!("Connection error: {}", e),
         }
     }
