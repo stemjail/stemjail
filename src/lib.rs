@@ -12,16 +12,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(collections)]
 #![feature(convert)]
-#![feature(core)]
-#![feature(io)]
 #![feature(libc)]
+#![feature(mpsc_select)]
 #![feature(path_ext)]
 #![feature(path_relative_from)]
 #![feature(rustc_private)]
-#![feature(std_misc)]
-#![feature(unsafe_destructor)]
+#![feature(scoped)]
+#![feature(vec_push_all)]
 
 #[macro_use]
 extern crate bitflags;
@@ -56,6 +54,3 @@ pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
 pub static PORTAL_PROFILES_PATH: &'static str = "./config/profiles";
 
 pub static MONITOR_SOCKET_PATH: &'static str = "/tmp/monitor.sock";
-
-// Wait 100 milliseconds
-pub static EVENT_TIMEOUT: Option<u64> = Some(100);

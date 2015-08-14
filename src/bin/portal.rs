@@ -14,8 +14,6 @@
 
 #![cfg(not(test))]
 
-#![feature(exit_status)]
-
 extern crate env_logger;
 extern crate getopts;
 #[macro_use]
@@ -24,6 +22,7 @@ extern crate stemjail;
 
 use getopts::Options;
 use std::env;
+use std::process;
 use stemjail::config::get_configs;
 use stemjail::config::portal::Portal;
 use stemjail::srv::portal_listen;
@@ -32,8 +31,7 @@ macro_rules! exit_error {
     ($($arg:tt)*) => {
         {
             format!($($arg)*);
-            env::set_exit_status(1);
-            return;
+            process::exit(1);
         }
     };
 }

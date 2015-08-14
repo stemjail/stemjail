@@ -17,7 +17,7 @@
 use bufstream::BufStream;
 use cmd::{MonitorCall, PortalCall};
 use config::portal::Portal;
-use {EVENT_TIMEOUT, MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
+use {MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
 use jail::JailFn;
 use self::manager::manager_listen;
 use std::fs;
@@ -129,7 +129,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     let server = MONITOR_SOCKET_PATH;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
-    let mut acceptor = match UnixListener::bind(&server) {
+    let acceptor = match UnixListener::bind(&server) {
         Err(e) => {
             // Can failed because of read-only FS/directory (e.g. no tmpfs for the socket) and then
             // the monitor will fail to receive any command.

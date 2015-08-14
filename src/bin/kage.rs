@@ -15,7 +15,6 @@
 #![cfg(not(test))]
 
 #![feature(convert)]
-#![feature(exit_status)]
 #![feature(libc)]
 
 extern crate env_logger;
@@ -25,20 +24,21 @@ extern crate log;
 extern crate stemjail;
 extern crate tty;
 
-use std::env;
 use std::io::{Write, stderr};
+use std::env;
+use std::process;
 use stemjail::cmd;
 
 fn get_usage() -> String {
     let mut args = std::env::args();
     let name = args.next().unwrap_or("stemjail-cli".to_string());
-    format!("usage: {} {}", name, cmd::list_kage_cmd_names().connect("|"))
+    format!("usage: {} {}", name, cmd::list_kage_cmd_names().join("|"))
 }
 
 fn args_fail<T>(msg: T) where T: AsRef<str> {
     let msg = format!("{}\n\n{}\n", msg.as_ref(), get_usage().as_str());
     stderr().write_all(msg.as_bytes()).unwrap();
-    env::set_exit_status(1);
+    process::exit(1);
 }
 
 fn main() {

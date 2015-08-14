@@ -17,11 +17,9 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cmd::shim::AccessData;
 use config::profile::JailDom;
-use EVENT_TIMEOUT;
 use fd::Pipe;
 use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare, sethostname};
-use libc;
 use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
 use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
 use self::util::*;
