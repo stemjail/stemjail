@@ -14,7 +14,6 @@
 
 /// Finite-state machine for a `KageCommand` call
 
-use bufstream::BufStream;
 use cmd::{PortalAck, PortalCall, PortalRequest};
 use cmd::util::{recv, send};
 use fdpass;
@@ -58,14 +57,13 @@ impl KageFsm<state::Init> {
         Ok(fsm_new!(stream))
     }
 
-    pub fn send_run(self, req: RunRequest) -> Result<(KageFsm<state::SendFd>, PortalRequest), String> {
+    pub fn send_run(mut self, req: RunRequest) -> Result<(KageFsm<state::SendFd>, PortalRequest), String> {
         let stdio = req.stdio;
         let action = PortalCall::Run(RunAction::DoRun(req));
-        let mut bstream = BufStream::new(self.stream);
-        try!(send(&mut bstream, action));
+        try!(send(&mut self.stream, action));
 
         // Recv ack and infos (e.g. FD passing)
-        let decoded: PortalAck  = try!(recv(&mut bstream));
+        let decoded: PortalAck  = try!(recv(&mut self.stream));
 
         // TODO: Remove dup checks
         let valid_req = match decoded.request {
@@ -77,11 +75,7 @@ impl KageFsm<state::Init> {
             return Err(format!("Invalid request: {:?}", &decoded.request));
         }
         debug!("Receive {:?}", &decoded.request);
-
-        match bstream.into_inner() {
-            Ok(b) => Ok((fsm_new!(b), decoded.request)),
-            Err(e) => Err(format!("Failed to flush: {:?}", e)),
-        }
+        Ok((fsm_new!(self.stream), decoded.request))
     }
 }
 

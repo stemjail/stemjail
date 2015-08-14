@@ -14,7 +14,6 @@
 
 /// Finite-state machine for a `RunRequest` call
 
-use bufstream::BufStream;
 use cmd::PortalAck;
 use fdpass;
 use jail;
@@ -63,20 +62,16 @@ impl RequestFsm<state::Init> {
         fsm_new!(stream)
     }
 
-    pub fn send_ack(self, ack: PortalAck) -> Result<RequestFsm<state::RecvFd>, String> {
+    pub fn send_ack(mut self, ack: PortalAck) -> Result<RequestFsm<state::RecvFd>, String> {
         let encoded = match ack.encode() {
             Ok(s) => s,
             Err(e) => return Err(format!("Failed to encode command: {}", e)),
         };
-        let mut bstream = BufStream::new(self.stream);
-        match bstream.write_all(encoded.as_ref()) {
+        match self.stream.write_all(encoded.as_ref()) {
             Ok(_) => {},
             Err(e) => return Err(format!("Failed to send acknowledgement: {}", e)),
         }
-        match bstream.into_inner() {
-            Ok(b) => Ok(fsm_new!(b)),
-            Err(e) => Err(format!("Failed to flush: {:?}", e)),
-        }
+        Ok(fsm_new!(self.stream))
     }
 }
 

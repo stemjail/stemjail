@@ -12,7 +12,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use bufstream::BufStream;
 use cmd::util::send;
 use std::marker::PhantomData;
 use super::{AccessResponse, ListResponse};
@@ -27,24 +26,24 @@ mod state {
 pub type MonitorFsmInit = MonitorFsm<state::Init>;
 
 struct MonitorFsm<T> {
-    bstream: BufStream<UnixStream>,
+    stream: UnixStream,
     _state: PhantomData<T>,
 }
 
 // Dummy FSM for now, but help to keep it consistent and enforce number of actions
 impl MonitorFsm<state::Init> {
-    pub fn new(bstream: BufStream<UnixStream>) -> MonitorFsm<state::Init> {
+    pub fn new(stream: UnixStream) -> MonitorFsm<state::Init> {
         MonitorFsm {
-            bstream: bstream,
+            stream: stream,
             _state: PhantomData,
         }
     }
 
     pub fn send_list_response(mut self, response: ListResponse) -> Result<(), String> {
-        send(&mut self.bstream, response)
+        send(&mut self.stream, response)
     }
 
     pub fn send_access_response(mut self, response: AccessResponse) -> Result<(), String> {
-        send(&mut self.bstream, response)
+        send(&mut self.stream, response)
     }
 }

@@ -14,14 +14,13 @@
 
 #![allow(deprecated)]
 
-use bufstream::BufStream;
 use cmd::{MonitorCall, PortalCall};
 use config::portal::Portal;
-use {MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
 use jail::JailFn;
+use {MONITOR_SOCKET_PATH, PORTAL_SOCKET_PATH};
 use self::manager::manager_listen;
 use std::fs;
-use std::io::{BufRead, ErrorKind, Write};
+use std::io::ErrorKind;
 use std::process::exit;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -29,34 +28,17 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 use unix_socket::{UnixListener, UnixStream};
+use util::recv_line;
 
 pub use srv::manager::{DomDesc, GetDotRequest, ManagerAction, NewDomRequest};
 
 mod manager;
 
-fn read_stream(stream: UnixStream) -> Result<(BufStream<UnixStream>, String), String> {
-    let mut bstream = BufStream::new(stream);
-    let mut encoded = String::new();
-    match bstream.read_line(&mut encoded) {
-        Ok(_) => {}
-        Err(e) => return Err(format!("Failed to read command: {}", e)),
-    };
-    match bstream.flush() {
-        Ok(_) => {},
-        Err(e) => return Err(format!("Failed to flush command: {}", e)),
-    };
-    Ok((bstream, encoded))
-}
-
-fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
-    let (bstream, decoded_str) = try!(read_stream(stream));
+fn portal_handle(mut stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
+    let decoded_str = try!(recv_line(&mut stream));
     let decoded = match PortalCall::decode(&decoded_str) {
         Ok(d) => d,
         Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
-    };
-    let stream = match bstream.into_inner() {
-        Ok(s) => s,
-        Err(e) => return Err(format!("Failed to pass command: {:?}", e)),
     };
 
     debug!("Portal got request: {:?}", decoded);
@@ -68,8 +50,8 @@ fn portal_handle(stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Resul
 }
 
 // TODO: Handle return error
-fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(), String> {
-    let (bstream, decoded_str) = try!(read_stream(stream));
+fn monitor_handle(mut stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(), String> {
+    let decoded_str = try!(recv_line(&mut stream));
     let decoded = match MonitorCall::decode(&decoded_str) {
         Ok(d) => d,
         Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
@@ -77,7 +59,7 @@ fn monitor_handle(stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(),
     debug!("Monitor got request: {:?}", decoded);
     match decoded {
         MonitorCall::Mount(action) => action.call(cmd_tx),
-        MonitorCall::Shim(action) => action.call(cmd_tx, bstream),
+        MonitorCall::Shim(action) => action.call(cmd_tx, stream),
     }
 }
 

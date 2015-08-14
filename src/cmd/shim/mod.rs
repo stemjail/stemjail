@@ -14,7 +14,6 @@
 
 #![allow(deprecated)]
 
-use bufstream::BufStream;
 use getopts::Options;
 use jail::{Jail, JailFn, WORKDIR_PARENT};
 use jail::util::nest_path;
@@ -42,7 +41,7 @@ pub enum ShimAction {
 }
 
 impl ShimAction {
-    pub fn call(self, cmd_tx: Sender<Box<JailFn>>, client: BufStream<UnixStream>) -> Result<(), String> {
+    pub fn call(self, cmd_tx: Sender<Box<JailFn>>, client: UnixStream) -> Result<(), String> {
         let ret = match self {
             ShimAction::List(req) => {
                 match req.check() {
