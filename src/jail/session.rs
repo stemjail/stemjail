@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+use std::fs::File;
 use std::io;
 use std::path::Path;
 use tty::{FileDesc, TtyServer};
@@ -29,11 +30,11 @@ impl SessionIo {
     }
 
     // Take care of the return FD lifetime
-    pub fn take_slave_fd(&mut self) -> Option<FileDesc> {
+    pub fn take_slave_fd(&mut self) -> Option<File> {
         self.tty.take_slave()
     }
 
-    pub fn get_master(&self) -> &FileDesc {
+    pub fn get_master(&self) -> &File {
         self.tty.get_master()
     }
 }
