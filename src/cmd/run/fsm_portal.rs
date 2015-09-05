@@ -17,10 +17,10 @@
 use cmd::PortalAck;
 use fdpass;
 use jail;
-use std::io::Write;
 use std::marker::PhantomData;
 use tty::FileDesc;
 use unix_socket::UnixStream;
+use util::send;
 
 // Private states
 mod state {
@@ -63,14 +63,7 @@ impl RequestFsm<state::Init> {
     }
 
     pub fn send_ack(mut self, ack: PortalAck) -> Result<RequestFsm<state::RecvFd>, String> {
-        let encoded = match ack.encode() {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to encode command: {}", e)),
-        };
-        match self.stream.write_all(encoded.as_ref()) {
-            Ok(_) => {},
-            Err(e) => return Err(format!("Failed to send acknowledgement: {}", e)),
-        }
+        try!(send(&mut self.stream, ack));
         Ok(fsm_new!(self.stream))
     }
 }

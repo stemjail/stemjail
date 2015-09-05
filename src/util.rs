@@ -20,7 +20,7 @@ pub use stemflow::absolute_path;
 pub fn send<T, U>(stream: &mut T, object: U) -> Result<(), String>
         where T: Write, U: Encodable {
     let encoded = match json::encode(&object) {
-        Ok(s) => s,
+        Ok(s) => format!("{}\n", s),
         Err(e) => return Err(format!("Failed to encode request: {}", e)),
     };
     match stream.write_all(encoded.as_ref()) {
