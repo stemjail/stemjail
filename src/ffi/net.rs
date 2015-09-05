@@ -23,6 +23,10 @@ use std::ptr;
 pub mod raw {
     use libc::{c_int, ssize_t, c_void};
 
+    #[cfg(target_arch="x86_64")]
+    // From x86_64-linux-gnu/bits/socket.h
+    pub const MSG_CMSG_CLOEXEC: c_int = 0x40000000;
+
     extern {
         pub fn recvmsg(sockfd: c_int, msg: *mut c_void, flags: c_int) -> ssize_t;
         pub fn sendmsg(sockfd: c_int, msg: *const c_void, flags: c_int) -> ssize_t;
@@ -176,7 +180,7 @@ pub fn recvmsg<T>(sockfd: &mut AsRawFd, iov_len: usize, mut cmsg_data: T) -> io:
     });
     let mut ctrl = Cmsghdr::new(SOL_SOCKET, Scm::Rights, cmsg_data);
     let mut msg = Msghdr::new(None, iovv, &mut ctrl, None);
-    let size = match unsafe { raw::recvmsg(sockfd.as_raw_fd(), transmute(&mut msg), 0) } {
+    let size = match unsafe { raw::recvmsg(sockfd.as_raw_fd(), transmute(&mut msg), raw::MSG_CMSG_CLOEXEC) } {
         -1 => return Err(io::Error::last_os_error()),
         s => s,
     };
