@@ -18,7 +18,6 @@
 #![feature(path_ext)]
 #![feature(path_relative_from)]
 #![feature(rustc_private)]
-#![feature(scoped)]
 #![feature(vec_push_all)]
 
 #[macro_use]

@@ -750,11 +750,11 @@ impl<'a> Jail<'a> {
                 unsafe { child_handle.add() };
 
                 let cmd_quit = quit.clone();
-                let cmd_thread = thread::scoped(move || {
+                let cmd_thread = thread::spawn(move || {
                     srv::monitor_listen(cmd_tx, cmd_quit);
                 });
 
-                let child_thread = thread::scoped(move || {
+                let child_thread = thread::spawn(move || {
                     'child: loop {
                         let child_ret = process.wait();
                         match child_ret {
@@ -792,8 +792,10 @@ impl<'a> Jail<'a> {
                 }
 
                 quit.store(true, Relaxed);
+                // TODO: Handle thread error
                 let _ = child_thread.join();
                 debug!("Jail child monitor exited");
+                // TODO: Handle thread error
                 let _ = cmd_thread.join();
                 debug!("Jail command monitor exited");
                 unsafe { exit(0); }
