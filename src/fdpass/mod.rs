@@ -24,14 +24,23 @@ use unix_socket::UnixStream;
 #[repr(C)]
 struct FdPadding {
     pub fd: RawFd,
-    _padding: [u8; 2],
+    /* __cmsg_data must be align with size_t */
+    #[cfg(target_arch = "x86_64")]
+    _padding: u32,
 }
 
 impl FdPadding {
+    #[cfg(target_arch = "x86_64")]
     pub fn new(fd: RawFd) -> FdPadding {
         FdPadding {
             fd: fd,
-            _padding: [0, 0],
+            _padding: 0,
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    pub fn new(fd: RawFd) -> FdPadding {
+        FdPadding {
+            fd: fd,
         }
     }
 }
