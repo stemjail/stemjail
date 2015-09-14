@@ -1,6 +1,6 @@
 [package]
 name = "stemjail"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Mickaël Salaün <mickael.salaun@ssi.gouv.fr>"]
 description = "Dynamic user-activity isolation"
 repository = "https://github.com/stemjail/stemjail"
@@ -21,9 +21,9 @@ mnt = "*"
 rand = "*"
 rustc-serialize = "*"
 toml = "*"
-tty = "*"
+tty = ">= 0.4.2"
 unix_socket = "*"
 
 [dependencies.stemflow]
 path = "../stemflow"
-version = ">= 0.5.0"
+version = ">= 0.5.1"

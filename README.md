@@ -111,8 +111,7 @@ It's useless for a malicious process not to notify the monitor because then the 
 
 ## Requirements
 
-For now, you need Rust 1.0.0-beta (the 1.0.0 stable support is a work in progress).
-To easily build all dependencies, you need Cargo (the 0.2.0 build with Rust 1.0.0-beta).
+You need Rust 1.4.0 (current nightly) and Cargo to build StemJail and its dependencies.
 
 ## Clone repositories
 
