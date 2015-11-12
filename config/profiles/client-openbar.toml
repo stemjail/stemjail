@@ -1,6 +1,6 @@
-# Portal profile for the personal pictures
+# Portal profile to manage the OpenBar client
 
-name = "perso-picz"
+name = "OpenBar"
 
 [[fs.bind]]
 path = "/bin"
@@ -21,7 +21,7 @@ path = "/usr"
 path = "/var/cache"
 
 [[fs.bind]]
-path = "/home/user/Pictures"
+path = "/home/user/Clients/OpenBar"
 write = true
 
 [run]

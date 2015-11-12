@@ -1,6 +1,6 @@
-# Portal profile for the personal bank account management
+# Portal profile to manage the Paranoid client
 
-name = "pro-bank"
+name = "Paranoid"
 
 [[fs.bind]]
 path = "/bin"
@@ -21,7 +21,7 @@ path = "/usr"
 path = "/var/cache"
 
 [[fs.bind]]
-path = "/home/user/Bank"
+path = "/home/user/Clients/Paranoid"
 write = true
 
 [run]
