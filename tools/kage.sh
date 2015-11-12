@@ -1,7 +1,7 @@
 #!/bin/sh
 
 RUSTC_MODE="${RUSTC_MODE:-release}"
-DIR_BASE="$(readlink -f -- "$(dirname -- "$0")/..")"
+DIR_BASE="$(dirname -- "$(readlink -f -- "$0")")/.."
 
 ARGS="run -t /bin/bash"
 if [ $# -ne 0 ]; then
