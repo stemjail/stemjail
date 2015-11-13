@@ -3,7 +3,7 @@
 RUSTC_MODE="${RUSTC_MODE:-release}"
 DIR_BASE="$(dirname -- "$(readlink -f -- "$0")")/.."
 
-ARGS="run -t /bin/bash"
+ARGS="run -t -- /usr/bin/setsid -c /bin/bash"
 if [ $# -ne 0 ]; then
 	ARGS="$*"
 fi
