@@ -60,14 +60,14 @@ pub fn recv_fd(stream: &mut UnixStream, iov_expect: Vec<u8>) -> io::Result<FileD
 }
 
 pub fn send_fd(stream: &mut UnixStream, id: &[u8], fd: &AsRawFd) -> io::Result<()> {
-    let iov = net::Iovec {
+    let mut iovv = vec!(net::Iovec {
         iov_base: id.as_ptr() as *const c_void,
         iov_len: id.len() as size_t,
-    };
+    });
     let fda = FdPadding::new(fd.as_raw_fd());
-    let ctrl = net::Cmsghdr::new(net::SOL_SOCKET, net::Scm::Rights, fda);
-    let msg = net::Msghdr::new(None, vec!(iov), &ctrl, None);
-    match net::sendmsg(stream, msg) {
+    let mut ctrl = net::Cmsghdr::new(net::SOL_SOCKET, net::Scm::Rights, fda);
+    let msg = net::Msghdr::new(None, &mut iovv, &mut ctrl, None);
+    match net::sendmsg(stream, &msg) {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }

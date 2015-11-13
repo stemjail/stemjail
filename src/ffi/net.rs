@@ -51,22 +51,24 @@ pub type Socklen = c_uint;
 /** Structure describing messages sent by `sendmsg' and received by `recvmsg'. */
 #[cfg(target_arch="x86_64")]
 #[repr(C)]
-pub struct Msghdr<T> {
+pub struct Msghdr<'a, 'b, 'c, T:'c> {
     /** Address to send to/receive from. */
-    msg_name: *const c_void,
+    msg_name: *mut u8,
+    _msg_name: PhantomData<&'a mut [u8]>,
 
     /** Length of address data. */
     msg_namelen: Socklen,
 
     /** Vector of data to send/receive into. */
-    msg_iov: *const Iovec,
+    msg_iov: *mut Iovec,
+    _msg_iov: PhantomData<&'b mut Iovec>,
 
     /** Number of elements in the vector. */
     msg_iovlen: size_t,
 
     /** Ancillary data (eg BSD filedesc passing). */
-    msg_control: *const c_void,
-    _msg_control_type: PhantomData<T>,
+    msg_control: *mut Cmsghdr<T>,
+    _msg_control: PhantomData<&'c mut Cmsghdr<T>>,
 
     /** Ancillary data buffer length.
      *
@@ -79,40 +81,29 @@ pub struct Msghdr<T> {
     msg_flags: c_int,
 }
 
-// Hack for safe lifetime
-struct MsghdrMeta<'a, T> {
-    msghdr: Msghdr<T>,
-    #[allow(dead_code)]
-    addr: Option<&'a [u8]>,
-    #[allow(dead_code)]
-    iov: Vec<Iovec>,
-}
-
-impl<T> Msghdr<T> {
-    pub fn new(addr: Option<&[u8]>, iov: Vec<Iovec>, ctrl: &Cmsghdr<T>, flags: Option<c_int>) -> Msghdr<T> {
+impl<'a, 'b, 'c, T> Msghdr<'a, 'b,'c, T> {
+    pub fn new(addr: Option<&'a mut [u8]>, iovv: &'b mut Vec<Iovec>, ctrl: &'c mut Cmsghdr<T>, flags: Option<c_int>) -> Msghdr<'a, 'b, 'c, T> {
+        // The msg_controllen depicts the whole space (with padding) of Cmsghdr<T>
+        let msg_controllen = size_of_val(ctrl) as size_t;
         let (msg_name, msg_namelen) = match addr {
-            Some(a) => (a.as_ptr() as *const c_void, a.len() as Socklen),
-            None => (ptr::null(), 0),
+            Some(a) => (a.as_mut_ptr(), a.len() as Socklen),
+            None => (ptr::null_mut(), 0),
         };
-        let msg = MsghdrMeta {
-            msghdr: Msghdr {
-                msg_name: msg_name,
-                msg_namelen: msg_namelen,
-                msg_iov: iov.as_ptr(),
-                msg_iovlen: iov.len() as size_t,
-                msg_control: unsafe { transmute(ctrl) },
-                _msg_control_type: PhantomData,
-                // The msg_controllen represent the whole space (with padding) of Cmsghdr<T>
-                msg_controllen: size_of_val(ctrl) as size_t,
-                msg_flags: match flags {
-                    Some(f) => f,
-                    None => 0,
-                },
+        Msghdr {
+            msg_name: msg_name,
+            _msg_name: PhantomData,
+            msg_namelen: msg_namelen,
+            msg_iov: iovv.as_mut_ptr(),
+            _msg_iov: PhantomData,
+            msg_iovlen: iovv.len() as size_t,
+            msg_control: unsafe { transmute(ctrl) },
+            _msg_control: PhantomData,
+            msg_controllen: msg_controllen,
+            msg_flags: match flags {
+                Some(f) => f,
+                None => 0,
             },
-            iov: iov,
-            addr: addr,
-        };
-        msg.msghdr
+        }
     }
 }
 
@@ -172,23 +163,25 @@ impl<T> Cmsghdr<T> {
 #[allow(unused_mut)]
 pub fn recvmsg<T>(sockfd: &mut AsRawFd, iov_len: usize, mut cmsg_data: T) -> io::Result<(ssize_t, Vec<u8>, T)> {
     let mut iov_data = Vec::with_capacity(iov_len);
-    let iov_data_ptr = iov_data.as_mut_ptr();
-    // The iov will be modified by recvmsg
+    let mut iov_data_ptr = iov_data.as_mut_ptr();
     let mut iovv = vec!(Iovec {
         iov_base: unsafe { transmute(iov_data_ptr) },
         iov_len: iov_len as size_t,
     });
     let mut ctrl = Cmsghdr::new(SOL_SOCKET, Scm::Rights, cmsg_data);
-    let mut msg = Msghdr::new(None, iovv, &mut ctrl, None);
-    let size = match unsafe { raw::recvmsg(sockfd.as_raw_fd(), transmute(&mut msg), raw::MSG_CMSG_CLOEXEC) } {
-        -1 => return Err(io::Error::last_os_error()),
-        s => s,
+    let size = {
+        let mut msg = Msghdr::new(None, &mut iovv, &mut ctrl, None);
+        let size = match unsafe { raw::recvmsg(sockfd.as_raw_fd(), transmute(&mut msg), raw::MSG_CMSG_CLOEXEC) } {
+            -1 => return Err(io::Error::last_os_error()),
+            s => s,
+        };
+        unsafe { iov_data.set_len(msg.msg_iovlen as usize) };
+        if msg.msg_controllen != size_of::<Cmsghdr<T>>() as size_t {
+            // Type does not match the size + alignement
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Short write: {}", msg.msg_controllen).as_str()));
+        }
+        size
     };
-    unsafe { iov_data.set_len(msg.msg_iovlen as usize) };
-    if msg.msg_controllen != size_of::<Cmsghdr<T>>() as size_t {
-        // Type does not match the size + alignement
-        return Err(io::Error::new(io::ErrorKind::Other, format!("Short write: {}", msg.msg_controllen).as_str()));
-    }
     if ctrl.cmsg_len != size_of::<Cmsghdr<T>>() as size_t {
         // Bad length
         return Err(io::Error::new(io::ErrorKind::Other, format!("Short write: {}", ctrl.cmsg_len).as_str()));
@@ -196,8 +189,8 @@ pub fn recvmsg<T>(sockfd: &mut AsRawFd, iov_len: usize, mut cmsg_data: T) -> io:
     Ok((size, iov_data, ctrl.__cmsg_data))
 }
 
-pub fn sendmsg<T>(sockfd: &mut AsRawFd, msg: Msghdr<T>) -> io::Result<ssize_t> {
-    match unsafe { raw::sendmsg(sockfd.as_raw_fd(), transmute(&msg), 0) } {
+pub fn sendmsg<T>(sockfd: &mut AsRawFd, msg: &Msghdr<T>) -> io::Result<ssize_t> {
+    match unsafe { raw::sendmsg(sockfd.as_raw_fd(), transmute(msg), 0) } {
         -1 => Err(io::Error::last_os_error()),
         s => Ok(s),
     }
