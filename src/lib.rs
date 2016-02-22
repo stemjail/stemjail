@@ -15,7 +15,6 @@
 #![feature(convert)]
 #![feature(libc)]
 #![feature(mpsc_select)]
-#![feature(path_ext)]
 #![feature(path_relative_from)]
 #![feature(rustc_private)]
 #![feature(vec_push_all)]

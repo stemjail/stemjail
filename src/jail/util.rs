@@ -14,7 +14,7 @@
 
 use ffi::ns::{fs0, umount};
 use rand::{Rng, thread_rng};
-use std::fs::{PathExt, File, create_dir, create_dir_all, remove_dir};
+use std::fs::{File, create_dir, create_dir_all, remove_dir};
 use std::io;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
