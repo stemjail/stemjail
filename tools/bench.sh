@@ -16,14 +16,12 @@
 
 set -eu
 
-# TODO: Add a sync
-
 TIMES="10"
 
-TESTS="bench_gunzip bench_untar bench_zip"
+TESTS="bench_gunzip bench_untar bench_zip bench_build1 bench_build4"
 
 # Must be a tar.gz file format
-TARBALL="linux-4.3.tar.gz"
+TARBALL="linux-4.4.tar.gz"
 
 if [ ! -f "${TARBALL}" ]; then
 	echo "ERROR: The tarball ${TARBALL} is missing." >&2
@@ -31,18 +29,18 @@ if [ ! -f "${TARBALL}" ]; then
 fi
 
 check_time() {
+	sync
 	# Format: kernelland time, userland time
 	exec 9>&1
 	(
-		/usr/bin/time --format '%S %U %E' --output "/proc/self/fd/9" -- "$@" > /dev/null 2>&1
+		echo "$@ ; sync" | /usr/bin/time --format '%S %U %E' --output "/proc/self/fd/9" --  bash --noprofile --norc > /dev/null 2>&1
 	)
 	exec 9>&-
 }
 
 bench_gunzip() {
 	rm -f -- "${TARBALL%%.gz}" 2> /dev/null || true
-	sync
-	check_time bash -c -- gunzip -k -- "${TARBALL}" \; sync
+	check_time gunzip -k -- "${TARBALL}"
 }
 
 bench_untar() {
@@ -57,6 +55,28 @@ bench_zip() {
 	check_time zip -qr "${file}" "${dir}"
 }
 
+bench_build() {
+	local jobs="$1"
+	local data="${TARBALL%%.tar.gz}"
+	if [ ! -d "${data}" ]; then
+		tar -xf "${TARBALL}"
+	fi
+	pushd "${data}" > /dev/null
+	make mrproper &> /dev/null
+	make defconfig ARCH=x86_64 &> /dev/null
+
+	check_time make -j "${jobs}" ARCH=x86_64
+	popd > /dev/null
+}
+
+bench_build1() {
+	bench_build 1
+}
+
+bench_build4() {
+	bench_build 4
+}
+
 do_bench() {
 	local func="$1"
 
@@ -68,7 +88,7 @@ do_bench() {
 	local et=0
 	local all=
 
-	for i in `seq 1 "${TIMES}"`; do
+	for i in $(seq 1 "${TIMES}"); do
 		all="$(${func})"
 		echo "${func}/time: ${all}" >&2
 		kt="$(echo "${all}" | awk -v c="${kt}" '{print $1 " + " c}' | bc -l)"
