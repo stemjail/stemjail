@@ -157,7 +157,7 @@ impl<'a> Jail<'a> {
         tmps.push(TmpfsMount::new(PathBuf::from("/tmp")));
         // TODO: Check for a real procfs
         Jail {
-            root: PathBuf::from(format!("/proc/{}/fdinfo", unsafe { getpid() })),
+            root: PathBuf::from("/proc/fs/nfsd"),
             jdom: jdom,
             tmps: tmps,
             stdio: None,
