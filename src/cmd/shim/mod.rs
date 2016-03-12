@@ -181,8 +181,11 @@ pub struct AccessCache {
 
 impl AccessCache {
     pub fn new() -> AccessCache {
+        let mut def_granted = BTreeSet::new();
+        def_granted.insert_dedup_all(["/dev", "/proc", "/tmp"].into_iter().flat_map(|p|
+            FileAccess::new_rw(p.into()).unwrap()).map(|x| Arc::new(x)));
         AccessCache {
-            granted: BTreeSet::new(),
+            granted: def_granted,
             denied: BTreeSet::new(),
         }
     }
@@ -304,7 +307,6 @@ impl ShimKageCmd {
         Ok(try!(machine.recv_access_response()).new_access)
     }
 
-    // FIXME: Fake /proc and /dev access authorization
     pub fn cache_ask_access(access_data: AccessData, cache: &mut AccessCache)
             -> Result<(), String> {
         let acl: Vec<Arc<FileAccess>> = access_data.clone().into();
