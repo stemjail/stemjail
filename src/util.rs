@@ -13,15 +13,29 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use rustc_serialize::{Encodable, Decodable, json};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::ffi::CString;
+use std::io::{Read, Write};
 
 pub use stemflow::absolute_path;
 
+// Message format: 2 bytes for the size + bincode encoding
 pub fn send<T, U>(stream: &mut T, object: U) -> Result<(), String>
         where T: Write, U: Encodable {
     let encoded = match json::encode(&object) {
-        Ok(s) => format!("{}\n", s),
+        Ok(s) => s,
         Err(e) => return Err(format!("Failed to encode request: {}", e)),
+    };
+    let mut encoded_size = [0u8; 2];
+    if encoded.len() | 0xffff != 0xffff {
+        return Err(format!("Failed to send request: Command too big"));
+    }
+    let size = encoded.len() as u16;
+    for i in 0..2 {
+        encoded_size[i] = (size >> (i * 8)) as u8;
+    }
+    match stream.write_all(&encoded_size) {
+        Ok(_) => {}
+        Err(e) => return Err(format!("Failed to send request: {}", e)),
     };
     match stream.write_all(encoded.as_ref()) {
         Ok(_) => Ok(()),
@@ -31,12 +45,32 @@ pub fn send<T, U>(stream: &mut T, object: U) -> Result<(), String>
 
 pub fn recv<T, U>(stream: &mut T) -> Result<U, String>
         where T: Read, U: Decodable {
-    let mut encoded_str = String::new();
-    let mut breader = BufReader::new(stream);
-    match breader.read_line(&mut encoded_str) {
+    let mut encoded_size = [0u8; 2];
+    match stream.read_exact(&mut encoded_size) {
         Ok(_) => {}
         Err(e) => return Err(format!("Failed to read: {}", e)),
     }
+    let mut size = 0u16;
+    for i in 0..2 {
+        size |= (encoded_size[i] as u16) << i;
+    }
+    // TODO: Add size limit (less than 64K)
+    let mut encoded = Vec::with_capacity(size as usize);
+    let encoded_str = match stream.take(size as u64).read_to_end(&mut encoded) {
+        Ok(s) if s == size as usize => {
+            match CString::new(encoded) {
+                Ok(s) => {
+                    match s.into_string() {
+                        Ok(s) => s,
+                        Err(e) => return Err(format!("Failed to read: {}", e)),
+                    }
+                }
+                Err(e) => return Err(format!("Failed to read: {}", e)),
+            }
+        }
+        Ok(_) => return Err(format!("Failed to read all data")),
+        Err(e) => return Err(format!("Failed to read: {}", e)),
+    };
     match json::decode(&encoded_str) {
         Ok(d) => Ok(d),
         Err(e) => Err(format!("Failed to decode JSON: {:?}", e)),

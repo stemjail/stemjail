@@ -13,6 +13,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #![feature(convert)]
+#![feature(cstring_into)]
 #![feature(libc)]
 #![feature(mpsc_select)]
 #![feature(path_relative_from)]
