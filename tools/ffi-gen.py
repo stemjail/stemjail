@@ -47,7 +47,7 @@ def gen_flags(define, output, defbinds):
                 fout.write(get_header())
                 for defbind in defbinds:
                     fout.write("\nbitflags! {{\n    pub flags {0}Flags: ::libc::{1} {{\n".format(to_camel(defbind.name), defbind.ctype))
-                    re_define = re.compile(r"^#define\s+(?P<name>(:?{0})_\w+)\s+(?P<value>\S+)\s*(?P<comment>/\*.+?\*/)?.*".format(defbind.prefix))
+                    re_define = re.compile(r"^#define\s+(?P<name>(:?{0})_\w+)\s+(?P<value>\S+)\s*(/\*\s*(?P<comment>.+?)\s*\*/)?.*".format(defbind.prefix))
                     first_time = True
                     for line in fin:
                         match = re_define.match(line)
@@ -58,7 +58,7 @@ def gen_flags(define, output, defbinds):
                                 fout.write(",\n\n")
                             comment = match.group("comment")
                             if comment:
-                                fout.write("        {0}\n".format(comment))
+                                fout.write("        /** {0} */\n".format(comment))
                             value = match.group("value")
                             if re_octal_value.match(value):
                                 value = re_octal_header.sub("0o", value)
