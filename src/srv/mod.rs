@@ -115,7 +115,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     };
     while !quit.load(Relaxed) {
         match acceptor.accept() {
-            Ok(s) => {
+            Ok((s, _)) => {
                 let client_cmd_fn = cmd_tx.clone();
                 request_count += 1;
                 // TODO: Join all threads
