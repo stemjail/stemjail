@@ -107,6 +107,7 @@ do_bench() {
 	echo "${func} ${kta} ${uta} ${eta}"
 }
 
+echo "Starting $(basename -- "$0") in $(pwd)"
 for func in ${TESTS}; do
 	do_bench "${func}"
 done
