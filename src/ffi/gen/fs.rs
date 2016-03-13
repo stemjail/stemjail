@@ -2,38 +2,37 @@
 
 extern crate libc;
 
-use self::libc::c_ulong;
 
 bitflags! {
-    flags MsFlags: c_ulong {
-        /* Mount read-only */
+    pub flags MsFlags: ::libc::c_ulong {
+        /** Mount read-only */
         const MS_RDONLY = 1,
 
-        /* Ignore suid and sgid bits */
+        /** Ignore suid and sgid bits */
         const MS_NOSUID = 2,
 
-        /* Disallow access to device special files */
+        /** Disallow access to device special files */
         const MS_NODEV = 4,
 
-        /* Disallow program execution */
+        /** Disallow program execution */
         const MS_NOEXEC = 8,
 
-        /* Writes are synced at once */
+        /** Writes are synced at once */
         const MS_SYNCHRONOUS = 16,
 
-        /* Alter flags of a mounted FS */
+        /** Alter flags of a mounted FS */
         const MS_REMOUNT = 32,
 
-        /* Allow mandatory locks on an FS */
+        /** Allow mandatory locks on an FS */
         const MS_MANDLOCK = 64,
 
-        /* Directory modifications are synchronous */
+        /** Directory modifications are synchronous */
         const MS_DIRSYNC = 128,
 
-        /* Do not update access times. */
+        /** Do not update access times. */
         const MS_NOATIME = 1024,
 
-        /* Do not update directory access times */
+        /** Do not update directory access times */
         const MS_NODIRATIME = 2048,
 
         const MS_BIND = 4096,
@@ -46,31 +45,31 @@ bitflags! {
 
         const MS_SILENT = 32768,
 
-        /* VFS does not apply the umask */
+        /** VFS does not apply the umask */
         const MS_POSIXACL = (1<<16),
 
-        /* change to unbindable */
+        /** change to unbindable */
         const MS_UNBINDABLE = (1<<17),
 
-        /* change to private */
+        /** change to private */
         const MS_PRIVATE = (1<<18),
 
-        /* change to slave */
+        /** change to slave */
         const MS_SLAVE = (1<<19),
 
-        /* change to shared */
+        /** change to shared */
         const MS_SHARED = (1<<20),
 
-        /* Update atime relative to mtime/ctime. */
+        /** Update atime relative to mtime/ctime. */
         const MS_RELATIME = (1<<21),
 
-        /* this is a kern_mount call */
+        /** this is a kern_mount call */
         const MS_KERNMOUNT = (1<<22),
 
-        /* Update inode I_version field */
+        /** Update inode I_version field */
         const MS_I_VERSION = (1<<23),
 
-        /* Always perform atime updates */
+        /** Always perform atime updates */
         const MS_STRICTATIME = (1<<24),
 
         const MS_NOSEC = (1<<28),
