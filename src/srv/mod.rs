@@ -100,6 +100,7 @@ pub fn portal_listen(portal: Portal) -> Result<(), String> {
 // FIXME: Handle return error
 pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
     let server = MONITOR_SOCKET_PATH;
+    let mut request_count = 0u64;
     // FIXME: Use libc::SO_REUSEADDR for unix socket instead of removing the file
     let _ = fs::remove_file(&server);
     let acceptor = match UnixListener::bind(&server) {
@@ -116,6 +117,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
         match acceptor.accept() {
             Ok(s) => {
                 let client_cmd_fn = cmd_tx.clone();
+                request_count += 1;
                 // TODO: Join all threads
                 thread::spawn(|| {
                     // TODO: Forward the quit event to monitor_handle
@@ -129,4 +131,5 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
             Err(e) => debug!("Connection error: {}", e),
         }
     }
+    info!("Monitor got {} requests", request_count);
 }
