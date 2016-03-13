@@ -12,8 +12,9 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use rustc_serialize::{Encodable, Decodable, json};
-use std::ffi::CString;
+use bincode::rustc_serialize::{encode, decode};
+use bincode::SizeLimit;
+use rustc_serialize::{Encodable, Decodable};
 use std::io::{Read, Write};
 
 pub use stemflow::absolute_path;
@@ -21,7 +22,7 @@ pub use stemflow::absolute_path;
 // Message format: 2 bytes for the size + bincode encoding
 pub fn send<T, U>(stream: &mut T, object: U) -> Result<(), String>
         where T: Write, U: Encodable {
-    let encoded = match json::encode(&object) {
+    let encoded = match encode(&object, SizeLimit::Infinite) {
         Ok(s) => s,
         Err(e) => return Err(format!("Failed to encode request: {}", e)),
     };
@@ -56,23 +57,13 @@ pub fn recv<T, U>(stream: &mut T) -> Result<U, String>
     }
     // TODO: Add size limit (less than 64K)
     let mut encoded = Vec::with_capacity(size as usize);
-    let encoded_str = match stream.take(size as u64).read_to_end(&mut encoded) {
-        Ok(s) if s == size as usize => {
-            match CString::new(encoded) {
-                Ok(s) => {
-                    match s.into_string() {
-                        Ok(s) => s,
-                        Err(e) => return Err(format!("Failed to read: {}", e)),
-                    }
-                }
-                Err(e) => return Err(format!("Failed to read: {}", e)),
-            }
-        }
+    let encoded = match stream.take(size as u64).read_to_end(&mut encoded) {
+        Ok(s) if s == size as usize => encoded,
         Ok(_) => return Err(format!("Failed to read all data")),
         Err(e) => return Err(format!("Failed to read: {}", e)),
     };
-    match json::decode(&encoded_str) {
+    match decode(encoded.as_ref()) {
         Ok(d) => Ok(d),
-        Err(e) => Err(format!("Failed to decode JSON: {:?}", e)),
+        Err(e) => Err(format!("Failed to decode: {:?}", e)),
     }
 }

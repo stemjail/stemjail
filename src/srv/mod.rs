@@ -76,7 +76,7 @@ fn portal_ext_listen(manager_tx: Sender<ManagerAction>) {
                 thread::spawn(|| {
                     match portal_handle(c, manager_tx) {
                         Ok(_) => {},
-                        Err(e) => error!("Error handling client: {}", e),
+                        Err(e) => error!("Error handling portal client: {}", e),
                     }
                 });
             }
@@ -121,7 +121,7 @@ pub fn monitor_listen(cmd_tx: Sender<Box<JailFn>>, quit: Arc<AtomicBool>) {
                     // TODO: Forward the quit event to monitor_handle
                     match monitor_handle(s, client_cmd_fn) {
                         Ok(_) => {},
-                        Err(e) => debug!("Error handling client: {}", e),
+                        Err(e) => debug!("Error handling monitor client: {}", e),
                     }
                 });
             }

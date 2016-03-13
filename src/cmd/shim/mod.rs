@@ -14,10 +14,10 @@
 
 #![allow(deprecated)]
 
+use bincode::rustc_serialize::{DecodingResult, EncodingResult};
 use getopts::Options;
 use jail::{Jail, JailFn, WORKDIR_PARENT};
 use jail::util::nest_path;
-use rustc_serialize::json;
 use self::fsm_kage::KageFsm;
 use self::fsm_monitor::MonitorFsmInit;
 use std::collections::BTreeSet;
@@ -84,7 +84,7 @@ pub struct ListRequest {
 pub struct ListResponse {
     pub result: Vec<PathBuf>,
 }
-impl_json!(ListResponse);
+impl_encdec!(ListResponse);
 
 pub struct MonitorBundle<T> {
     pub request: T,
@@ -214,7 +214,7 @@ impl AccessRequest {
 pub struct AccessResponse {
     pub new_access: Vec<AccessData>,
 }
-impl_json!(AccessResponse);
+impl_encdec!(AccessResponse);
 
 impl JailFn for MonitorBundle<AccessRequest> {
     fn call(&mut self, jail: &mut Jail) {

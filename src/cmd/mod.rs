@@ -17,7 +17,7 @@
 /// enum `MonitorCall` -> custom cmd { enum Action -> struct Request }
 /// struct `PortalAck` -> `PartalRequest`
 
-use rustc_serialize::json;
+use bincode::rustc_serialize::{DecodingResult, EncodingResult};
 
 #[macro_use]
 mod util;
@@ -40,20 +40,20 @@ pub enum PortalCall {
     Run(run::RunAction),
     Info(info::InfoAction),
 }
-impl_json!(PortalCall);
+impl_encdec!(PortalCall);
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub enum MonitorCall {
     Mount(mount::MountAction),
     Shim(shim::ShimAction),
 }
-impl_json!(MonitorCall);
+impl_encdec!(MonitorCall);
 
 #[derive(Clone, Copy, Debug, RustcDecodable, RustcEncodable)]
 pub struct PortalAck {
     pub request: PortalRequest,
 }
-impl_json!(PortalAck);
+impl_encdec!(PortalAck);
 
 #[derive(Clone, Copy, Debug, RustcDecodable, RustcEncodable)]
 pub enum PortalRequest {

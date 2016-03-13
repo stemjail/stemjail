@@ -16,8 +16,8 @@
 
 /// `Request::call(&self, PortalFsmInit)` use `PortalFsm`
 
+use bincode::rustc_serialize::{DecodingResult, EncodingResult};
 use getopts::Options;
-use rustc_serialize::json;
 use self::fsm_kage::KageFsm;
 use self::fsm_portal::{PortalFsmInit, PortalFsm};
 use srv::{GetDotRequest, ManagerAction};
@@ -47,7 +47,7 @@ impl InfoAction {
 pub struct DotResponse {
     pub result: Option<String>,
 }
-impl_json!(DotResponse);
+impl_encdec!(DotResponse);
 
 #[derive(Clone, Debug, RustcDecodable, RustcEncodable)]
 pub struct DotRequest;

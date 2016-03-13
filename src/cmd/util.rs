@@ -17,14 +17,18 @@ use std::path::Path;
 pub use ::util::{recv, send};
 
 // TODO: Replace with generic trait
-macro_rules! impl_json {
+macro_rules! impl_encdec {
     ($name: ty) => {
         impl $name {
-            pub fn decode(encoded: &String) -> json::DecodeResult<$name> {
-                json::decode(encoded.as_ref())
+            pub fn decode<T>(encoded: T) -> DecodingResult<$name> where T: AsRef<[u8]> {
+                use bincode::rustc_serialize::decode;
+                decode(encoded.as_ref())
             }
-            pub fn encode(&self) -> Result<String, json::EncoderError> {
-                json::encode(&self)
+            pub fn encode(&self) -> EncodingResult<Vec<u8>> {
+                use bincode::SizeLimit;
+                use bincode::rustc_serialize::encode;
+                // TODO: Set a limit
+                encode(&self, SizeLimit::Infinite)
             }
         }
     }

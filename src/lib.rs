@@ -13,7 +13,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #![feature(convert)]
-#![feature(cstring_into)]
 #![feature(libc)]
 #![feature(mpsc_select)]
 #![feature(path_relative_from)]
@@ -25,6 +24,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate log;
 
+extern crate bincode;
 extern crate bufstream;
 extern crate byteorder;
 extern crate fd;
