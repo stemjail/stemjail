@@ -29,19 +29,14 @@ pub fn send<T, U>(stream: &mut T, object: U) -> Result<(), String>
     }
 }
 
-pub fn recv_line<T>(stream: &mut T) -> Result<String, String>
-        where T: Read {
+pub fn recv<T, U>(stream: &mut T) -> Result<U, String>
+        where T: Read, U: Decodable {
     let mut encoded_str = String::new();
     let mut breader = BufReader::new(stream);
     match breader.read_line(&mut encoded_str) {
-        Ok(_) => Ok(encoded_str),
-        Err(e) => Err(format!("Failed to read: {}", e)),
+        Ok(_) => {}
+        Err(e) => return Err(format!("Failed to read: {}", e)),
     }
-}
-
-pub fn recv<T, U>(stream: &mut T) -> Result<U, String>
-        where T: Read, U: Decodable {
-    let encoded_str = try!(recv_line(stream));
     match json::decode(&encoded_str) {
         Ok(d) => Ok(d),
         Err(e) => Err(format!("Failed to decode JSON: {:?}", e)),

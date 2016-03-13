@@ -28,19 +28,14 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 use unix_socket::{UnixListener, UnixStream};
-use util::recv_line;
+use util::recv;
 
 pub use srv::manager::{DomDesc, GetDotRequest, ManagerAction, NewDomRequest};
 
 mod manager;
 
 fn portal_handle(mut stream: UnixStream, manager_tx: Sender<ManagerAction>) -> Result<(), String> {
-    let decoded_str = try!(recv_line(&mut stream));
-    let decoded = match PortalCall::decode(&decoded_str) {
-        Ok(d) => d,
-        Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
-    };
-
+    let decoded = try!(recv(&mut stream));
     debug!("Portal got request: {:?}", decoded);
     // Use the client command if any or the configuration command otherwise
     match decoded {
@@ -51,11 +46,7 @@ fn portal_handle(mut stream: UnixStream, manager_tx: Sender<ManagerAction>) -> R
 
 // TODO: Handle return error
 fn monitor_handle(mut stream: UnixStream, cmd_tx: Sender<Box<JailFn>>) -> Result<(), String> {
-    let decoded_str = try!(recv_line(&mut stream));
-    let decoded = match MonitorCall::decode(&decoded_str) {
-        Ok(d) => d,
-        Err(e) => return Err(format!("Failed to decode command: {:?}", e)),
-    };
+    let decoded = try!(recv(&mut stream));
     debug!("Monitor got request: {:?}", decoded);
     match decoded {
         MonitorCall::Mount(action) => action.call(cmd_tx),
