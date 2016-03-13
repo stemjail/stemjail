@@ -24,11 +24,8 @@ def usage():
     name = sys.argv[0]
     print("usage: {0} [linux-src-dir]".format(name))
 
-def get_header(defbinds):
-    ret = "#![allow(dead_code)]\n\nextern crate libc;\n\n"
-    for defbind in defbinds:
-        ret += "use self::libc::{0};\n".format(defbind.ctype)
-    return ret
+def get_header():
+    return "#![allow(dead_code)]\n\nextern crate libc;\n\n"
 
 def to_camel(data):
     return "".join(x.capitalize() for x in data.lower().split("_"))
@@ -47,9 +44,9 @@ def gen_flags(define, output, defbinds):
                 re_octal_header = re.compile(r"^0")
                 re_octal_value = re.compile(r"^0[0-9]+")
 
-                fout.write(get_header(defbinds))
+                fout.write(get_header())
                 for defbind in defbinds:
-                    fout.write("\nbitflags! {{\n    flags {0}Flags: {1} {{\n".format(to_camel(defbind.name), defbind.ctype))
+                    fout.write("\nbitflags! {{\n    pub flags {0}Flags: ::libc::{1} {{\n".format(to_camel(defbind.name), defbind.ctype))
                     re_define = re.compile(r"^#define\s+(?P<name>(:?{0})_\w+)\s+(?P<value>\S+)\s*(?P<comment>/\*.+?\*/)?.*".format(defbind.prefix))
                     first_time = True
                     for line in fin:
