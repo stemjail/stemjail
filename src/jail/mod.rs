@@ -22,6 +22,7 @@ use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare, sethostname};
 use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
 use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
+use MONITOR_SOCKET_PATH;
 use self::util::*;
 use srv;
 use std::borrow::Cow::{Borrowed, Owned};
@@ -39,6 +40,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{channel, Receiver, Select};
 use std::thread;
 use stemflow::{FileAccess, RefDom};
+use unix_socket::UnixStream;
 
 pub use self::session::SessionIo;
 
@@ -795,6 +797,10 @@ impl<'a> Jail<'a> {
                 // TODO: Handle thread error
                 let _ = child_thread.join();
                 debug!("Jail child monitor exited");
+
+                // Hack to force monitor_listen to check the quit command
+                // TODO: Decement the request_count
+                drop(UnixStream::connect(MONITOR_SOCKET_PATH));
                 // TODO: Handle thread error
                 let _ = cmd_thread.join();
                 debug!("Jail command monitor exited");
