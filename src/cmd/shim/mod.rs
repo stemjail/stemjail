@@ -18,6 +18,7 @@ use bincode::rustc_serialize::{DecodingResult, EncodingResult};
 use getopts::Options;
 use jail::{Jail, JailFn, WORKDIR_PARENT};
 use jail::util::nest_path;
+use mnt::get_mount_writable;
 use self::fsm_kage::KageFsm;
 use self::fsm_monitor::MonitorFsmInit;
 use std::collections::BTreeSet;
@@ -312,10 +313,33 @@ impl ShimKageCmd {
         let acl: Vec<Arc<FileAccess>> = access_data.clone().into();
         // The denied cache must exactly match the request to not ignore a valid (nested) one
         if ! acl.iter().find(|&x| ! ( cache.granted.is_allowed(x) || cache.denied.contains(x) )).is_some() {
+            return Ok(());
+        }
+        // TODO: Merge `found_mount` below
+        let found_mount = match get_mount_writable(&access_data.path, access_data.write) {
+            Some(m) => if m.file != Path::new("/") {
+                let new_access = if access_data.write {
+                    FileAccess::new_rw(m.file)
+                } else {
+                    FileAccess::new_ro(m.file)
+                };
+                match new_access {
+                    Ok(a) => {
+                        let _ = cache.granted.insert_dedup_all(a.into_iter().map(|x| Arc::new(x)));
+                        true
+                    }
+                    Err(_) => false,
+                }
+            } else {
+                false
+            },
+            _ => false
+        };
+        if found_mount {
             Ok(())
         } else {
             let req = AccessRequest {
-                data: access_data.clone(),
+                data: access_data,
                 get_all_access: cache.granted.is_empty(),
             };
 
