@@ -25,7 +25,7 @@ mod state {
 
 pub type MonitorFsmInit = MonitorFsm<state::Init>;
 
-struct MonitorFsm<T> {
+pub struct MonitorFsm<T> {
     stream: UnixStream,
     _state: PhantomData<T>,
 }
