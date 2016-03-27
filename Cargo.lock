@@ -7,15 +7,15 @@ dependencies = [
  "bufstream 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "fd 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fd 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "mnt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mnt 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "stemflow 0.5.1",
  "toml 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "tty 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tty 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "unix_socket 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -74,8 +74,11 @@ dependencies = [
 
 [[package]]
 name = "fd"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "getopts"
@@ -105,8 +108,11 @@ dependencies = [
 
 [[package]]
 name = "mnt"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "num"
@@ -173,10 +179,11 @@ dependencies = [
 
 [[package]]
 name = "tty"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "fd 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fd 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "termios 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
