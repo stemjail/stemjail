@@ -14,9 +14,6 @@
 
 #![cfg(not(test))]
 
-#![feature(convert)]
-#![feature(libc)]
-
 extern crate env_logger;
 extern crate libc;
 #[macro_use]
