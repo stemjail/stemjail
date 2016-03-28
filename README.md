@@ -1,4 +1,4 @@
-# StemJail: Dynamic user-activity isolation
+# StemJail: Evolving jails for user activities
 
 StemJail brings to the enduser a mechanism to automatically isolate processes according to the data access pattern (usage).
 This proof of concept relies on Linux user namespaces and thus is available to unprivileged users.
@@ -111,7 +111,7 @@ It's useless for a malicious process not to notify the monitor because then the 
 
 ## Requirements
 
-You need Rust 1.4.0 (current nightly) and Cargo to build StemJail and its dependencies.
+You need Rust 1.7.0-dev (nightly) and Cargo to build StemJail and its dependencies.
 
 ## Clone repositories
 
@@ -144,7 +144,7 @@ Take a look at the examples.
 
 ## Run portal
 
-To run portal in debug mode:
+To run portal in release mode:
 ```
 ./tools/portal.sh
 ```
@@ -179,7 +179,7 @@ This procedure is dangerous because it gives too much rights to StemJail which i
 For now, use this for test purposes only!
 
 ```
-# setcap cap_sys_admin,cap_setuid,cap_setgid,cap_dac_override=ep /path/to/target/debug/portal
+# setcap cap_sys_admin,cap_setuid,cap_setgid,cap_dac_override=ep /path/to/target/release/portal
 ```
 
 
