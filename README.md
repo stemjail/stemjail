@@ -117,7 +117,6 @@ You need Rust 1.4.0 (current nightly) and Cargo to build StemJail and its depend
 
 ```
 $ git clone https://github.com/stemjail/stemjail
-$ git clone https://github.com/stemjail/stemflow
 $ git clone https://github.com/stemjail/stemshim
 ```
 

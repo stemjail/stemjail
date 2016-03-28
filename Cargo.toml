@@ -22,10 +22,7 @@ log = "0.3"
 mnt = "0.3"
 rand = "0.3"
 rustc-serialize = "0.3"
+stemflow = "0.5.2"
 toml = "0.1"
 tty = "0.4.2"
 unix_socket = "0.5"
-
-[dependencies.stemflow]
-path = "../stemflow"
-version = ">= 0.5.1"
