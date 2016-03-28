@@ -1,0 +1,28 @@
+# Portal profile for the Company
+
+name = "Company"
+
+[[fs.bind]]
+path = "/bin"
+
+[[fs.bind]]
+path = "/etc"
+
+[[fs.bind]]
+path = "/lib"
+
+[[fs.bind]]
+path = "/lib64"
+
+[[fs.bind]]
+path = "/usr"
+
+[[fs.bind]]
+path = "/var/cache"
+
+[[fs.bind]]
+path = "/home/user/Company"
+write = true
+
+[run]
+cmd = ["/bin/sh"]
