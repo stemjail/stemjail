@@ -1,6 +1,6 @@
 [package]
 name = "stemjail"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Mickaël Salaün <mic@digikod.net>"]
 description = "Evolving jails for user activities"
 repository = "https://github.com/stemjail/stemjail"

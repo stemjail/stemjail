@@ -1,6 +1,6 @@
 [root]
 name = "stemjail"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bincode 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
