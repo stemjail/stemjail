@@ -50,4 +50,6 @@ mod ffi;
 pub static PORTAL_SOCKET_PATH: &'static str = "./portal.sock";
 pub static PORTAL_PROFILES_PATH: &'static str = "./config/profiles";
 
+pub static PORTAL_LIB_PRELOAD_ENV: &'static str = "STEMJAIL_LIB_SHIM_PATH";
+
 pub static MONITOR_SOCKET_PATH: &'static str = "/tmp/monitor.sock";

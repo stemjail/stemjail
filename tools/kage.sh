@@ -4,7 +4,7 @@ RUSTC_MODE="${RUSTC_MODE:-release}"
 DIR_BASE="$(dirname -- "$(readlink -f -- "$0")")/.."
 cd "${DIR_BASE}"
 
-ARGS="run -t -- ${DIR_BASE}/tools/env.sh /usr/bin/setsid -c /bin/bash"
+ARGS="run -t -- /usr/bin/setsid -c /bin/bash"
 if [ $# -ne 0 ]; then
 	ARGS="$*"
 fi

@@ -22,15 +22,16 @@ use ffi::ns::{fs, raw, sched};
 use ffi::ns::{mount, pivot_root, unshare, sethostname};
 use libc::{c_int, exit, fork, pid_t, getpid, setsid, getgid, getuid};
 use mnt::{get_mount, get_submounts, MntOps, VecMountEntry};
-use MONITOR_SOCKET_PATH;
+use {MONITOR_SOCKET_PATH, PORTAL_LIB_PRELOAD_ENV};
 use self::util::*;
 use srv;
 use std::borrow::Cow::{Borrowed, Owned};
 use std::env;
 use std::fmt::Debug;
-use std::fs::{OpenOptions, create_dir, soft_link};
+use std::fs::{File, OpenOptions, create_dir, soft_link};
 use std::io;
 use std::io::{ErrorKind, Error, Read, Write};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -285,6 +286,32 @@ impl<'a> Jail<'a> {
         let dev_flags = fs::MS_BIND | fs::MS_REMOUNT | fs::MS_RDONLY;
         try!(mount("none", devdir_full, "", &dev_flags, &None));
 
+        Ok(())
+    }
+
+    // Create the ld.so.preload
+    fn init_preload<T>(&self, target: T) -> io::Result<()> where T: AsRef<Path> {
+        // FIXME: Handle multiple call to init_preload (should not happen anyway)
+        let src = PathBuf::from("./ld.so.preload");
+        let dst = nest_path(&self.root, &target);
+        let mut target_file = try!(File::create(&src));
+        let preload = match env::var(PORTAL_LIB_PRELOAD_ENV) {
+            Ok(path) => path,
+            Err(e) => {
+                warn!("Failed to read environment variable {} to load the stemshim library: {}", PORTAL_LIB_PRELOAD_ENV, e);
+                return Ok(());
+            }
+        };
+        // TODO: Append the stemshim library to other libraries from the host system
+        try!(target_file.write_all(preload.as_bytes()));
+        drop(target_file);
+        let bind = BindMount {
+            src: src,
+            dst: dst.into(),
+            writable: false,
+            from_parent: false,
+        };
+        try!(self.add_bind(&bind, true));
         Ok(())
     }
 
@@ -570,6 +597,8 @@ impl<'a> Jail<'a> {
 
         // Devices
         try!(self.init_dev("/dev"));
+        // LD_PRELOAD
+        try!(self.init_preload("/etc/ld.so.preload"));
 
         // Prepare a private working directory
         let pid = unsafe { getpid() };
