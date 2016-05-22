@@ -24,5 +24,8 @@ path = "/var/cache"
 path = "/home/user/Clients/Paranoid"
 write = true
 
+[[fs.bind]]
+path = "/home/user/Advertisements"
+
 [run]
 cmd = ["/bin/sh"]
