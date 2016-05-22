@@ -152,9 +152,9 @@ To run portal in release mode:
 
 ## Run a jail
 
-For now, we need to manually set the environment to preload StemShim:
+For now, you need to have an existing (empty) */etc/ld.so.preload* file.
 ```
-./tools/kage.sh run -t -- /path/to/stemjail/tools/env.sh /path/to/your/application
+./tools/kage.sh run -t -- /path/to/your/application
 ```
 
 
