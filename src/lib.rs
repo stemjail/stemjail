@@ -26,6 +26,7 @@ extern crate bincode;
 extern crate bufstream;
 extern crate byteorder;
 extern crate fd;
+extern crate fdpass;
 extern crate getopts;
 extern crate graphviz;
 extern crate libc;
@@ -39,7 +40,6 @@ extern crate unix_socket;
 
 pub mod cmd;
 pub mod config;
-pub mod fdpass;
 pub mod jail;
 pub mod srv;
 pub mod util;

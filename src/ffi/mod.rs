@@ -18,5 +18,4 @@ macro_rules! path2bytes {
     }
 }
 
-pub mod net;
 pub mod ns;
