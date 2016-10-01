@@ -24,9 +24,9 @@ pub fn nest_path<T, U>(root: T, subdir: U) -> PathBuf where T: AsRef<Path>, U: A
     let root = root.as_ref();
     let subdir = subdir.as_ref();
     root.join(
-        match subdir.relative_from("/") {
-            Some(p) => p.to_path_buf(),
-            None => subdir.to_path_buf(),
+        match subdir.strip_prefix("/") {
+            Ok(p) => p.to_path_buf(),
+            Err(_) => subdir.to_path_buf(),
         }
     )
 }

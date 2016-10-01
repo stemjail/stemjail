@@ -28,7 +28,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
-use stemflow::{Access, Action, SetAccess, FileAccess};
+use stemflow::{Action, SetAccess, FileAccess};
 use super::util;
 use unix_socket::UnixStream;
 
@@ -109,9 +109,9 @@ impl MonitorBundle<ListRequest> {
     fn list<T>(&self, dir: T) -> io::Result<Vec<PathBuf>> where T: AsRef<Path> {
         let mut ret = vec!();
         for file in try!(fs::read_dir(&dir)) {
-            match try!(file).path().relative_from(&dir) {
-                Some(d) => ret.push(d.to_path_buf()),
-                None => warn!("Failed to get relative path"),
+            match try!(file).path().strip_prefix(&dir) {
+                Ok(d) => ret.push(d.to_path_buf()),
+                Err(e) => warn!("Failed to get relative path: {}", e),
             }
         }
         Ok(ret)

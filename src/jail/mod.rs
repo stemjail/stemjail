@@ -338,20 +338,20 @@ impl<'a> Jail<'a> {
             let mut mount = mount.clone();
             if mount.from_parent {
                 let rel_src = mount.src.clone();
-                let rel_src = match rel_src.relative_from(&parent) {
-                    Some(p) => p,
-                    None => {
-                        warn!("Failed to get relative path from {}", parent.display());
+                let rel_src = match rel_src.strip_prefix(&parent) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        warn!("Failed to get relative path from {}: {}", parent.display(), e);
                         return Err(io::Error::new(ErrorKind::Other, "Relative path conversion"));
                     }
                 };
                 mount.src = nest_path(&WORKDIR_PARENT, rel_src);
             }
             let rel_dst = mount.dst.clone();
-            let rel_dst = match rel_dst.relative_from(&bind.dst) {
-                Some(p) => p,
-                None => {
-                    warn!("Failed to get relative path from {}", bind.dst.display());
+            let rel_dst = match rel_dst.strip_prefix(&bind.dst) {
+                Ok(p) => p,
+                Err(e) => {
+                    warn!("Failed to get relative path from {}: {}", bind.dst.display(), e);
                     return Err(io::Error::new(ErrorKind::Other, "Relative path conversion"));
                 }
             };
@@ -483,10 +483,10 @@ impl<'a> Jail<'a> {
                 for mount in host_mounts.iter() {
                     let sub_src = mount.file.clone();
                     if sub_src.starts_with(&bind.src) && bind.src != sub_src {
-                        let rel_dst = match mount.file.relative_from(&bind.src) {
-                            Some(p) => p,
-                            None => {
-                                warn!("Failed to get relative path from {}", bind.src.display());
+                        let rel_dst = match mount.file.strip_prefix(&bind.src) {
+                            Ok(p) => p,
+                            Err(e) => {
+                                warn!("Failed to get relative path from {}: {}", bind.src.display(), e);
                                 return Err(io::Error::new(ErrorKind::Other, "Relative path conversion"));
                             }
                         };
