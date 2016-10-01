@@ -506,7 +506,7 @@ impl<'a> Jail<'a> {
                     new_all_binds.push(cur_bind);
                 }
             }
-            new_all_binds.push_all(sub_binds.as_slice());
+            new_all_binds.extend_from_slice(sub_binds.as_slice());
             all_binds = new_all_binds;
         }
         Ok(all_binds)

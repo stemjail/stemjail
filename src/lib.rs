@@ -14,7 +14,6 @@
 
 #![feature(mpsc_select)]
 #![feature(path_relative_from)]
-#![feature(vec_push_all)]
 
 #[macro_use]
 extern crate bitflags;
