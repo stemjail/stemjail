@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-use graphviz;
+use dot;
 use std::fmt;
 use std::io;
 use std::sync::Arc;
@@ -67,7 +67,7 @@ impl Portal {
     }
 
     pub fn render<T>(&self, out: &mut T) -> io::Result<()> where T: io::Write {
-        graphviz::render(&self.pool, out)
+        dot::render(&self.pool, out)
     }
 
     pub fn is_confined(&self) -> bool {

@@ -14,7 +14,6 @@
 
 #![feature(mpsc_select)]
 #![feature(path_relative_from)]
-#![feature(rustc_private)]
 #![feature(vec_push_all)]
 
 #[macro_use]
@@ -25,10 +24,10 @@ extern crate log;
 extern crate bincode;
 extern crate bufstream;
 extern crate byteorder;
+extern crate dot;
 extern crate fd;
 extern crate fdpass;
 extern crate getopts;
-extern crate graphviz;
 extern crate libc;
 extern crate mnt;
 extern crate rand;
